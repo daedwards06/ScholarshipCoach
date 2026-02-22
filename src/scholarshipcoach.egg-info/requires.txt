@@ -1,0 +1,9 @@
+pandas
+pyarrow
+scikit-learn
+streamlit
+requests
+
+[dev]
+pytest
+ruff

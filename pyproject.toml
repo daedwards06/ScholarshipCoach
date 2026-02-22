@@ -13,6 +13,7 @@ dependencies = [
   "pyarrow",
   "scikit-learn",
   "streamlit",
+  "requests",
 ]
 
 [project.optional-dependencies]

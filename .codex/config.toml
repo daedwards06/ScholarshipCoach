@@ -1,0 +1,2 @@
+[commands]
+test = "powershell -NoProfile -ExecutionPolicy Bypass -Command \"./.venv/Scripts/Activate.ps1; pytest -q\""

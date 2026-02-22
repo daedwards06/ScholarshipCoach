@@ -1,0 +1,30 @@
+﻿[
+  {
+    "id": 1001,
+    "link": "https://www.scholarshipamerica.org/blog/future-leaders-scholarship/",
+    "slug": "future-leaders-scholarship",
+    "title": {
+      "rendered": "Future Leaders Scholarship"
+    },
+    "excerpt": {
+      "rendered": "Award amount ranges from $1,000 to $5,000. Deadline: 2026-03-01."
+    },
+    "content": {
+      "rendered": "Eligible students in STEM disciplines may apply."
+    }
+  },
+  {
+    "id": 1002,
+    "link": "https://www.scholarshipamerica.org/blog/community-impact-award/",
+    "slug": "community-impact-award",
+    "title": {
+      "rendered": "Community Impact Award"
+    },
+    "excerpt": {
+      "rendered": "Single award of $2,500. Deadline: 2026-05-15."
+    },
+    "content": {
+      "rendered": "Open to graduating high school seniors."
+    }
+  }
+]
