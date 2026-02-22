@@ -103,6 +103,23 @@ def list_snapshot_files(processed_dir: Path) -> list[Path]:
     return [item[1] for item in snapshots]
 
 
+def get_latest_snapshot_path(processed_dir: Path) -> Path | None:
+    snapshots = list_snapshot_files(processed_dir)
+    if not snapshots:
+        return None
+    return snapshots[-1]
+
+
+def load_latest_snapshot_df(processed_dir: Path) -> pd.DataFrame:
+    latest_path = get_latest_snapshot_path(processed_dir)
+    if latest_path is None:
+        raise FileNotFoundError(
+            f"No snapshot parquet found in '{processed_dir}'. "
+            "Run ingest to generate data/processed/scholarships_snapshot_YYYYMMDD.parquet."
+        )
+    return pd.read_parquet(latest_path)
+
+
 def find_prior_snapshot(processed_dir: Path, target_date: date) -> Path | None:
     target_name = _snapshot_filename(target_date)
     candidates = [path for path in list_snapshot_files(processed_dir) if path.name != target_name]

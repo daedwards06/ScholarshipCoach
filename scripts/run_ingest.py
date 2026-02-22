@@ -20,6 +20,8 @@ from src.io.snapshotting import (
     REQUIRED_COLUMNS,
     build_and_write_snapshot,
     find_prior_snapshot,
+    get_latest_snapshot_path as _get_latest_snapshot_path,
+    load_latest_snapshot_df as _load_latest_snapshot_df,
     write_json_atomic,
 )
 
@@ -125,19 +127,23 @@ def _build_guardrail_warnings(
     return warnings
 
 
-def main() -> int:
-    args = parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+def run_ingest(
+    *,
+    date: date | None = None,
+    raw_dir: Path | None = None,
+    processed_dir: Path | None = None,
+    requests_per_second: float = 1.0,
+) -> dict[str, Any]:
     started_at = datetime.now(tz=UTC)
-    raw_dir = _resolve_repo_path(args.raw_dir)
-    processed_dir = _resolve_repo_path(args.processed_dir)
+    resolved_raw_dir = _resolve_repo_path(raw_dir or (ROOT_DIR / "data" / "raw"))
+    resolved_processed_dir = _resolve_repo_path(processed_dir or (ROOT_DIR / "data" / "processed"))
     report_dir = ROOT_DIR / "reports" / "ingest_runs"
-    run_date = _coerce_run_date(args.date)
+    effective_run_date = date or datetime.now(tz=UTC).date()
 
     source_records: list[dict[str, Any]] = []
     source_attempts: list[dict[str, Any]] = []
     sources = register_sources()
-    client = PoliteHttpClient(requests_per_second=args.requests_per_second)
+    client = PoliteHttpClient(requests_per_second=requests_per_second)
 
     try:
         for source in sources:
@@ -148,7 +154,7 @@ def main() -> int:
                     source_name=source.name,
                     payload=raw_response.content,
                     extension=raw_response.extension,
-                    raw_root=raw_dir,
+                    raw_root=resolved_raw_dir,
                     timestamp=raw_response.fetched_at,
                 )
                 parsed = source.parse(raw_response.content, fetched_at=raw_response.fetched_at)
@@ -166,7 +172,7 @@ def main() -> int:
 
     normalized_df = _normalize_records(source_records)
     prior_count: int | None = None
-    prior_snapshot_path = find_prior_snapshot(processed_dir, run_date)
+    prior_snapshot_path = find_prior_snapshot(resolved_processed_dir, effective_run_date)
     if prior_snapshot_path is not None:
         try:
             prior_count = len(pd.read_parquet(prior_snapshot_path))
@@ -186,8 +192,8 @@ def main() -> int:
 
     snapshot_path, changes_path, delta = build_and_write_snapshot(
         normalized_df,
-        processed_dir=processed_dir,
-        run_date=run_date,
+        processed_dir=resolved_processed_dir,
+        run_date=effective_run_date,
     )
     finished_at = datetime.now(tz=UTC)
 
@@ -202,7 +208,7 @@ def main() -> int:
         "run_started_at": started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "run_finished_at": finished_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "duration_seconds": round((finished_at - started_at).total_seconds(), 3),
-        "run_date": run_date.isoformat(),
+        "run_date": effective_run_date.isoformat(),
         "sources": {
             "attempted": attempted_sources,
             "succeeded": succeeded_sources,
@@ -238,15 +244,40 @@ def main() -> int:
         },
     }
     write_json_atomic(report_payload, report_path)
+    return report_payload
 
-    print(f"Wrote snapshot: {snapshot_path}")
-    print(f"Wrote changes: {changes_path}")
-    print(f"Wrote ingest report: {report_path}")
+
+def get_latest_snapshot_path() -> Path:
+    processed_dir = ROOT_DIR / "data" / "processed"
+    latest = _get_latest_snapshot_path(processed_dir)
+    if latest is None:
+        raise FileNotFoundError(f"No snapshot parquet found in '{processed_dir}'.")
+    return latest
+
+
+def load_latest_snapshot_df() -> pd.DataFrame:
+    processed_dir = ROOT_DIR / "data" / "processed"
+    return _load_latest_snapshot_df(processed_dir)
+
+
+def main() -> int:
+    args = parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    report = run_ingest(
+        date=_coerce_run_date(args.date),
+        raw_dir=args.raw_dir,
+        processed_dir=args.processed_dir,
+        requests_per_second=args.requests_per_second,
+    )
+
+    print(f"Wrote snapshot: {report['artifact_paths']['snapshot']}")
+    print(f"Wrote changes: {report['artifact_paths']['delta']}")
+    print(f"Wrote ingest report: {report['artifact_paths']['report']}")
     print(
         "Delta counts: "
-        f"added={len(delta['added'])}, "
-        f"removed={len(delta['removed'])}, "
-        f"changed={len(delta['changed'])}"
+        f"added={report['delta_counts']['added']}, "
+        f"removed={report['delta_counts']['removed']}, "
+        f"changed={report['delta_counts']['changed']}"
     )
     return 0
 
