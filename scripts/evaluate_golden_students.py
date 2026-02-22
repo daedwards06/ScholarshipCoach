@@ -1,0 +1,392 @@
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from src.eval.golden_students import GoldenStudent, get_golden_students
+from src.eval.metrics import (
+    amount_distribution_stats,
+    compute_ndcg_at_k,
+    coverage_at_k,
+    eligibility_precision,
+    ranking_stability,
+)
+from src.io.snapshotting import get_latest_snapshot_path
+from src.rank.stage1_eligibility import apply_eligibility_filter
+from src.rank.stage2_scoring import score_stage2
+from src.rank.stage3_rerank import rerank_stage3
+
+MAX_K = 10
+TFIDF_PROXY_THRESHOLD = 0.12
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Offline evaluation against golden student profiles.")
+    parser.add_argument(
+        "--snapshot",
+        type=Path,
+        default=None,
+        help="Snapshot parquet path. If omitted, latest in --processed-dir is used.",
+    )
+    parser.add_argument(
+        "--processed-dir",
+        type=Path,
+        default=ROOT_DIR / "data" / "processed",
+        help="Processed directory used to resolve latest snapshot when --snapshot is omitted.",
+    )
+    parser.add_argument(
+        "--reports-dir",
+        type=Path,
+        default=ROOT_DIR / "reports",
+        help="Output directory for markdown and JSON artifacts.",
+    )
+    return parser.parse_args()
+
+
+def _resolve_snapshot_path(snapshot: Path | None, processed_dir: Path) -> Path:
+    if snapshot is not None:
+        return snapshot if snapshot.is_absolute() else ROOT_DIR / snapshot
+    latest = get_latest_snapshot_path(processed_dir if processed_dir.is_absolute() else ROOT_DIR / processed_dir)
+    if latest is None:
+        raise FileNotFoundError(f"No snapshot parquet found in '{processed_dir}'.")
+    return latest
+
+
+def _normalize_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    return text or None
+
+
+def _normalize_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        result: list[str] = []
+        for item in value:
+            norm = _normalize_text(item)
+            if norm:
+                result.append(norm)
+        return result
+    norm = _normalize_text(value)
+    return [norm] if norm else []
+
+
+def _keyword_overlap_positive(row: pd.Series) -> bool:
+    overlap = row.get("keyword_overlap")
+    if overlap is None or pd.isna(overlap):
+        return False
+    return float(overlap) > 0.0
+
+
+def _major_state_education_match(row: pd.Series, student: GoldenStudent) -> bool:
+    profile = student.profile
+    profile_major = _normalize_text(profile.major)
+    profile_state = _normalize_text(profile.state)
+    profile_edu = _normalize_text(profile.education_level)
+
+    majors_allowed = _normalize_list(row.get("majors_allowed"))
+    states_allowed = _normalize_list(row.get("states_allowed"))
+    scholarship_edu = _normalize_text(row.get("education_level"))
+
+    major_match = (not majors_allowed) or (profile_major in majors_allowed)
+    state_match = (not states_allowed) or (profile_state in states_allowed)
+    education_match = (scholarship_edu is None) or (scholarship_edu == profile_edu)
+    return major_match and state_match and education_match
+
+
+def _proxy_relevance_label(row: pd.Series, student: GoldenStudent) -> int:
+    keyword_overlap_positive = _keyword_overlap_positive(row)
+    tfidf_sim = float(row.get("tfidf_sim") or 0.0)
+    strict_match = _major_state_education_match(row, student)
+
+    if strict_match and keyword_overlap_positive:
+        return 2
+    if keyword_overlap_positive or tfidf_sim >= TFIDF_PROXY_THRESHOLD:
+        return 1
+    return 0
+
+
+def _safe_number(value: Any) -> float | None:
+    if value is None or pd.isna(value):
+        return None
+    return float(value)
+
+
+def _profile_topk_records(topk_df: pd.DataFrame, k: int) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for _, row in topk_df.head(k).iterrows():
+        records.append(
+            {
+                "scholarship_id": row.get("scholarship_id"),
+                "title": row.get("title"),
+                "final_score": _safe_number(row.get("final_score")),
+                "stage2_score": _safe_number(row.get("stage2_score")),
+                "tfidf_sim": _safe_number(row.get("tfidf_sim")),
+                "amount_utility": _safe_number(row.get("amount_utility")),
+                "keyword_overlap": _safe_number(row.get("keyword_overlap")),
+                "effort_penalty": _safe_number(row.get("effort_penalty")),
+                "urgency_boost": _safe_number(row.get("urgency_boost")),
+                "ev_proxy_norm": _safe_number(row.get("ev_proxy_norm")),
+                "amount_max": _safe_number(row.get("amount_max")),
+            }
+        )
+    return records
+
+
+def _run_per_profile(
+    snapshot_df: pd.DataFrame,
+    students: list[GoldenStudent],
+) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, list[str]], dict[str, list[int]]]:
+    per_profile_results: list[dict[str, Any]] = []
+    per_profile_topk: dict[str, list[dict[str, Any]]] = {}
+    ordered_ids: dict[str, list[str]] = {}
+    relevance_labels: dict[str, list[int]] = {}
+
+    for student in students:
+        eligible_df, ineligible_df = apply_eligibility_filter(snapshot_df, student.profile)
+        k = min(MAX_K, int(len(eligible_df)))
+
+        if k > 0:
+            scored_df = score_stage2(eligible_df, student.as_stage2_profile())
+            reranked_df = rerank_stage3(scored_df, today=student.profile.today)
+            topk_df = reranked_df.head(k).copy()
+        else:
+            scored_df = pd.DataFrame()
+            reranked_df = pd.DataFrame()
+            topk_df = pd.DataFrame()
+
+        top_records = _profile_topk_records(topk_df, k)
+        labels = [_proxy_relevance_label(row, student) for _, row in topk_df.iterrows()]
+        profile_id = student.student_id
+
+        per_profile_results.append(
+            {
+                "student_id": profile_id,
+                "description": student.description,
+                "k": k,
+                "eligible_df": eligible_df,
+                "ineligible_df": ineligible_df,
+                "scored_df": scored_df,
+                "reranked_df": reranked_df,
+            }
+        )
+        per_profile_topk[profile_id] = top_records
+        ordered_ids[profile_id] = [str(rec["scholarship_id"]) for rec in top_records]
+        relevance_labels[profile_id] = labels
+
+    return per_profile_results, per_profile_topk, ordered_ids, relevance_labels
+
+
+def _metrics_payload(
+    per_profile_results: list[dict[str, Any]],
+    per_profile_topk: dict[str, list[dict[str, Any]]],
+    relevance_labels: dict[str, list[int]],
+    run_one_ids: dict[str, list[str]],
+    run_two_ids: dict[str, list[str]],
+) -> dict[str, Any]:
+    max_k_observed = max((len(records) for records in per_profile_topk.values()), default=0)
+    coverage = coverage_at_k(per_profile_topk, k=max_k_observed)
+    amounts = amount_distribution_stats(per_profile_topk, k=max_k_observed)
+    stability = ranking_stability(run_one_ids, run_two_ids)
+    ndcg = compute_ndcg_at_k(relevance_labels, k=max_k_observed)
+
+    return {
+        "eligibility": eligibility_precision(per_profile_results),
+        "coverage_at_k": coverage,
+        "amount_distribution_topk": amounts,
+        "ranking_stability": stability,
+        "ndcg_at_k": {"k": max_k_observed, "value": ndcg},
+        "proxy_relevance": {
+            "labels": {
+                "2": "major/state/education match and keyword overlap > 0",
+                "1": "keyword overlap > 0 OR tfidf_sim >= threshold",
+                "0": "otherwise",
+            },
+            "tfidf_threshold": TFIDF_PROXY_THRESHOLD,
+        },
+    }
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _format_score(value: Any) -> str:
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return "-"
+    return f"{float(value):.4f}"
+
+
+def _markdown_report(
+    *,
+    snapshot_path: Path,
+    snapshot_count: int,
+    generated_at: str,
+    metrics: dict[str, Any],
+    students: list[GoldenStudent],
+    per_profile_topk: dict[str, list[dict[str, Any]]],
+) -> str:
+    lines: list[str] = []
+    lines.append("# Golden Student Offline Evaluation")
+    lines.append("")
+    lines.append(f"- Generated at (UTC): {generated_at}")
+    lines.append(f"- Snapshot: `{snapshot_path}`")
+    lines.append(f"- Snapshot records: {snapshot_count}")
+    lines.append(f"- Golden profiles: {len(students)}")
+    lines.append("")
+    lines.append("## Metrics Summary")
+    lines.append("")
+
+    eligibility = metrics["eligibility"]
+    lines.append(f"- Eligibility precision: {eligibility['eligibility_precision']:.4f}")
+    lines.append(f"- Eligible count: {eligibility['eligible_count']}")
+    lines.append(f"- Total evaluated rows: {eligibility['total_count']}")
+    lines.append(
+        f"- Coverage@K (K={metrics['coverage_at_k']['k']}): {metrics['coverage_at_k']['coverage_at_k']:.4f}"
+    )
+    lines.append(
+        f"- Unique recommended scholarships: {metrics['coverage_at_k']['unique_recommended_count']}"
+    )
+    lines.append(
+        f"- Amount stats (mean/median/max): "
+        f"{metrics['amount_distribution_topk']['mean']:.2f} / "
+        f"{metrics['amount_distribution_topk']['median']:.2f} / "
+        f"{metrics['amount_distribution_topk']['max']:.2f}"
+    )
+    lines.append(f"- Ranking stability: {metrics['ranking_stability']['is_stable']}")
+    lines.append(
+        f"- NDCG@K (K={metrics['ndcg_at_k']['k']}): {metrics['ndcg_at_k']['value']}"
+    )
+    lines.append("")
+    lines.append("### Ineligible Reason Breakdown")
+    lines.append("")
+    reason_breakdown = eligibility["ineligible_reason_breakdown"]
+    if reason_breakdown:
+        for reason, count in reason_breakdown.items():
+            lines.append(f"- {reason}: {count}")
+    else:
+        lines.append("- None")
+    lines.append("")
+    lines.append("## Per Profile Top-K")
+    lines.append("")
+
+    for student in students:
+        profile_id = student.student_id
+        top_recs = per_profile_topk.get(profile_id, [])
+        lines.append(f"### {profile_id}")
+        lines.append("")
+        lines.append(f"- Description: {student.description}")
+        lines.append(f"- Top-K count: {len(top_recs)}")
+        lines.append("")
+        if not top_recs:
+            lines.append("No eligible scholarships for this profile in the selected snapshot.")
+            lines.append("")
+            continue
+        lines.append(
+            "| scholarship_id | final_score | stage2_score | tfidf_sim | amount_utility | keyword_overlap | urgency_boost | ev_proxy_norm | title |"
+        )
+        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---|")
+        for rec in top_recs:
+            lines.append(
+                f"| {rec['scholarship_id']} | "
+                f"{_format_score(rec['final_score'])} | "
+                f"{_format_score(rec['stage2_score'])} | "
+                f"{_format_score(rec['tfidf_sim'])} | "
+                f"{_format_score(rec['amount_utility'])} | "
+                f"{_format_score(rec['keyword_overlap'])} | "
+                f"{_format_score(rec['urgency_boost'])} | "
+                f"{_format_score(rec['ev_proxy_norm'])} | "
+                f"{str(rec.get('title') or '').replace('|', '/')} |"
+            )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _to_serializable_profile_results(
+    per_profile_results: list[dict[str, Any]],
+    per_profile_topk: dict[str, list[dict[str, Any]]],
+    relevance_labels: dict[str, list[int]],
+) -> list[dict[str, Any]]:
+    serializable: list[dict[str, Any]] = []
+    for result in per_profile_results:
+        student_id = result["student_id"]
+        serializable.append(
+            {
+                "student_id": student_id,
+                "description": result["description"],
+                "k": result["k"],
+                "eligible_count": int(len(result["eligible_df"])),
+                "ineligible_count": int(len(result["ineligible_df"])),
+                "top_k": per_profile_topk.get(student_id, []),
+                "proxy_labels_top_k": relevance_labels.get(student_id, []),
+            }
+        )
+    return serializable
+
+
+def main() -> int:
+    args = parse_args()
+    snapshot_path = _resolve_snapshot_path(args.snapshot, args.processed_dir)
+    snapshot_df = pd.read_parquet(snapshot_path)
+    students = get_golden_students()
+
+    run_one_results, run_one_topk, run_one_ids, relevance_labels = _run_per_profile(snapshot_df, students)
+    _, _, run_two_ids, _ = _run_per_profile(snapshot_df, students)
+
+    metrics = _metrics_payload(
+        run_one_results,
+        run_one_topk,
+        relevance_labels,
+        run_one_ids,
+        run_two_ids,
+    )
+
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
+    generated_at = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    reports_dir = args.reports_dir if args.reports_dir.is_absolute() else ROOT_DIR / args.reports_dir
+    markdown_path = reports_dir / f"golden_eval_{timestamp}.md"
+    json_path = reports_dir / "artifacts" / f"golden_eval_{timestamp}.json"
+
+    markdown_text = _markdown_report(
+        snapshot_path=snapshot_path,
+        snapshot_count=len(snapshot_df),
+        generated_at=generated_at,
+        metrics=metrics,
+        students=students,
+        per_profile_topk=run_one_topk,
+    )
+    markdown_path.parent.mkdir(parents=True, exist_ok=True)
+    markdown_path.write_text(markdown_text, encoding="utf-8")
+
+    payload = {
+        "generated_at": generated_at,
+        "snapshot_path": str(snapshot_path),
+        "snapshot_count": int(len(snapshot_df)),
+        "golden_profiles_count": len(students),
+        "metrics": metrics,
+        "per_profile": _to_serializable_profile_results(run_one_results, run_one_topk, relevance_labels),
+    }
+    _write_json(json_path, payload)
+
+    print(f"Wrote markdown report: {markdown_path}")
+    print(f"Wrote JSON artifact: {json_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
