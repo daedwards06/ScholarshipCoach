@@ -26,3 +26,16 @@ def test_scholarship_america_fixture_parses_to_schema_and_stable_ids() -> None:
         assert set(REQUIRED_COLUMNS).issubset(record.keys())
         assert len(record["scholarship_id"]) == 40
         assert int(record["scholarship_id"], 16) >= 0
+
+
+def test_scholarship_america_fixture_parsing_is_deterministic_for_id_order() -> None:
+    fixture_path = Path(__file__).resolve().parent / "resources" / "scholarship_america_sample.json"
+    raw_content = fixture_path.read_bytes()
+
+    source = ScholarshipAmericaSource()
+    fetched_at = datetime(2026, 2, 1, 12, 0, tzinfo=UTC)
+
+    first_ids = [record["scholarship_id"] for record in source.parse(raw_content, fetched_at=fetched_at)]
+    second_ids = [record["scholarship_id"] for record in source.parse(raw_content, fetched_at=fetched_at)]
+
+    assert first_ids == second_ids

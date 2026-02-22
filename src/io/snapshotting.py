@@ -4,6 +4,7 @@ import json
 import re
 from datetime import UTC, date, datetime
 from pathlib import Path
+from uuid import uuid4
 from typing import Any
 
 import pandas as pd
@@ -120,9 +121,13 @@ def prepare_snapshot_df(records: pd.DataFrame) -> pd.DataFrame:
 
 def write_parquet_atomic(df: pd.DataFrame, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = output_path.with_suffix(f"{output_path.suffix}.tmp")
-    df.to_parquet(temp_path, index=False, engine="pyarrow")
-    temp_path.replace(output_path)
+    temp_path = output_path.parent / f"{output_path.name}.{uuid4().hex}.tmp"
+    try:
+        df.to_parquet(temp_path, index=False, engine="pyarrow")
+        temp_path.replace(output_path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def _records_by_id(df: pd.DataFrame) -> dict[str, dict[str, Any]]:
@@ -168,9 +173,13 @@ def build_delta(current_df: pd.DataFrame, prior_df: pd.DataFrame | None) -> dict
 
 def write_json_atomic(payload: dict[str, Any], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = output_path.with_suffix(f"{output_path.suffix}.tmp")
-    temp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    temp_path.replace(output_path)
+    temp_path = output_path.parent / f"{output_path.name}.{uuid4().hex}.tmp"
+    try:
+        temp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        temp_path.replace(output_path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def build_and_write_snapshot(
@@ -193,4 +202,3 @@ def build_and_write_snapshot(
     write_parquet_atomic(snapshot_df, snapshot_path)
     write_json_atomic(delta, changes_path)
     return snapshot_path, changes_path, delta
-
