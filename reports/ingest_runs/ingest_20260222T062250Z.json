@@ -1,0 +1,93 @@
+{
+  "artifact_paths": {
+    "delta": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\changes_20260222.json",
+    "prior_snapshot": null,
+    "report": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\reports\\ingest_runs\\ingest_20260222T062250Z.json",
+    "snapshot": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet"
+  },
+  "cache_paths": [
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_browse-scholarships.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_discovered-json-wp-json.json",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_discovered-json-embed.json",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_discovered-json-606.json",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-browse-scholarships.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-community-college-students.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-current-college-students.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-high-school-students.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-stem-students.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-veterans.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-children-of-employee-scholarships.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-community-focused-scholarships.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-employee-scholarships.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-scholarship.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-scholarship-status.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-scholarship.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-scholarship-status.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062316Z.json"
+  ],
+  "delta_counts": {
+    "added": 14,
+    "changed": 0,
+    "removed": 0
+  },
+  "duration_seconds": 26.581,
+  "guardrail_warnings": [],
+  "records": {
+    "missing_title_or_source_url_count": 0,
+    "missing_title_or_source_url_pct": 0.0,
+    "parsed_total": 15,
+    "prior_snapshot_total": null,
+    "snapshot_total": 14
+  },
+  "run_date": "2026-02-22",
+  "run_finished_at": "2026-02-22T06:23:16Z",
+  "run_started_at": "2026-02-22T06:22:50Z",
+  "sources": {
+    "attempted": [
+      "scholarship_america",
+      "scholarship_america"
+    ],
+    "attempted_count": 2,
+    "details": [
+      {
+        "cache_paths": [
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_browse-scholarships.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_discovered-json-wp-json.json",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_discovered-json-embed.json",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_discovered-json-606.json",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-browse-scholarships.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-community-college-students.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-current-college-students.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-high-school-students.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-stem-students.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_category-scholarships-for-veterans.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-children-of-employee-scholarships.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-community-focused-scholarships.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-employee-scholarships.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-scholarship.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-scholarship-status.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-scholarship.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062250Z_detail-scholarship-status.html"
+        ],
+        "records": 7,
+        "source": "scholarship_america",
+        "status": "succeeded"
+      },
+      {
+        "cache_paths": [
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260222T062316Z.json"
+        ],
+        "records": 8,
+        "source": "scholarship_america",
+        "status": "succeeded"
+      }
+    ],
+    "failed": [],
+    "failed_count": 0,
+    "succeeded": [
+      "scholarship_america",
+      "scholarship_america"
+    ],
+    "succeeded_count": 2
+  }
+}

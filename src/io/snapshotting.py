@@ -60,6 +60,10 @@ def _changes_filename(run_date: date) -> str:
 def _jsonable(value: Any) -> Any:
     if value is None:
         return None
+    if isinstance(value, list):
+        return [_jsonable(item) for item in value]
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
     if isinstance(value, float) and pd.isna(value):
         return None
     if pd.isna(value):
@@ -70,10 +74,6 @@ def _jsonable(value: Any) -> Any:
         return value.isoformat()
     if hasattr(value, "isoformat"):
         return value.isoformat()
-    if isinstance(value, list):
-        return [_jsonable(item) for item in value]
-    if isinstance(value, dict):
-        return {k: _jsonable(v) for k, v in value.items()}
     return value
 
 

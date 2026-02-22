@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import logging
@@ -6,6 +6,7 @@ import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import pandas as pd
 
@@ -68,6 +69,26 @@ def _coerce_run_date(run_date: str | None) -> date:
     return datetime.strptime(run_date, "%Y%m%d").date()
 
 
+def _normalize_url_for_dedupe(value: Any) -> str:
+    if value is None:
+        return ""
+    raw = str(value).strip()
+    if not raw:
+        return ""
+
+    parsed = urlparse(raw)
+    scheme = parsed.scheme.lower() if parsed.scheme else "https"
+    netloc = parsed.netloc.lower()
+    if netloc.startswith("www."):
+        netloc = netloc[4:]
+    path = parsed.path or "/"
+    if path != "/":
+        path = path.rstrip("/")
+    query_items = sorted((key, val) for key, val in parse_qsl(parsed.query, keep_blank_values=False))
+    query = urlencode(query_items)
+    return urlunparse((scheme, netloc, path, "", query, ""))
+
+
 def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
     if not records:
         return pd.DataFrame(columns=REQUIRED_COLUMNS)
@@ -99,6 +120,23 @@ def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
         df[ts_column] = df[ts_column].apply(_format_utc_iso_z)
 
     return df[REQUIRED_COLUMNS]
+
+
+def _dedupe_records(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+
+    dedupe_df = df.copy()
+    dedupe_df["_source_url_normalized"] = dedupe_df["source_url"].apply(_normalize_url_for_dedupe)
+    dedupe_df = dedupe_df.sort_values(
+        by=["scholarship_id", "_source_url_normalized", "title"], kind="mergesort"
+    )
+    dedupe_df = dedupe_df.drop_duplicates(
+        subset=["scholarship_id", "_source_url_normalized"], keep="first"
+    )
+    dedupe_df = dedupe_df.drop(columns=["_source_url_normalized"])
+    dedupe_df = dedupe_df.drop_duplicates(subset=["scholarship_id"], keep="first")
+    return dedupe_df.reset_index(drop=True)
 
 
 def _missing_text(series: pd.Series) -> pd.Series:
@@ -149,20 +187,34 @@ def run_ingest(
         for source in sources:
             source_report: dict[str, Any] = {"source": source.name, "status": "failed"}
             try:
-                raw_response = source.fetch(client)
-                raw_path = write_raw_payload(
-                    source_name=source.name,
-                    payload=raw_response.content,
-                    extension=raw_response.extension,
-                    raw_root=resolved_raw_dir,
-                    timestamp=raw_response.fetched_at,
-                )
-                parsed = source.parse(raw_response.content, fetched_at=raw_response.fetched_at)
-                source_records.extend(parsed)
-                source_report["status"] = "succeeded"
-                source_report["records"] = len(parsed)
-                source_report["cache_path"] = str(raw_path.resolve())
-                logger.info("Source=%s cached=%s records=%d", source.name, raw_path, len(parsed))
+                source_fetch_records = getattr(source, "fetch_records", None)
+                if callable(source_fetch_records):
+                    parsed, cache_paths = source_fetch_records(client, raw_root=resolved_raw_dir)
+                    source_records.extend(parsed)
+                    source_report["status"] = "succeeded"
+                    source_report["records"] = len(parsed)
+                    source_report["cache_paths"] = [str(path.resolve()) for path in cache_paths]
+                    logger.info(
+                        "Source=%s cached=%d files records=%d",
+                        source.name,
+                        len(cache_paths),
+                        len(parsed),
+                    )
+                else:
+                    raw_response = source.fetch(client)
+                    raw_path = write_raw_payload(
+                        source_name=source.name,
+                        payload=raw_response.content,
+                        extension=raw_response.extension,
+                        raw_root=resolved_raw_dir,
+                        timestamp=raw_response.fetched_at,
+                    )
+                    parsed = source.parse(raw_response.content, fetched_at=raw_response.fetched_at)
+                    source_records.extend(parsed)
+                    source_report["status"] = "succeeded"
+                    source_report["records"] = len(parsed)
+                    source_report["cache_paths"] = [str(raw_path.resolve())]
+                    logger.info("Source=%s cached=%s records=%d", source.name, raw_path, len(parsed))
             except Exception:
                 source_report["error"] = "fetch_or_parse_failed"
                 logger.exception("Source %s failed. Continuing with remaining sources.", source.name)
@@ -171,6 +223,8 @@ def run_ingest(
         client.close()
 
     normalized_df = _normalize_records(source_records)
+    normalized_df = _dedupe_records(normalized_df)
+
     prior_count: int | None = None
     prior_snapshot_path = find_prior_snapshot(resolved_processed_dir, effective_run_date)
     if prior_snapshot_path is not None:
@@ -200,7 +254,7 @@ def run_ingest(
     attempted_sources = [entry["source"] for entry in source_attempts]
     succeeded_sources = [entry["source"] for entry in source_attempts if entry["status"] == "succeeded"]
     failed_sources = [entry["source"] for entry in source_attempts if entry["status"] != "succeeded"]
-    cache_paths = [entry["cache_path"] for entry in source_attempts if "cache_path" in entry]
+    cache_paths = [path for entry in source_attempts for path in entry.get("cache_paths", [])]
 
     report_stamp = started_at.strftime("%Y%m%dT%H%M%SZ")
     report_path = report_dir / f"ingest_{report_stamp}.json"

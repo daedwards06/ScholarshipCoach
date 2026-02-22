@@ -1,8 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from .base import BaseSource
-from .sources.scholarship_america import ScholarshipAmericaSource
+from .sources.scholarship_america_live import ScholarshipAmericaLiveSource
 
 
 def register_sources() -> list[BaseSource]:
-    return [ScholarshipAmericaSource()]
+    return [ScholarshipAmericaLiveSource()]
