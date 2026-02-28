@@ -34,6 +34,12 @@ TFIDF_PROXY_THRESHOLD = 0.12
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Offline evaluation against golden student profiles.")
     parser.add_argument(
+        "--k",
+        type=int,
+        default=MAX_K,
+        help=f"Top-K cutoff per profile. Defaults to {MAX_K}.",
+    )
+    parser.add_argument(
         "--snapshot",
         type=Path,
         default=None,
@@ -149,6 +155,8 @@ def _profile_topk_records(topk_df: pd.DataFrame, k: int) -> list[dict[str, Any]]
 def _run_per_profile(
     snapshot_df: pd.DataFrame,
     students: list[GoldenStudent],
+    *,
+    max_k: int,
 ) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, list[str]], dict[str, list[int]]]:
     per_profile_results: list[dict[str, Any]] = []
     per_profile_topk: dict[str, list[dict[str, Any]]] = {}
@@ -157,7 +165,7 @@ def _run_per_profile(
 
     for student in students:
         eligible_df, ineligible_df = apply_eligibility_filter(snapshot_df, student.profile)
-        k = min(MAX_K, int(len(eligible_df)))
+        k = min(max_k, int(len(eligible_df)))
 
         if k > 0:
             scored_df = score_stage2(eligible_df, student.as_stage2_profile())
@@ -341,12 +349,23 @@ def _to_serializable_profile_results(
 
 def main() -> int:
     args = parse_args()
+    if args.k <= 0:
+        raise SystemExit("--k must be greater than 0.")
+
     snapshot_path = _resolve_snapshot_path(args.snapshot, args.processed_dir)
     snapshot_df = pd.read_parquet(snapshot_path)
     students = get_golden_students()
 
-    run_one_results, run_one_topk, run_one_ids, relevance_labels = _run_per_profile(snapshot_df, students)
-    _, _, run_two_ids, _ = _run_per_profile(snapshot_df, students)
+    run_one_results, run_one_topk, run_one_ids, relevance_labels = _run_per_profile(
+        snapshot_df,
+        students,
+        max_k=args.k,
+    )
+    _, _, run_two_ids, _ = _run_per_profile(
+        snapshot_df,
+        students,
+        max_k=args.k,
+    )
 
     metrics = _metrics_payload(
         run_one_results,
