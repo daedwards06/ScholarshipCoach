@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import concurrent.futures
+import hashlib
 import json
 import logging
 import re
-from datetime import datetime
+import time
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
@@ -40,6 +44,7 @@ _LABEL_BLOCK_PATTERN = re.compile(
     r"(Sponsor|Provider|Organization|Eligibility|Deadline|Amount|Award|Education|Institution|State|Territory|Essay(?: Prompt)?|Essay Required)\s*:?\s*",
     re.IGNORECASE,
 )
+_NON_DETAIL_TITLE_HINTS = ("browse scholarships", "page not found", "not found", "access denied")
 
 _US_STATES_AND_TERRITORIES = [
     "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
@@ -52,6 +57,49 @@ _US_STATES_AND_TERRITORIES = [
     "West Virginia", "Wisconsin", "Wyoming", "Guam", "U.S. Virgin Islands", "Northern Mariana Islands",
     "American Samoa",
 ]
+
+
+@dataclass(slots=True)
+class FetchStats:
+    listing_urls_processed: int = 0
+    detail_urls_discovered: int = 0
+    detail_urls_attempted: int = 0
+    detail_urls_succeeded: int = 0
+    detail_urls_failed: int = 0
+    cached_files_written: int = 0
+    resumed_detail_urls: int = 0
+    caps_hit: list[str] = field(default_factory=list)
+    parse_failures: list[dict[str, str]] = field(default_factory=list)
+
+    def add_cap(self, reason: str) -> None:
+        if reason not in self.caps_hit:
+            self.caps_hit.append(reason)
+
+    def add_parse_failure(self, url: str, reason: str) -> None:
+        self.parse_failures.append({"url": url, "reason": reason})
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "listing_urls_processed": self.listing_urls_processed,
+            "detail_urls_discovered": self.detail_urls_discovered,
+            "detail_urls_attempted": self.detail_urls_attempted,
+            "detail_urls_succeeded": self.detail_urls_succeeded,
+            "detail_urls_failed": self.detail_urls_failed,
+            "cached_files_written": self.cached_files_written,
+            "resumed_detail_urls": self.resumed_detail_urls,
+            "caps_hit": list(self.caps_hit),
+            "parse_failures": list(self.parse_failures),
+        }
+
+
+@dataclass(slots=True)
+class _DetailFetchResult:
+    detail_url: str
+    record: dict[str, Any] | None = None
+    cache_path: Path | None = None
+    resumed_from_cache: bool = False
+    skipped: bool = False
+    error_reason: str | None = None
 
 
 class _AnchorCollector(HTMLParser):
@@ -98,132 +146,371 @@ class ScholarshipAmericaLiveSource(BaseSource):
         http_client: Any,
         *,
         raw_root: Path,
-        max_browse_pages: int = 20,
-        max_category_pages: int = 40,
-        max_detail_pages: int = 160,
-    ) -> tuple[list[dict[str, Any]], list[Path]]:
+        max_listing_pages: int = 3,
+        max_detail_pages: int = 200,
+        max_runtime_seconds: int = 600,
+        concurrency: int = 4,
+        resume: bool = False,
+    ) -> tuple[list[dict[str, Any]], list[Path], dict[str, Any]]:
         fetched_at = self.utcnow()
+        cache_date_prefix = fetched_at.astimezone(UTC).strftime("%Y%m%d")
+        deadline_monotonic = (
+            time.monotonic() + max_runtime_seconds if max_runtime_seconds > 0 else None
+        )
         cached_paths: list[Path] = []
+        stats = FetchStats()
 
-        browse_html = http_client.get_text(self.browse_url)
-        cached_paths.append(
-            self._cache_html(
-                html=browse_html,
+        detail_urls, json_urls = self._collect_listing_urls(
+            http_client=http_client,
+            raw_root=raw_root,
+            fetched_at=fetched_at,
+            max_listing_pages=max_listing_pages,
+            deadline_monotonic=deadline_monotonic,
+            cached_paths=cached_paths,
+            stats=stats,
+        )
+        detail_urls.update(
+            self._collect_json_detail_urls(
+                http_client=http_client,
                 raw_root=raw_root,
                 fetched_at=fetched_at,
-                slug="browse-scholarships",
+                json_urls=json_urls,
+                deadline_monotonic=deadline_monotonic,
+                cached_paths=cached_paths,
+                stats=stats,
             )
         )
 
-        detail_urls, category_urls, json_urls = self.parse_listing_html(browse_html, base_url=self.browse_url)
-        total_pages = _extract_total_pages_from_listing_html(browse_html)
-        target_pages = min(max(total_pages, 1), max_browse_pages)
+        normalized_details = sorted(
+            {_normalize_url(url) for url in detail_urls if _looks_like_detail_url(url, "")}
+        )
+        stats.detail_urls_discovered = len(normalized_details)
+        if len(normalized_details) > max_detail_pages:
+            normalized_details = normalized_details[:max_detail_pages]
+            stats.add_cap("max_detail_pages")
+            logger.info("Detail page cap reached (%d); stopping detail discovery.", max_detail_pages)
 
-        for page_number in range(2, target_pages + 1):
-            paged_url = f"{self.browse_url}?_paged={page_number}"
+        records = self._fetch_detail_records(
+            http_client=http_client,
+            raw_root=raw_root,
+            fetched_at=fetched_at,
+            detail_urls=normalized_details,
+            cache_date_prefix=cache_date_prefix,
+            deadline_monotonic=deadline_monotonic,
+            concurrency=concurrency,
+            resume=resume,
+            cached_paths=cached_paths,
+            stats=stats,
+        )
+        records.sort(
+            key=lambda row: (
+                row.get("source_url") or "",
+                row.get("source_id") or "",
+                row.get("scholarship_id") or "",
+            )
+        )
+        return records, cached_paths, stats.to_dict()
+
+    def _collect_listing_urls(
+        self,
+        *,
+        http_client: Any,
+        raw_root: Path,
+        fetched_at: datetime,
+        max_listing_pages: int,
+        deadline_monotonic: float | None,
+        cached_paths: list[Path],
+        stats: FetchStats,
+    ) -> tuple[set[str], set[str]]:
+        detail_urls: set[str] = set()
+        json_urls: set[str] = set()
+        queued_urls = {_normalize_url(self.browse_url)}
+        queue: list[tuple[str, str]] = [(self.browse_url, "browse-scholarships")]
+        saw_browse_root = False
+
+        while queue:
+            if self._runtime_expired(deadline_monotonic):
+                stats.add_cap("max_runtime_seconds")
+                logger.info("Runtime cap reached while collecting listing pages.")
+                break
+            if stats.listing_urls_processed >= max_listing_pages:
+                stats.add_cap("max_listing_pages")
+                logger.info("Listing page cap reached (%d); stopping listing traversal.", max_listing_pages)
+                break
+
+            listing_url, slug = queue.pop(0)
             try:
-                paged_html = http_client.get_text(paged_url)
-            except Exception:
-                logger.warning("Failed paged browse fetch: %s", paged_url, exc_info=True)
+                listing_html = http_client.get_text(listing_url)
+            except Exception as exc:
+                reason = f"listing_fetch_failed:{type(exc).__name__}"
+                stats.add_parse_failure(listing_url, reason)
+                logger.warning("Failed listing fetch: %s (%s)", listing_url, reason, exc_info=True)
                 continue
 
-            cached_paths.append(
-                self._cache_html(
-                    html=paged_html,
-                    raw_root=raw_root,
-                    fetched_at=fetched_at,
-                    slug=f"browse-scholarships-page-{page_number}",
-                )
+            cached_path = self._cache_html(
+                html=listing_html,
+                raw_root=raw_root,
+                fetched_at=fetched_at,
+                slug=slug,
             )
-            page_detail_urls, page_category_urls, page_json_urls = self.parse_listing_html(
-                paged_html,
-                base_url=paged_url,
+            cached_paths.append(cached_path)
+            stats.cached_files_written += 1
+            stats.listing_urls_processed += 1
+
+            page_detail_urls, category_urls, page_json_urls = self.parse_listing_html(
+                listing_html,
+                base_url=listing_url,
             )
             detail_urls.update(page_detail_urls)
-            category_urls.update(page_category_urls)
             json_urls.update(page_json_urls)
 
+            normalized_listing_url = _normalize_url(listing_url)
+            if not saw_browse_root and normalized_listing_url == _normalize_url(self.browse_url):
+                saw_browse_root = True
+                total_pages = _extract_total_pages_from_listing_html(listing_html)
+                for page_number in range(2, max(total_pages, 1) + 1):
+                    paged_url = _normalize_url(f"{self.browse_url}?_paged={page_number}")
+                    if paged_url in queued_urls:
+                        continue
+                    queued_urls.add(paged_url)
+                    queue.append((paged_url, f"browse-scholarships-page-{page_number}"))
+
+            for category_url in sorted(category_urls):
+                normalized = _normalize_url(category_url)
+                if normalized in queued_urls:
+                    continue
+                queued_urls.add(normalized)
+                queue.append((normalized, f"category-{_slug_from_url(normalized)}"))
+
+        return detail_urls, json_urls
+
+    def _collect_json_detail_urls(
+        self,
+        *,
+        http_client: Any,
+        raw_root: Path,
+        fetched_at: datetime,
+        json_urls: set[str],
+        deadline_monotonic: float | None,
+        cached_paths: list[Path],
+        stats: FetchStats,
+    ) -> set[str]:
+        discovered: set[str] = set()
         for json_url in sorted(json_urls):
+            if self._runtime_expired(deadline_monotonic):
+                stats.add_cap("max_runtime_seconds")
+                logger.info("Runtime cap reached while fetching discovered JSON URLs.")
+                break
             try:
                 json_payload = http_client.get_json(json_url)
-            except Exception:
-                logger.warning("Failed JSON discovery fetch: %s", json_url, exc_info=True)
+            except Exception as exc:
+                reason = f"json_fetch_failed:{type(exc).__name__}"
+                stats.add_parse_failure(json_url, reason)
+                logger.warning("Failed JSON discovery fetch: %s (%s)", json_url, reason, exc_info=True)
                 continue
 
             payload_text = json.dumps(json_payload, sort_keys=True)
-            cached_paths.append(
-                write_raw_payload(
-                    source_name=self.name,
-                    payload=payload_text.encode("utf-8"),
-                    extension="json",
-                    raw_root=raw_root,
-                    timestamp=fetched_at,
-                    slug=f"discovered-json-{_slug_from_url(json_url)}",
-                )
+            cached_path = write_raw_payload(
+                source_name=self.name,
+                payload=payload_text.encode("utf-8"),
+                extension="json",
+                raw_root=raw_root,
+                timestamp=fetched_at,
+                slug=f"discovered-json-{_slug_from_url(json_url)}",
             )
-            detail_urls.update(self._extract_urls_from_json(json_payload))
+            cached_paths.append(cached_path)
+            stats.cached_files_written += 1
+            discovered.update(self._extract_urls_from_json(json_payload))
+        return discovered
 
-        category_queue = list(sorted(category_urls))
-        seen_categories: set[str] = set()
-        while category_queue and len(seen_categories) < max_category_pages:
-            category_url = _normalize_url(category_queue.pop(0))
-            if category_url in seen_categories:
-                continue
-            seen_categories.add(category_url)
-
-            try:
-                category_html = http_client.get_text(category_url)
-            except Exception:
-                logger.warning("Failed category fetch: %s", category_url, exc_info=True)
-                continue
-
-            cached_paths.append(
-                self._cache_html(
-                    html=category_html,
-                    raw_root=raw_root,
-                    fetched_at=fetched_at,
-                    slug=f"category-{_slug_from_url(category_url)}",
-                )
-            )
-            found_detail, found_categories, _ = self.parse_listing_html(category_html, base_url=category_url)
-            detail_urls.update(found_detail)
-            for found in sorted(found_categories):
-                normalized = _normalize_url(found)
-                if normalized not in seen_categories:
-                    category_queue.append(normalized)
-
-        normalized_details = sorted({_normalize_url(url) for url in detail_urls if _looks_like_detail_url(url, "")})
-        if len(normalized_details) > max_detail_pages:
-            normalized_details = normalized_details[:max_detail_pages]
+    def _fetch_detail_records(
+        self,
+        *,
+        http_client: Any,
+        raw_root: Path,
+        fetched_at: datetime,
+        detail_urls: list[str],
+        cache_date_prefix: str,
+        deadline_monotonic: float | None,
+        concurrency: int,
+        resume: bool,
+        cached_paths: list[Path],
+        stats: FetchStats,
+    ) -> list[dict[str, Any]]:
+        if not detail_urls:
+            return []
 
         records: list[dict[str, Any]] = []
-        for detail_url in normalized_details:
+        max_workers = max(1, concurrency)
+        url_iter = iter(detail_urls)
+        pending: dict[concurrent.futures.Future[_DetailFetchResult], str] = {}
+        stop_submitting = False
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            while True:
+                while not stop_submitting and len(pending) < max_workers:
+                    if self._runtime_expired(deadline_monotonic):
+                        stats.add_cap("max_runtime_seconds")
+                        logger.info("Runtime cap reached before submitting all detail fetches.")
+                        stop_submitting = True
+                        break
+                    try:
+                        detail_url = next(url_iter)
+                    except StopIteration:
+                        stop_submitting = True
+                        break
+                    stats.detail_urls_attempted += 1
+                    future = executor.submit(
+                        self._fetch_single_detail,
+                        http_client=http_client,
+                        raw_root=raw_root,
+                        fetched_at=fetched_at,
+                        detail_url=detail_url,
+                        cache_date_prefix=cache_date_prefix,
+                        resume=resume,
+                    )
+                    pending[future] = detail_url
+
+                if not pending:
+                    break
+
+                done, _ = concurrent.futures.wait(
+                    pending,
+                    timeout=0.1,
+                    return_when=concurrent.futures.FIRST_COMPLETED,
+                )
+                if not done:
+                    continue
+
+                for future in sorted(done, key=lambda item: pending[item]):
+                    detail_url = pending.pop(future)
+                    try:
+                        result = future.result()
+                    except Exception as exc:
+                        stats.detail_urls_failed += 1
+                        reason = f"detail_worker_failed:{type(exc).__name__}"
+                        stats.add_parse_failure(detail_url, reason)
+                        logger.warning("Failed detail worker: %s (%s)", detail_url, reason, exc_info=True)
+                        continue
+
+                    if result.cache_path is not None:
+                        cached_paths.append(result.cache_path)
+                        if not result.resumed_from_cache:
+                            stats.cached_files_written += 1
+                    if result.resumed_from_cache:
+                        stats.resumed_detail_urls += 1
+                    if result.record is not None:
+                        stats.detail_urls_succeeded += 1
+                        records.append(result.record)
+                        continue
+                    if result.skipped:
+                        continue
+                    stats.detail_urls_failed += 1
+                    if result.error_reason:
+                        stats.add_parse_failure(result.detail_url, result.error_reason)
+                        logger.warning(
+                            "Skipping detail page: %s (%s)",
+                            result.detail_url,
+                            result.error_reason,
+                        )
+
+        return records
+
+    def _fetch_single_detail(
+        self,
+        *,
+        http_client: Any,
+        raw_root: Path,
+        fetched_at: datetime,
+        detail_url: str,
+        cache_date_prefix: str,
+        resume: bool,
+    ) -> _DetailFetchResult:
+        cache_slug = _detail_cache_slug(detail_url)
+        cache_path: Path | None = None
+        detail_html: str
+        resumed_from_cache = False
+
+        if resume:
+            cache_path = self._find_resume_cache(
+                raw_root=raw_root,
+                cache_date_prefix=cache_date_prefix,
+                slug=cache_slug,
+            )
+            if cache_path is not None:
+                try:
+                    detail_html = cache_path.read_text(encoding="utf-8")
+                    resumed_from_cache = True
+                except OSError as exc:
+                    return _DetailFetchResult(
+                        detail_url=detail_url,
+                        cache_path=cache_path,
+                        error_reason=f"resume_cache_read_failed:{type(exc).__name__}",
+                    )
+            else:
+                detail_html = ""
+        else:
+            detail_html = ""
+
+        if not detail_html:
             try:
                 detail_html = http_client.get_text(detail_url)
-            except Exception:
-                logger.warning("Failed detail fetch: %s", detail_url, exc_info=True)
-                continue
-
-            cached_paths.append(
-                self._cache_html(
-                    html=detail_html,
-                    raw_root=raw_root,
-                    fetched_at=fetched_at,
-                    slug=f"detail-{_slug_from_url(detail_url)}",
+            except Exception as exc:
+                return _DetailFetchResult(
+                    detail_url=detail_url,
+                    error_reason=f"detail_fetch_failed:{type(exc).__name__}",
                 )
+            cache_path = self._cache_html(
+                html=detail_html,
+                raw_root=raw_root,
+                fetched_at=fetched_at,
+                slug=cache_slug,
             )
 
-            try:
-                record = self.parse_detail_html(detail_html, detail_url=detail_url, fetched_at=fetched_at)
-            except Exception:
-                logger.warning("Failed detail parse: %s", detail_url, exc_info=True)
-                continue
+        try:
+            record = self.parse_detail_html(
+                detail_html,
+                detail_url=detail_url,
+                fetched_at=fetched_at,
+            )
+        except Exception as exc:
+            return _DetailFetchResult(
+                detail_url=detail_url,
+                cache_path=cache_path,
+                resumed_from_cache=resumed_from_cache,
+                error_reason=f"detail_parse_failed:{type(exc).__name__}",
+            )
 
-            if record is not None:
-                records.append(record)
+        if record is None:
+            return _DetailFetchResult(
+                detail_url=detail_url,
+                cache_path=cache_path,
+                resumed_from_cache=resumed_from_cache,
+                error_reason="invalid_or_non_scholarship_page",
+            )
 
-        records.sort(key=lambda row: (row.get("source_id") or "", row.get("title") or ""))
-        return records, cached_paths
+        return _DetailFetchResult(
+            detail_url=detail_url,
+            record=record,
+            cache_path=cache_path,
+            resumed_from_cache=resumed_from_cache,
+        )
+
+    def _runtime_expired(self, deadline_monotonic: float | None) -> bool:
+        return deadline_monotonic is not None and time.monotonic() >= deadline_monotonic
+
+    def _find_resume_cache(
+        self,
+        *,
+        raw_root: Path,
+        cache_date_prefix: str,
+        slug: str,
+    ) -> Path | None:
+        target_dir = raw_root / self.name
+        if not target_dir.exists():
+            return None
+        matches = sorted(target_dir.glob(f"{cache_date_prefix}*_{slug}.html"))
+        return matches[-1] if matches else None
 
     def parse_listing_html(
         self,
@@ -255,11 +542,18 @@ class ScholarshipAmericaLiveSource(BaseSource):
         detail_url: str,
         fetched_at: datetime,
     ) -> dict[str, Any] | None:
+        normalized_url = _normalize_url(detail_url)
+        if not _looks_like_detail_url(normalized_url, ""):
+            return None
+
         text = _to_text(html)
         if not text:
             return None
 
-        title = _extract_title(html) or _slug_from_url(detail_url).replace("-", " ").strip().title()
+        title = _extract_title(html)
+        if any(hint in title.lower() for hint in _NON_DETAIL_TITLE_HINTS):
+            return None
+
         sponsor = _extract_field_value(text, ["sponsor", "provider", "organization"]) or "Scholarship America"
 
         description = _extract_description(html)
@@ -270,12 +564,11 @@ class ScholarshipAmericaLiveSource(BaseSource):
 
         states_allowed = _extract_states(text)
         essay_required, essay_prompt = _extract_essay_fields(text)
-
-        normalized_url = _normalize_url(detail_url)
         source_id = _slug_from_url(normalized_url)
+        resolved_title = title or source_id.replace("-", " ").strip().title() or normalized_url
 
         scholarship_id = generate_scholarship_id(
-            title=title or normalized_url,
+            title=resolved_title,
             sponsor=sponsor,
             amount_min=amount_min,
             amount_max=amount_max,
@@ -288,7 +581,7 @@ class ScholarshipAmericaLiveSource(BaseSource):
             "source": self.name,
             "source_id": source_id,
             "source_url": normalized_url,
-            "title": title or normalized_url,
+            "title": resolved_title,
             "sponsor": sponsor,
             "description": description or None,
             "eligibility_text": eligibility_text or None,
@@ -337,6 +630,12 @@ class ScholarshipAmericaLiveSource(BaseSource):
             timestamp=fetched_at,
             slug=slug,
         )
+
+
+def _detail_cache_slug(url: str) -> str:
+    normalized = _normalize_url(url)
+    digest = hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:8]
+    return f"detail-{_slug_from_url(normalized)}-{digest}"
 
 
 def _is_http_url(url: str) -> bool:

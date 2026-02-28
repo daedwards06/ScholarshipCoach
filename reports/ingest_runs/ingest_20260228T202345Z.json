@@ -1,0 +1,156 @@
+{
+  "artifact_notes": {
+    "snapshot_skip_reason": null
+  },
+  "artifact_paths": {
+    "delta": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\changes_20260228.json",
+    "prior_snapshot": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet",
+    "report": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\reports\\ingest_runs\\ingest_20260228T202345Z.json",
+    "snapshot": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260228.parquet"
+  },
+  "cache_paths": [
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_browse-scholarships.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_browse-scholarships-page-2.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_browse-scholarships-page-3.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_discovered-json-wp-json.json",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_discovered-json-embed.json",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_discovered-json-606.json",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-abbviecommunity-15544a08.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-abbvieimmunologyscholarship-0cd0cd62.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-aheiberg-76d0ba03.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-albemarle-94d8ea53.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-alec-b3caf0dc.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-alliantenergyinnovation-153325e1.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-amazonfutureengineer-c4e31c44.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-amcortech-30abed70.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-american-water-4160a15b.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-ametekfoundation-c792578a.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-amfam-f8fadd80.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-angelsoftheguadalupe-24aca25b.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-cfpbmc-allisonsgift-a54515ad.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-cfpbmc-americasheroes-0eeada9e.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-domroescholarship-ac96361c.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-gilmartinscholarship-97c972ea.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-harrisfund-7fc11054.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-kerwinkobishop-fd896e91.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-macrae-63658978.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-malcomson-8771f330.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-rareis-a563c517.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-robertson-memorial-a0134fa2.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-robertsonfund-9497916d.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-children-of-employee-scholarships-ecdd4db7.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-community-focused-scholarships-d85555a3.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-employee-scholarships-87bb90cc.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-scholarship-745b9c5a.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-scholarship-status-1c27a063.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-scholarship-1d35dbde.html",
+    "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-scholarship-status-5c0af1ff.html"
+  ],
+  "config": {
+    "concurrency": 4,
+    "max_detail_pages": 120,
+    "max_listing_pages": 3,
+    "max_runtime_seconds": 600,
+    "request_timeout_seconds": 20.0,
+    "requests_per_second": 1.0,
+    "resume": false
+  },
+  "delta_counts": {
+    "added": 7,
+    "changed": 0,
+    "removed": 139
+  },
+  "duration_seconds": 36.293,
+  "exception_summary": null,
+  "guardrail_warnings": [
+    "Record count dropped by more than 50% vs prior snapshot (28 vs 160)."
+  ],
+  "progress": {
+    "cached_files_written": 36,
+    "detail_urls_attempted": 30,
+    "detail_urls_failed": 0,
+    "detail_urls_succeeded": 30,
+    "listing_urls_processed": 3
+  },
+  "records": {
+    "missing_title_or_source_url_count": 0,
+    "missing_title_or_source_url_pct": 0.0,
+    "parsed_total": 30,
+    "prior_snapshot_total": 160,
+    "snapshot_total": 28
+  },
+  "run_date": "2026-02-28",
+  "run_finished_at": "2026-02-28T20:24:21Z",
+  "run_started_at": "2026-02-28T20:23:45Z",
+  "sources": {
+    "attempted": [
+      "scholarship_america"
+    ],
+    "attempted_count": 1,
+    "details": [
+      {
+        "cache_paths": [
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_browse-scholarships.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_browse-scholarships-page-2.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_browse-scholarships-page-3.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_discovered-json-wp-json.json",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_discovered-json-embed.json",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_discovered-json-606.json",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-abbviecommunity-15544a08.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-abbvieimmunologyscholarship-0cd0cd62.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-aheiberg-76d0ba03.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-albemarle-94d8ea53.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-alec-b3caf0dc.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-alliantenergyinnovation-153325e1.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-amazonfutureengineer-c4e31c44.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-amcortech-30abed70.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-american-water-4160a15b.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-ametekfoundation-c792578a.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-amfam-f8fadd80.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-angelsoftheguadalupe-24aca25b.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-cfpbmc-allisonsgift-a54515ad.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-cfpbmc-americasheroes-0eeada9e.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-domroescholarship-ac96361c.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-gilmartinscholarship-97c972ea.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-harrisfund-7fc11054.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-kerwinkobishop-fd896e91.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-macrae-63658978.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-malcomson-8771f330.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-rareis-a563c517.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-robertson-memorial-a0134fa2.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-robertsonfund-9497916d.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-children-of-employee-scholarships-ecdd4db7.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-community-focused-scholarships-d85555a3.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-employee-scholarships-87bb90cc.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-scholarship-745b9c5a.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-scholarship-status-1c27a063.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-scholarship-1d35dbde.html",
+          "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\raw\\scholarship_america\\20260228T202345Z_detail-scholarship-status-5c0af1ff.html"
+        ],
+        "cached_files_written": 36,
+        "caps_hit": [
+          "max_listing_pages"
+        ],
+        "detail_urls_attempted": 30,
+        "detail_urls_discovered": 30,
+        "detail_urls_failed": 0,
+        "detail_urls_succeeded": 30,
+        "listing_urls_processed": 3,
+        "parse_failures": [],
+        "records": 30,
+        "resumed_detail_urls": 0,
+        "source": "scholarship_america",
+        "status": "partial"
+      }
+    ],
+    "failed": [],
+    "failed_count": 0,
+    "partial": [
+      "scholarship_america"
+    ],
+    "partial_count": 1,
+    "succeeded": [],
+    "succeeded_count": 0
+  },
+  "status": "partial"
+}

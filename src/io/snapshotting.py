@@ -66,8 +66,14 @@ def _jsonable(value: Any) -> Any:
         return None
     if isinstance(value, list):
         return [_jsonable(item) for item in value]
+    if isinstance(value, tuple):
+        return [_jsonable(item) for item in value]
     if isinstance(value, dict):
         return {k: _jsonable(v) for k, v in value.items()}
+    if hasattr(value, "tolist") and not isinstance(value, (str, bytes, bytearray)):
+        converted = value.tolist()
+        if converted is not value:
+            return _jsonable(converted)
     if isinstance(value, float) and pd.isna(value):
         return None
     if pd.isna(value):

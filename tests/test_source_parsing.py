@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -101,3 +102,83 @@ def test_scholarship_america_live_detail_ids_are_deterministic() -> None:
     assert first is not None
     assert second is not None
     assert first["scholarship_id"] == second["scholarship_id"]
+
+
+def test_scholarship_america_live_fetch_records_preserves_sorted_order_with_concurrency(
+    monkeypatch, tmp_path: Path
+) -> None:
+    source = ScholarshipAmericaLiveSource()
+    detail_urls = [
+        "https://scholarshipamerica.org/scholarships/c-scholarship",
+        "https://scholarshipamerica.org/scholarships/a-scholarship",
+        "https://scholarshipamerica.org/scholarships/b-scholarship",
+    ]
+    delays = {
+        detail_urls[0]: 0.03,
+        detail_urls[1]: 0.01,
+        detail_urls[2]: 0.02,
+    }
+
+    class _FakeHttpClient:
+        def get_text(self, url: str) -> str:
+            if "browse-scholarships" in url:
+                return "<html></html>"
+            return f"<html><title>{url}</title></html>"
+
+        def get_json(self, url: str):  # pragma: no cover - unused in this test
+            raise AssertionError(f"Unexpected JSON fetch for {url}")
+
+    def _fake_parse_listing_html(html: str, *, base_url: str) -> tuple[set[str], set[str], set[str]]:
+        return set(detail_urls), set(), set()
+
+    def _fake_parse_detail_html(html: str, *, detail_url: str, fetched_at: datetime):
+        time.sleep(delays[detail_url])
+        slug = detail_url.rstrip("/").split("/")[-1]
+        return {
+            "scholarship_id": slug,
+            "source": source.name,
+            "source_id": slug,
+            "source_url": detail_url,
+            "title": slug.replace("-", " ").title(),
+            "sponsor": "Test Sponsor",
+            "description": None,
+            "eligibility_text": None,
+            "deadline": None,
+            "amount_min": None,
+            "amount_max": None,
+            "is_recurring": None,
+            "states_allowed": None,
+            "majors_allowed": None,
+            "min_gpa": None,
+            "citizenship": None,
+            "education_level": None,
+            "essay_required": None,
+            "essay_prompt": None,
+            "keywords": None,
+            "first_seen_at": fetched_at,
+            "last_seen_at": fetched_at,
+        }
+
+    monkeypatch.setattr(source, "parse_listing_html", _fake_parse_listing_html)
+    monkeypatch.setattr(source, "parse_detail_html", _fake_parse_detail_html)
+
+    first_records, _, _ = source.fetch_records(
+        _FakeHttpClient(),
+        raw_root=tmp_path / "raw",
+        max_listing_pages=1,
+        max_detail_pages=10,
+        max_runtime_seconds=60,
+        concurrency=3,
+    )
+    second_records, _, _ = source.fetch_records(
+        _FakeHttpClient(),
+        raw_root=tmp_path / "raw",
+        max_listing_pages=1,
+        max_detail_pages=10,
+        max_runtime_seconds=60,
+        concurrency=3,
+    )
+
+    expected_urls = sorted(detail_urls)
+    assert [record["source_url"] for record in first_records] == expected_urls
+    assert [record["source_url"] for record in second_records] == expected_urls

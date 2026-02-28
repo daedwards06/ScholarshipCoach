@@ -40,6 +40,12 @@ def parse_args() -> argparse.Namespace:
         help="Run date in YYYYMMDD format. Defaults to current UTC date.",
     )
     parser.add_argument("--requests-per-second", type=float, default=1.0)
+    parser.add_argument("--max-listing-pages", type=int, default=3)
+    parser.add_argument("--max-detail-pages", type=int, default=200)
+    parser.add_argument("--request-timeout-seconds", type=float, default=20.0)
+    parser.add_argument("--max-runtime-seconds", type=int, default=600)
+    parser.add_argument("--concurrency", type=int, default=4)
+    parser.add_argument("--resume", action="store_true")
     return parser.parse_args()
 
 
@@ -165,139 +171,233 @@ def _build_guardrail_warnings(
     return warnings
 
 
+def _exception_summary(exc: Exception) -> dict[str, str]:
+    return {"type": type(exc).__name__, "message": str(exc)}
+
+
 def run_ingest(
     *,
     date: date | None = None,
     raw_dir: Path | None = None,
     processed_dir: Path | None = None,
     requests_per_second: float = 1.0,
+    max_listing_pages: int = 3,
+    max_detail_pages: int = 200,
+    request_timeout_seconds: float = 20.0,
+    max_runtime_seconds: int = 600,
+    concurrency: int = 4,
+    resume: bool = False,
+    report_dir: Path | None = None,
 ) -> dict[str, Any]:
     started_at = datetime.now(tz=UTC)
     resolved_raw_dir = _resolve_repo_path(raw_dir or (ROOT_DIR / "data" / "raw"))
     resolved_processed_dir = _resolve_repo_path(processed_dir or (ROOT_DIR / "data" / "processed"))
-    report_dir = ROOT_DIR / "reports" / "ingest_runs"
+    resolved_report_dir = _resolve_repo_path(report_dir or (ROOT_DIR / "reports" / "ingest_runs"))
     effective_run_date = date or datetime.now(tz=UTC).date()
+    report_stamp = started_at.strftime("%Y%m%dT%H%M%SZ")
+    report_path = resolved_report_dir / f"ingest_{report_stamp}.json"
 
     source_records: list[dict[str, Any]] = []
     source_attempts: list[dict[str, Any]] = []
-    sources = register_sources()
-    client = PoliteHttpClient(requests_per_second=requests_per_second)
+    normalized_df = pd.DataFrame(columns=REQUIRED_COLUMNS)
+    guardrail_warnings: list[str] = []
+    prior_count: int | None = None
+    prior_snapshot_path: Path | None = None
+    snapshot_path: Path | None = None
+    changes_path: Path | None = None
+    delta: dict[str, Any] = {"added": [], "removed": [], "changed": []}
+    missing_title_or_source_count = 0
+    snapshot_skip_reason: str | None = None
+    run_exception: dict[str, str] | None = None
 
     try:
-        for source in sources:
-            source_report: dict[str, Any] = {"source": source.name, "status": "failed"}
-            try:
-                source_fetch_records = getattr(source, "fetch_records", None)
-                if callable(source_fetch_records):
-                    parsed, cache_paths = source_fetch_records(client, raw_root=resolved_raw_dir)
-                    source_records.extend(parsed)
-                    source_report["status"] = "succeeded"
-                    source_report["records"] = len(parsed)
-                    source_report["cache_paths"] = [str(path.resolve()) for path in cache_paths]
-                    logger.info(
-                        "Source=%s cached=%d files records=%d",
-                        source.name,
-                        len(cache_paths),
-                        len(parsed),
-                    )
-                else:
-                    raw_response = source.fetch(client)
-                    raw_path = write_raw_payload(
-                        source_name=source.name,
-                        payload=raw_response.content,
-                        extension=raw_response.extension,
-                        raw_root=resolved_raw_dir,
-                        timestamp=raw_response.fetched_at,
-                    )
-                    parsed = source.parse(raw_response.content, fetched_at=raw_response.fetched_at)
-                    source_records.extend(parsed)
-                    source_report["status"] = "succeeded"
-                    source_report["records"] = len(parsed)
-                    source_report["cache_paths"] = [str(raw_path.resolve())]
-                    logger.info("Source=%s cached=%s records=%d", source.name, raw_path, len(parsed))
-            except Exception:
-                source_report["error"] = "fetch_or_parse_failed"
-                logger.exception("Source %s failed. Continuing with remaining sources.", source.name)
-            source_attempts.append(source_report)
-    finally:
-        client.close()
-
-    normalized_df = _normalize_records(source_records)
-    normalized_df = _dedupe_records(normalized_df)
-
-    prior_count: int | None = None
-    prior_snapshot_path = find_prior_snapshot(resolved_processed_dir, effective_run_date)
-    if prior_snapshot_path is not None:
+        sources = register_sources()
+        client = PoliteHttpClient(
+            requests_per_second=requests_per_second,
+            timeout_seconds=request_timeout_seconds,
+        )
         try:
-            prior_count = len(pd.read_parquet(prior_snapshot_path))
-        except Exception:
-            logger.exception("Failed to read prior snapshot at %s", prior_snapshot_path)
+            for source in sources:
+                source_report: dict[str, Any] = {
+                    "source": source.name,
+                    "status": "failed",
+                    "records": 0,
+                    "cache_paths": [],
+                }
+                try:
+                    source_fetch_records = getattr(source, "fetch_records", None)
+                    if callable(source_fetch_records):
+                        fetch_result = source_fetch_records(
+                            client,
+                            raw_root=resolved_raw_dir,
+                            max_listing_pages=max_listing_pages,
+                            max_detail_pages=max_detail_pages,
+                            max_runtime_seconds=max_runtime_seconds,
+                            concurrency=concurrency,
+                            resume=resume,
+                        )
+                        if len(fetch_result) == 3:
+                            parsed, cache_paths, source_meta = fetch_result
+                        else:
+                            parsed, cache_paths = fetch_result
+                            source_meta = {}
+                        source_records.extend(parsed)
+                        source_report["records"] = len(parsed)
+                        source_report["cache_paths"] = [str(path.resolve()) for path in cache_paths]
+                        source_report.update(source_meta)
+                        source_report["status"] = (
+                            "partial"
+                            if source_meta.get("caps_hit") or source_meta.get("parse_failures")
+                            else "succeeded"
+                        )
+                        logger.info(
+                            "Source=%s cached=%d files records=%d",
+                            source.name,
+                            len(cache_paths),
+                            len(parsed),
+                        )
+                    else:
+                        raw_response = source.fetch(client)
+                        raw_path = write_raw_payload(
+                            source_name=source.name,
+                            payload=raw_response.content,
+                            extension=raw_response.extension,
+                            raw_root=resolved_raw_dir,
+                            timestamp=raw_response.fetched_at,
+                        )
+                        parsed = source.parse(raw_response.content, fetched_at=raw_response.fetched_at)
+                        source_records.extend(parsed)
+                        source_report["status"] = "succeeded"
+                        source_report["records"] = len(parsed)
+                        source_report["cache_paths"] = [str(raw_path.resolve())]
+                        source_report["cached_files_written"] = 1
+                        logger.info("Source=%s cached=%s records=%d", source.name, raw_path, len(parsed))
+                except Exception as exc:
+                    source_report["error"] = "fetch_or_parse_failed"
+                    source_report["exception_summary"] = _exception_summary(exc)
+                    logger.exception("Source %s failed. Continuing with remaining sources.", source.name)
+                source_attempts.append(source_report)
+        finally:
+            client.close()
 
-    missing_title_mask = _missing_text(normalized_df["title"])
-    missing_source_url_mask = _missing_text(normalized_df["source_url"])
-    missing_title_or_source_count = int((missing_title_mask | missing_source_url_mask).sum())
-    guardrail_warnings = _build_guardrail_warnings(
-        prior_count=prior_count,
-        current_count=len(normalized_df),
-        missing_title_or_source_count=missing_title_or_source_count,
-    )
-    for warning in guardrail_warnings:
-        logger.warning("Guardrail: %s", warning)
+        normalized_df = _normalize_records(source_records)
+        normalized_df = _dedupe_records(normalized_df)
 
-    snapshot_path, changes_path, delta = build_and_write_snapshot(
-        normalized_df,
-        processed_dir=resolved_processed_dir,
-        run_date=effective_run_date,
-    )
-    finished_at = datetime.now(tz=UTC)
+        prior_snapshot_path = find_prior_snapshot(resolved_processed_dir, effective_run_date)
+        if prior_snapshot_path is not None:
+            try:
+                prior_count = len(pd.read_parquet(prior_snapshot_path))
+            except Exception:
+                logger.exception("Failed to read prior snapshot at %s", prior_snapshot_path)
 
-    attempted_sources = [entry["source"] for entry in source_attempts]
-    succeeded_sources = [entry["source"] for entry in source_attempts if entry["status"] == "succeeded"]
-    failed_sources = [entry["source"] for entry in source_attempts if entry["status"] != "succeeded"]
-    cache_paths = [path for entry in source_attempts for path in entry.get("cache_paths", [])]
+        if not normalized_df.empty:
+            missing_title_mask = _missing_text(normalized_df["title"])
+            missing_source_url_mask = _missing_text(normalized_df["source_url"])
+            missing_title_or_source_count = int((missing_title_mask | missing_source_url_mask).sum())
+            guardrail_warnings = _build_guardrail_warnings(
+                prior_count=prior_count,
+                current_count=len(normalized_df),
+                missing_title_or_source_count=missing_title_or_source_count,
+            )
+            for warning in guardrail_warnings:
+                logger.warning("Guardrail: %s", warning)
 
-    report_stamp = started_at.strftime("%Y%m%dT%H%M%SZ")
-    report_path = report_dir / f"ingest_{report_stamp}.json"
-    report_payload = {
-        "run_started_at": started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "run_finished_at": finished_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "duration_seconds": round((finished_at - started_at).total_seconds(), 3),
-        "run_date": effective_run_date.isoformat(),
-        "sources": {
-            "attempted": attempted_sources,
-            "succeeded": succeeded_sources,
-            "failed": failed_sources,
-            "attempted_count": len(attempted_sources),
-            "succeeded_count": len(succeeded_sources),
-            "failed_count": len(failed_sources),
-            "details": source_attempts,
-        },
-        "records": {
-            "parsed_total": len(source_records),
-            "snapshot_total": len(normalized_df),
-            "prior_snapshot_total": prior_count,
-            "missing_title_or_source_url_count": missing_title_or_source_count,
-            "missing_title_or_source_url_pct": (
-                round((missing_title_or_source_count / len(normalized_df)) * 100, 3)
-                if len(normalized_df) > 0
-                else 0.0
-            ),
-        },
-        "cache_paths": cache_paths,
-        "artifact_paths": {
-            "snapshot": str(snapshot_path.resolve()),
-            "delta": str(changes_path.resolve()),
-            "report": str(report_path.resolve()),
-            "prior_snapshot": str(prior_snapshot_path.resolve()) if prior_snapshot_path else None,
-        },
-        "guardrail_warnings": guardrail_warnings,
-        "delta_counts": {
-            "added": len(delta["added"]),
-            "removed": len(delta["removed"]),
-            "changed": len(delta["changed"]),
-        },
-    }
-    write_json_atomic(report_payload, report_path)
+            snapshot_path, changes_path, delta = build_and_write_snapshot(
+                normalized_df,
+                processed_dir=resolved_processed_dir,
+                run_date=effective_run_date,
+            )
+        else:
+            snapshot_skip_reason = "No parsed records available; snapshot and delta were skipped."
+            logger.warning(snapshot_skip_reason)
+    except Exception as exc:
+        run_exception = _exception_summary(exc)
+        logger.exception("Ingest run failed after partial progress.")
+        if normalized_df.empty:
+            snapshot_skip_reason = snapshot_skip_reason or "Ingest failed before any records were normalized."
+        else:
+            snapshot_skip_reason = snapshot_skip_reason or "Snapshot generation failed after records were normalized."
+    finally:
+        finished_at = datetime.now(tz=UTC)
+        attempted_sources = [entry["source"] for entry in source_attempts]
+        succeeded_sources = [entry["source"] for entry in source_attempts if entry["status"] == "succeeded"]
+        partial_sources = [entry["source"] for entry in source_attempts if entry["status"] == "partial"]
+        failed_sources = [entry["source"] for entry in source_attempts if entry["status"] == "failed"]
+        cache_paths = [path for entry in source_attempts for path in entry.get("cache_paths", [])]
+        detail_attempted = sum(int(entry.get("detail_urls_attempted", 0)) for entry in source_attempts)
+        detail_succeeded = sum(int(entry.get("detail_urls_succeeded", 0)) for entry in source_attempts)
+        detail_failed = sum(int(entry.get("detail_urls_failed", 0)) for entry in source_attempts)
+        listing_processed = sum(int(entry.get("listing_urls_processed", 0)) for entry in source_attempts)
+        cached_files_written = sum(int(entry.get("cached_files_written", 0)) for entry in source_attempts)
+
+        if run_exception is not None:
+            status = "partial" if not normalized_df.empty or bool(succeeded_sources or partial_sources) else "failed"
+        elif failed_sources or partial_sources:
+            status = "partial" if not normalized_df.empty or bool(succeeded_sources) else "failed"
+        else:
+            status = "success"
+
+        report_payload = {
+            "status": status,
+            "run_started_at": started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "run_finished_at": finished_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "duration_seconds": round((finished_at - started_at).total_seconds(), 3),
+            "run_date": effective_run_date.isoformat(),
+            "config": {
+                "requests_per_second": requests_per_second,
+                "max_listing_pages": max_listing_pages,
+                "max_detail_pages": max_detail_pages,
+                "request_timeout_seconds": request_timeout_seconds,
+                "max_runtime_seconds": max_runtime_seconds,
+                "concurrency": concurrency,
+                "resume": resume,
+            },
+            "sources": {
+                "attempted": attempted_sources,
+                "succeeded": succeeded_sources,
+                "partial": partial_sources,
+                "failed": failed_sources,
+                "attempted_count": len(attempted_sources),
+                "succeeded_count": len(succeeded_sources),
+                "partial_count": len(partial_sources),
+                "failed_count": len(failed_sources),
+                "details": source_attempts,
+            },
+            "progress": {
+                "listing_urls_processed": listing_processed,
+                "detail_urls_attempted": detail_attempted,
+                "detail_urls_succeeded": detail_succeeded,
+                "detail_urls_failed": detail_failed,
+                "cached_files_written": cached_files_written,
+            },
+            "records": {
+                "parsed_total": len(source_records),
+                "snapshot_total": len(normalized_df),
+                "prior_snapshot_total": prior_count,
+                "missing_title_or_source_url_count": missing_title_or_source_count,
+                "missing_title_or_source_url_pct": (
+                    round((missing_title_or_source_count / len(normalized_df)) * 100, 3)
+                    if len(normalized_df) > 0
+                    else 0.0
+                ),
+            },
+            "cache_paths": cache_paths,
+            "artifact_paths": {
+                "snapshot": str(snapshot_path.resolve()) if snapshot_path else None,
+                "delta": str(changes_path.resolve()) if changes_path else None,
+                "report": str(report_path.resolve()),
+                "prior_snapshot": str(prior_snapshot_path.resolve()) if prior_snapshot_path else None,
+            },
+            "artifact_notes": {"snapshot_skip_reason": snapshot_skip_reason},
+            "guardrail_warnings": guardrail_warnings,
+            "delta_counts": {
+                "added": len(delta["added"]),
+                "removed": len(delta["removed"]),
+                "changed": len(delta["changed"]),
+            },
+            "exception_summary": run_exception,
+        }
+        write_json_atomic(report_payload, report_path)
     return report_payload
 
 
@@ -322,8 +422,15 @@ def main() -> int:
         raw_dir=args.raw_dir,
         processed_dir=args.processed_dir,
         requests_per_second=args.requests_per_second,
+        max_listing_pages=args.max_listing_pages,
+        max_detail_pages=args.max_detail_pages,
+        request_timeout_seconds=args.request_timeout_seconds,
+        max_runtime_seconds=args.max_runtime_seconds,
+        concurrency=args.concurrency,
+        resume=args.resume,
     )
 
+    print(f"Run status: {report['status']}")
     print(f"Wrote snapshot: {report['artifact_paths']['snapshot']}")
     print(f"Wrote changes: {report['artifact_paths']['delta']}")
     print(f"Wrote ingest report: {report['artifact_paths']['report']}")
@@ -333,7 +440,7 @@ def main() -> int:
         f"removed={report['delta_counts']['removed']}, "
         f"changed={report['delta_counts']['changed']}"
     )
-    return 0
+    return 0 if report["status"] != "failed" else 1
 
 
 if __name__ == "__main__":

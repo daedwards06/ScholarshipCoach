@@ -68,3 +68,33 @@ def test_build_delta_reports_added_removed_and_tracked_field_changes() -> None:
         },
     }
 
+
+def test_build_delta_serializes_array_like_values_in_removed_records() -> None:
+    prior_df = pd.DataFrame(
+        [
+            {
+                "scholarship_id": "removed",
+                "title": "Legacy Scholarship",
+                "deadline": "2026-05-01",
+                "eligibility_text": "Open to all majors.",
+                "amount_min": 500.0,
+                "amount_max": 2500.0,
+                "states_allowed": ["CA", "NY"],
+            },
+        ]
+    )
+    current_df = pd.DataFrame(columns=prior_df.columns)
+
+    delta = build_delta(current_df=current_df, prior_df=prior_df)
+
+    assert delta["removed"] == [
+        {
+            "scholarship_id": "removed",
+            "title": "Legacy Scholarship",
+            "deadline": "2026-05-01",
+            "eligibility_text": "Open to all majors.",
+            "amount_min": 500.0,
+            "amount_max": 2500.0,
+            "states_allowed": ["CA", "NY"],
+        }
+    ]
