@@ -6,6 +6,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.rank.weights import Stage3Weights
+
 
 def _resolve_deadline(value: Any) -> pd.Timestamp | pd.NaT:
     if value is None or pd.isna(value):
@@ -69,9 +71,15 @@ def _normalize_minmax(values: np.ndarray) -> np.ndarray:
     return np.clip((values - minimum) / span, 0.0, 1.0)
 
 
-def rerank_stage3(scored_df: pd.DataFrame, today: date | None = None) -> pd.DataFrame:
+def rerank_stage3(
+    scored_df: pd.DataFrame,
+    today: date | None = None,
+    *,
+    weights: Stage3Weights | None = None,
+) -> pd.DataFrame:
     effective_today = today or date.today()
     reranked_df = scored_df.copy()
+    active_weights = weights or Stage3Weights.baseline()
 
     if "stage2_score" not in reranked_df.columns:
         raise ValueError("Stage 3 rerank requires a 'stage2_score' column.")
@@ -84,7 +92,11 @@ def rerank_stage3(scored_df: pd.DataFrame, today: date | None = None) -> pd.Data
     ev_proxy_norm = _normalize_minmax(ev_proxy)
 
     stage2_score = pd.to_numeric(reranked_df["stage2_score"], errors="coerce").fillna(0.0).to_numpy()
-    final_score = (0.80 * stage2_score) + (0.15 * urgency_boost) + (0.05 * ev_proxy_norm)
+    final_score = (
+        (active_weights.stage2 * stage2_score)
+        + (active_weights.urgency * urgency_boost)
+        + (active_weights.ev * ev_proxy_norm)
+    )
 
     reranked_df["days_to_deadline"] = days_to_deadline
     reranked_df["urgency_boost"] = urgency_boost

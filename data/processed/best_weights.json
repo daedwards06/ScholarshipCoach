@@ -1,0 +1,16 @@
+{
+  "amount_utility_mode": "log",
+  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet",
+  "stage2_weights": {
+    "amount": 0.05,
+    "effort": 0.1,
+    "keyword": 0.15,
+    "tfidf": 0.7
+  },
+  "stage3_weights": {
+    "ev": 0.0,
+    "stage2": 0.95,
+    "urgency": 0.05
+  },
+  "timestamp": "2026-02-28T15:47:45.623620+00:00"
+}

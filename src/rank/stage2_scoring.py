@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import re
 from typing import Any, Iterable, Mapping
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+from src.rank.weights import Stage2Weights
 
 
 def _get_profile_value(profile: Any, key: str) -> Any:
@@ -105,12 +108,23 @@ def _resolve_amount(row: pd.Series) -> float:
     return 0.0
 
 
-def _compute_amount_utility(df: pd.DataFrame) -> np.ndarray:
+def _compute_amount_utility(
+    df: pd.DataFrame,
+    *,
+    mode: Literal["linear", "log"] = "log",
+) -> np.ndarray:
     raw_amounts = np.array([_resolve_amount(row) for _, row in df.iterrows()], dtype=float)
     max_amount = float(raw_amounts.max()) if raw_amounts.size else 0.0
     if max_amount <= 0.0:
         return np.zeros(len(df), dtype=float)
-    return np.clip(raw_amounts / max_amount, 0.0, 1.0)
+    if mode == "linear":
+        return np.clip(raw_amounts / max_amount, 0.0, 1.0)
+    if mode == "log":
+        denominator = np.log1p(max_amount)
+        if denominator <= 0.0:
+            return np.zeros(len(df), dtype=float)
+        return np.clip(np.log1p(np.maximum(raw_amounts, 0.0)) / denominator, 0.0, 1.0)
+    raise ValueError(f"Unsupported amount_utility_mode '{mode}'. Expected 'linear' or 'log'.")
 
 
 def _profile_keyword_tokens(profile: Any) -> set[str]:
@@ -143,22 +157,29 @@ def _compute_effort_penalty(df: pd.DataFrame) -> np.ndarray:
     return np.array(penalties, dtype=float)
 
 
-def score_stage2(eligible_df: pd.DataFrame, profile: Any) -> pd.DataFrame:
+def score_stage2(
+    eligible_df: pd.DataFrame,
+    profile: Any,
+    *,
+    weights: Stage2Weights | None = None,
+    amount_utility_mode: Literal["linear", "log"] = "log",
+) -> pd.DataFrame:
     scored_df = eligible_df.copy()
+    active_weights = weights or Stage2Weights.baseline()
 
     student_text = build_student_profile_text(profile)
     scholarship_texts = [build_scholarship_text(row) for _, row in scored_df.iterrows()]
 
     tfidf_sim = compute_tfidf_similarity(student_text=student_text, scholarship_texts=scholarship_texts)
-    amount_utility = _compute_amount_utility(scored_df)
+    amount_utility = _compute_amount_utility(scored_df, mode=amount_utility_mode)
     keyword_overlap = _compute_keyword_overlap(scored_df, profile)
     effort_penalty = _compute_effort_penalty(scored_df)
 
     stage2_score = (
-        0.70 * tfidf_sim
-        + 0.20 * amount_utility
-        + 0.10 * keyword_overlap
-        - 0.10 * effort_penalty
+        (active_weights.tfidf * tfidf_sim)
+        + (active_weights.amount * amount_utility)
+        + (active_weights.keyword * keyword_overlap)
+        - (active_weights.effort * effort_penalty)
     )
 
     scored_df["tfidf_sim"] = np.clip(tfidf_sim, 0.0, 1.0)

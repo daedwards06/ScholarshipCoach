@@ -19,9 +19,11 @@ from scripts.run_ingest import get_latest_snapshot_path, run_ingest
 from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
+from src.rank.weights import Stage2Weights, Stage3Weights
 
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 PROFILE_PATH = PROCESSED_DIR / "student_profile.json"
+BEST_WEIGHTS_PATH = PROCESSED_DIR / "best_weights.json"
 SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
 
 
@@ -93,6 +95,26 @@ def _load_profile_from_disk() -> dict[str, Any] | None:
 def _save_profile_to_disk(profile: dict[str, Any]) -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     PROFILE_PATH.write_text(json.dumps(profile, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _load_best_weights() -> dict[str, Any] | None:
+    if not BEST_WEIGHTS_PATH.exists():
+        return None
+
+    payload = json.loads(BEST_WEIGHTS_PATH.read_text(encoding="utf-8"))
+    stage2_weights = Stage2Weights.from_mapping(payload.get("stage2_weights"))
+    stage3_weights = Stage3Weights.from_mapping(payload.get("stage3_weights"))
+    amount_utility_mode = str(payload.get("amount_utility_mode") or "log")
+    if amount_utility_mode not in {"linear", "log"}:
+        raise ValueError("best_weights.json has an invalid amount_utility_mode.")
+
+    return {
+        "stage2_weights": stage2_weights,
+        "stage3_weights": stage3_weights,
+        "amount_utility_mode": amount_utility_mode,
+        "snapshot_used": str(payload.get("snapshot_used") or ""),
+        "timestamp": str(payload.get("timestamp") or ""),
+    }
 
 
 def _apply_profile_to_widgets(profile: dict[str, Any]) -> None:
@@ -255,6 +277,18 @@ def _display_ingest_summary(report: dict[str, Any]) -> None:
         st.success("All sources succeeded.")
 
 
+def _weights_display_payload(
+    stage2_weights: Stage2Weights,
+    stage3_weights: Stage3Weights,
+    amount_utility_mode: str,
+) -> dict[str, Any]:
+    return {
+        "stage2_weights": stage2_weights.to_dict(),
+        "stage3_weights": stage3_weights.to_dict(),
+        "amount_utility_mode": amount_utility_mode,
+    }
+
+
 def main() -> None:
     st.set_page_config(page_title="Scholarship Coach", layout="wide")
     st.title("Scholarship Coach")
@@ -294,7 +328,48 @@ def main() -> None:
                 st.success("Profile loaded.")
                 st.rerun()
 
+        tuned_weights_payload: dict[str, Any] | None = None
+        tuned_weights_error: str | None = None
+        try:
+            tuned_weights_payload = _load_best_weights()
+        except Exception as exc:
+            tuned_weights_error = str(exc)
+
+        st.divider()
+        st.header("Ranking Weights")
+        if "use_tuned_weights" not in st.session_state:
+            st.session_state.use_tuned_weights = tuned_weights_payload is not None
+        use_tuned_weights = st.checkbox(
+            "Use tuned weights (best_weights.json)",
+            key="use_tuned_weights",
+            disabled=tuned_weights_payload is None,
+        )
+        if tuned_weights_error:
+            st.warning(f"Could not load {BEST_WEIGHTS_PATH.name}: {tuned_weights_error}")
+        elif tuned_weights_payload is None:
+            st.caption(f"No tuned weights found at {BEST_WEIGHTS_PATH}. Using baseline weights.")
+        else:
+            st.caption(f"Loaded tuned weights from {BEST_WEIGHTS_PATH.name}.")
+
     st.session_state.profile = _profile_from_widgets()
+
+    tuned_weights_payload = None
+    try:
+        tuned_weights_payload = _load_best_weights()
+    except Exception:
+        tuned_weights_payload = None
+
+    use_tuned_weights = bool(st.session_state.get("use_tuned_weights")) and tuned_weights_payload is not None
+    if use_tuned_weights and tuned_weights_payload is not None:
+        active_stage2_weights = tuned_weights_payload["stage2_weights"]
+        active_stage3_weights = tuned_weights_payload["stage3_weights"]
+        active_amount_utility_mode = tuned_weights_payload["amount_utility_mode"]
+        active_weights_label = "tuned"
+    else:
+        active_stage2_weights = Stage2Weights.baseline()
+        active_stage3_weights = Stage3Weights.baseline()
+        active_amount_utility_mode = "log"
+        active_weights_label = "baseline"
 
     st.header("Data Update + Status")
     update_col, latest_col = st.columns(2)
@@ -352,6 +427,14 @@ def main() -> None:
         )
 
     st.header("Pipeline Execution")
+    st.caption(f"Active ranking weights: {active_weights_label}")
+    st.json(
+        _weights_display_payload(
+            active_stage2_weights,
+            active_stage3_weights,
+            active_amount_utility_mode,
+        )
+    )
     top_n = st.slider("Top-N results", min_value=10, max_value=100, value=25, step=5)
     search_term = st.text_input("Search title/sponsor/description")
     deadline_within_days = st.slider("Deadline within X days (0 = no filter)", 0, 365, 0, 5)
@@ -365,8 +448,17 @@ def main() -> None:
             stage2_profile = _build_stage2_profile(st.session_state.profile)
 
             eligible_df, ineligible_df = apply_eligibility_filter(snapshot_df, stage1_profile)
-            scored_df = score_stage2(eligible_df, stage2_profile)
-            final_df = rerank_stage3(scored_df, today=stage1_profile.today)
+            scored_df = score_stage2(
+                eligible_df,
+                stage2_profile,
+                weights=active_stage2_weights,
+                amount_utility_mode=active_amount_utility_mode,
+            )
+            final_df = rerank_stage3(
+                scored_df,
+                today=stage1_profile.today,
+                weights=active_stage3_weights,
+            )
 
             st.session_state.eligible_df = eligible_df
             st.session_state.scored_df = scored_df
