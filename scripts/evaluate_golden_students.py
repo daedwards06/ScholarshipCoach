@@ -26,6 +26,7 @@ from src.io.snapshotting import get_latest_snapshot_path
 from src.rank.stage1_eligibility import apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
+from src.rank.weights import Stage2Weights, Stage3Weights
 
 MAX_K = 10
 TFIDF_PROXY_THRESHOLD = 0.12
@@ -57,6 +58,12 @@ def parse_args() -> argparse.Namespace:
         default=ROOT_DIR / "reports",
         help="Output directory for markdown and JSON artifacts.",
     )
+    parser.add_argument(
+        "--weights",
+        type=Path,
+        default=None,
+        help="Optional JSON file with stage2_weights, stage3_weights, and amount_utility_mode overrides.",
+    )
     return parser.parse_args()
 
 
@@ -67,6 +74,33 @@ def _resolve_snapshot_path(snapshot: Path | None, processed_dir: Path) -> Path:
     if latest is None:
         raise FileNotFoundError(f"No snapshot parquet found in '{processed_dir}'.")
     return latest
+
+
+def _resolve_path(path: Path) -> Path:
+    return path if path.is_absolute() else ROOT_DIR / path
+
+
+def _load_weight_overrides(
+    weights_path: Path | None,
+) -> tuple[Stage2Weights | None, Stage3Weights | None, str, Path | None]:
+    if weights_path is None:
+        return None, None, "log", None
+
+    resolved_path = _resolve_path(weights_path)
+    payload = json.loads(resolved_path.read_text(encoding="utf-8"))
+    amount_utility_mode = str(payload.get("amount_utility_mode", "log")).strip().lower()
+    if amount_utility_mode not in {"linear", "log"}:
+        raise ValueError(
+            f"Unsupported amount_utility_mode '{amount_utility_mode}' in '{resolved_path}'. "
+            "Expected 'linear' or 'log'."
+        )
+
+    return (
+        Stage2Weights.from_mapping(payload.get("stage2_weights")),
+        Stage3Weights.from_mapping(payload.get("stage3_weights")),
+        amount_utility_mode,
+        resolved_path,
+    )
 
 
 def _normalize_text(value: Any) -> str | None:
@@ -157,6 +191,9 @@ def _run_per_profile(
     students: list[GoldenStudent],
     *,
     max_k: int,
+    stage2_weights: Stage2Weights | None = None,
+    stage3_weights: Stage3Weights | None = None,
+    amount_utility_mode: str = "log",
 ) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, list[str]], dict[str, list[int]]]:
     per_profile_results: list[dict[str, Any]] = []
     per_profile_topk: dict[str, list[dict[str, Any]]] = {}
@@ -168,8 +205,17 @@ def _run_per_profile(
         k = min(max_k, int(len(eligible_df)))
 
         if k > 0:
-            scored_df = score_stage2(eligible_df, student.as_stage2_profile())
-            reranked_df = rerank_stage3(scored_df, today=student.profile.today)
+            scored_df = score_stage2(
+                eligible_df,
+                student.as_stage2_profile(),
+                weights=stage2_weights,
+                amount_utility_mode=amount_utility_mode,
+            )
+            reranked_df = rerank_stage3(
+                scored_df,
+                today=student.profile.today,
+                weights=stage3_weights,
+            )
             topk_df = reranked_df.head(k).copy()
         else:
             scored_df = pd.DataFrame()
@@ -244,6 +290,7 @@ def _markdown_report(
     snapshot_path: Path,
     snapshot_count: int,
     generated_at: str,
+    weights_path: Path | None,
     metrics: dict[str, Any],
     students: list[GoldenStudent],
     per_profile_topk: dict[str, list[dict[str, Any]]],
@@ -255,6 +302,10 @@ def _markdown_report(
     lines.append(f"- Snapshot: `{snapshot_path}`")
     lines.append(f"- Snapshot records: {snapshot_count}")
     lines.append(f"- Golden profiles: {len(students)}")
+    if weights_path is None:
+        lines.append("- Weights: baseline defaults")
+    else:
+        lines.append(f"- Weights file: `{weights_path}`")
     lines.append("")
     lines.append("## Metrics Summary")
     lines.append("")
@@ -353,6 +404,7 @@ def main() -> int:
         raise SystemExit("--k must be greater than 0.")
 
     snapshot_path = _resolve_snapshot_path(args.snapshot, args.processed_dir)
+    stage2_weights, stage3_weights, amount_utility_mode, weights_path = _load_weight_overrides(args.weights)
     snapshot_df = pd.read_parquet(snapshot_path)
     students = get_golden_students()
 
@@ -360,11 +412,17 @@ def main() -> int:
         snapshot_df,
         students,
         max_k=args.k,
+        stage2_weights=stage2_weights,
+        stage3_weights=stage3_weights,
+        amount_utility_mode=amount_utility_mode,
     )
     _, _, run_two_ids, _ = _run_per_profile(
         snapshot_df,
         students,
         max_k=args.k,
+        stage2_weights=stage2_weights,
+        stage3_weights=stage3_weights,
+        amount_utility_mode=amount_utility_mode,
     )
 
     metrics = _metrics_payload(
@@ -385,6 +443,7 @@ def main() -> int:
         snapshot_path=snapshot_path,
         snapshot_count=len(snapshot_df),
         generated_at=generated_at,
+        weights_path=weights_path,
         metrics=metrics,
         students=students,
         per_profile_topk=run_one_topk,
@@ -397,6 +456,8 @@ def main() -> int:
         "snapshot_path": str(snapshot_path),
         "snapshot_count": int(len(snapshot_df)),
         "golden_profiles_count": len(students),
+        "weights_path": str(weights_path) if weights_path is not None else None,
+        "used_baseline_weights": weights_path is None,
         "metrics": metrics,
         "per_profile": _to_serializable_profile_results(run_one_results, run_one_topk, relevance_labels),
     }
