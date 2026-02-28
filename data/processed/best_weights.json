@@ -2,7 +2,7 @@
   "amount_utility_mode": "log",
   "model_name": "all-MiniLM-L6-v2",
   "similarity_mode": "embeddings",
-  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet",
+  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260228.parquet",
   "stage2_weights": {
     "amount": 0.05,
     "effort": 0.05,
@@ -10,9 +10,9 @@
     "tfidf": 0.7
   },
   "stage3_weights": {
-    "ev": 0.1,
-    "stage2": 0.8,
-    "urgency": 0.1
+    "ev": 0.0,
+    "stage2": 0.95,
+    "urgency": 0.05
   },
-  "timestamp": "2026-02-28T19:47:09.611745+00:00"
+  "timestamp": "2026-02-28T20:37:17.864356+00:00"
 }
