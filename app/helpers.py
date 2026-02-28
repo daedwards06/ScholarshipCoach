@@ -20,9 +20,15 @@ def format_amount_range(amount_min: Any, amount_max: Any) -> str:
 
 
 def explain_ranked_row(row: pd.Series, *, max_signals: int = 3) -> list[str]:
+    text_similarity = (
+        _coerce_float(row.get("text_sim"))
+        or _coerce_float(row.get("tfidf_sim"))
+        or _coerce_float(row.get("embed_sim"))
+        or 0.0
+    )
     signal_scores = [
         (
-            float(_coerce_float(row.get("tfidf_sim")) or 0.0),
+            float(text_similarity),
             "Strong match to your goals/keywords",
         ),
         (

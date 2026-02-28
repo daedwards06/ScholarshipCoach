@@ -7,9 +7,17 @@
 - Input snapshot:
   - `--snapshot <path>` to evaluate a specific saved snapshot
   - If omitted, the script loads the latest `data/processed/scholarships_snapshot_YYYYMMDD.parquet`
+- Similarity mode:
+  - `--similarity-mode tfidf|embeddings`
+- Embedding model:
+  - `--model-name all-MiniLM-L6-v2`
 - Golden student set:
   - `src/eval/golden_students.py`
   - Includes diverse profiles across GPA, state, major, education level, and citizenship
+- Weights:
+  - `--use-best-weights` defaults to true when `data/processed/best_weights.json` exists
+  - `--no-use-best-weights` forces baseline defaults
+  - `--weights <path>` overrides with a specific weights file
 - Outputs:
   - Markdown report: `reports/golden_eval_YYYYMMDD_HHMMSS.md`
   - Raw artifact JSON: `reports/artifacts/golden_eval_YYYYMMDD_HHMMSS.json`
@@ -19,8 +27,19 @@
 For each golden profile, the script runs:
 
 1. Stage 1 eligibility filter (`apply_eligibility_filter`)
-2. Stage 2 baseline scoring (`score_stage2`)
+2. Stage 2 scoring (`score_stage2`)
 3. Stage 3 rerank (`rerank_stage3`)
+
+Stage 2 can run in either:
+
+- `tfidf` mode (default)
+- `embeddings` mode using the local `all-MiniLM-L6-v2` sentence-transformer
+
+Embedding mode uses a local cache at:
+
+- `data/processed/embeddings/<model_name_sanitized>/embeddings.npz`
+
+Saved snapshots keep only `embedding_key` values so the main parquet stays small; dense vectors live in the sidecar cache artifact.
 
 Top-K is computed per profile as:
 
@@ -39,6 +58,7 @@ Top-K is computed per profile as:
 - Ranking stability:
   - pipeline run twice on the same snapshot/profiles
   - asserts identical ordered `scholarship_id` lists for each profile
+  - for embedding mode, this includes deterministic reuse of cached normalized embeddings from disk
 - NDCG@K:
   - computed only when relevance labels are available
   - otherwise reported as `"N/A"`
@@ -50,7 +70,7 @@ For portfolio-friendly offline evaluation, relevance labels are heuristic (not h
 - Label `2` (high):
   - major/state/education match AND keyword overlap > 0
 - Label `1` (medium):
-  - keyword overlap > 0 OR TF-IDF similarity above threshold
+  - keyword overlap > 0 OR text similarity above threshold
 - Label `0` (low):
   - otherwise
 

@@ -9,6 +9,9 @@ from typing import Any
 
 import pandas as pd
 
+from src.embeddings.cache import ensure_embedding_store_for_df
+from src.embeddings.model import DEFAULT_MODEL_NAME
+
 SNAPSHOT_PREFIX = "scholarships_snapshot_"
 CHANGES_PREFIX = "changes_"
 SNAPSHOT_PATTERN = re.compile(r"^scholarships_snapshot_(\d{8})\.parquet$")
@@ -39,6 +42,7 @@ REQUIRED_COLUMNS = [
 ]
 
 TRACKED_DIFF_FIELDS = ("deadline", "amount", "title", "eligibility_text")
+SNAPSHOT_COLUMNS = [*REQUIRED_COLUMNS, "embedding_key"]
 
 
 def _coerce_output_date(run_date: date | str | None) -> date:
@@ -204,9 +208,16 @@ def build_and_write_snapshot(
     *,
     processed_dir: Path,
     run_date: date | str | None = None,
+    embedding_model_name: str = DEFAULT_MODEL_NAME,
 ) -> tuple[Path, Path, dict[str, Any]]:
     snapshot_date = _coerce_output_date(run_date)
     snapshot_df = prepare_snapshot_df(records)
+    snapshot_df = ensure_embedding_store_for_df(
+        snapshot_df,
+        embedding_model_name,
+        processed_dir=processed_dir,
+    )
+    snapshot_df = snapshot_df[SNAPSHOT_COLUMNS]
 
     processed_dir.mkdir(parents=True, exist_ok=True)
     prior_snapshot_path = find_prior_snapshot(processed_dir, snapshot_date)

@@ -29,7 +29,9 @@ from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
 
 MAX_K = 10
-TFIDF_PROXY_THRESHOLD = 0.12
+TEXT_SIM_PROXY_THRESHOLD = 0.12
+DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
+BEST_WEIGHTS_PATH = ROOT_DIR / "data" / "processed" / "best_weights.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,6 +65,24 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Optional JSON file with stage2_weights, stage3_weights, and amount_utility_mode overrides.",
+    )
+    parser.add_argument(
+        "--similarity-mode",
+        choices=("tfidf", "embeddings"),
+        default="tfidf",
+        help="Stage 2 text similarity mode. Defaults to tfidf.",
+    )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default=DEFAULT_MODEL_NAME,
+        help=f"Embedding model alias/name. Defaults to {DEFAULT_MODEL_NAME}.",
+    )
+    parser.add_argument(
+        "--use-best-weights",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Load data/processed/best_weights.json when available. Defaults to true if the file exists.",
     )
     return parser.parse_args()
 
@@ -101,6 +121,23 @@ def _load_weight_overrides(
         amount_utility_mode,
         resolved_path,
     )
+
+
+def _resolve_weight_path(
+    weights_path: Path | None,
+    use_best_weights: bool | None,
+) -> tuple[Path | None, bool]:
+    if weights_path is not None:
+        resolved_path = _resolve_path(weights_path)
+        return resolved_path, resolved_path.resolve() == BEST_WEIGHTS_PATH.resolve()
+
+    best_exists = BEST_WEIGHTS_PATH.exists()
+    should_use_best = best_exists if use_best_weights is None else bool(use_best_weights)
+    if not should_use_best:
+        return None, False
+    if not best_exists:
+        raise FileNotFoundError(f"Requested best weights, but no file exists at '{BEST_WEIGHTS_PATH}'.")
+    return BEST_WEIGHTS_PATH, True
 
 
 def _normalize_text(value: Any) -> str | None:
@@ -149,12 +186,14 @@ def _major_state_education_match(row: pd.Series, student: GoldenStudent) -> bool
 
 def _proxy_relevance_label(row: pd.Series, student: GoldenStudent) -> int:
     keyword_overlap_positive = _keyword_overlap_positive(row)
-    tfidf_sim = float(row.get("tfidf_sim") or 0.0)
+    text_similarity = float(
+        row.get("text_sim") or row.get("tfidf_sim") or row.get("embed_sim") or 0.0
+    )
     strict_match = _major_state_education_match(row, student)
 
     if strict_match and keyword_overlap_positive:
         return 2
-    if keyword_overlap_positive or tfidf_sim >= TFIDF_PROXY_THRESHOLD:
+    if keyword_overlap_positive or text_similarity >= TEXT_SIM_PROXY_THRESHOLD:
         return 1
     return 0
 
@@ -174,7 +213,9 @@ def _profile_topk_records(topk_df: pd.DataFrame, k: int) -> list[dict[str, Any]]
                 "title": row.get("title"),
                 "final_score": _safe_number(row.get("final_score")),
                 "stage2_score": _safe_number(row.get("stage2_score")),
+                "text_sim": _safe_number(row.get("text_sim")),
                 "tfidf_sim": _safe_number(row.get("tfidf_sim")),
+                "embed_sim": _safe_number(row.get("embed_sim")),
                 "amount_utility": _safe_number(row.get("amount_utility")),
                 "keyword_overlap": _safe_number(row.get("keyword_overlap")),
                 "effort_penalty": _safe_number(row.get("effort_penalty")),
@@ -194,6 +235,9 @@ def _run_per_profile(
     stage2_weights: Stage2Weights | None = None,
     stage3_weights: Stage3Weights | None = None,
     amount_utility_mode: str = "log",
+    similarity_mode: str = "tfidf",
+    model_name: str = DEFAULT_MODEL_NAME,
+    processed_dir: Path | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, list[str]], dict[str, list[int]]]:
     per_profile_results: list[dict[str, Any]] = []
     per_profile_topk: dict[str, list[dict[str, Any]]] = {}
@@ -210,6 +254,9 @@ def _run_per_profile(
                 student.as_stage2_profile(),
                 weights=stage2_weights,
                 amount_utility_mode=amount_utility_mode,
+                similarity_mode=similarity_mode,
+                model_name=model_name,
+                processed_dir=processed_dir,
             )
             reranked_df = rerank_stage3(
                 scored_df,
@@ -250,6 +297,7 @@ def _metrics_payload(
     relevance_labels: dict[str, list[int]],
     run_one_ids: dict[str, list[str]],
     run_two_ids: dict[str, list[str]],
+    similarity_mode: str,
 ) -> dict[str, Any]:
     max_k_observed = max((len(records) for records in per_profile_topk.values()), default=0)
     coverage = coverage_at_k(per_profile_topk, k=max_k_observed)
@@ -266,10 +314,11 @@ def _metrics_payload(
         "proxy_relevance": {
             "labels": {
                 "2": "major/state/education match and keyword overlap > 0",
-                "1": "keyword overlap > 0 OR tfidf_sim >= threshold",
+                "1": "keyword overlap > 0 OR text similarity >= threshold",
                 "0": "otherwise",
             },
-            "tfidf_threshold": TFIDF_PROXY_THRESHOLD,
+            "text_similarity_threshold": TEXT_SIM_PROXY_THRESHOLD,
+            "similarity_mode": similarity_mode,
         },
     }
 
@@ -294,6 +343,9 @@ def _markdown_report(
     metrics: dict[str, Any],
     students: list[GoldenStudent],
     per_profile_topk: dict[str, list[dict[str, Any]]],
+    used_best_weights: bool = False,
+    similarity_mode: str = "tfidf",
+    model_name: str | None = None,
 ) -> str:
     lines: list[str] = []
     lines.append("# Golden Student Offline Evaluation")
@@ -302,10 +354,14 @@ def _markdown_report(
     lines.append(f"- Snapshot: `{snapshot_path}`")
     lines.append(f"- Snapshot records: {snapshot_count}")
     lines.append(f"- Golden profiles: {len(students)}")
+    lines.append(f"- Similarity mode: `{similarity_mode}`")
+    if similarity_mode == "embeddings" and model_name:
+        lines.append(f"- Embedding model: `{model_name}`")
     if weights_path is None:
         lines.append("- Weights: baseline defaults")
     else:
         lines.append(f"- Weights file: `{weights_path}`")
+    lines.append(f"- Used best_weights.json: {used_best_weights}")
     lines.append("")
     lines.append("## Metrics Summary")
     lines.append("")
@@ -356,7 +412,7 @@ def _markdown_report(
             lines.append("")
             continue
         lines.append(
-            "| scholarship_id | final_score | stage2_score | tfidf_sim | amount_utility | keyword_overlap | urgency_boost | ev_proxy_norm | title |"
+            "| scholarship_id | final_score | stage2_score | text_sim | amount_utility | keyword_overlap | urgency_boost | ev_proxy_norm | title |"
         )
         lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---|")
         for rec in top_recs:
@@ -364,7 +420,7 @@ def _markdown_report(
                 f"| {rec['scholarship_id']} | "
                 f"{_format_score(rec['final_score'])} | "
                 f"{_format_score(rec['stage2_score'])} | "
-                f"{_format_score(rec['tfidf_sim'])} | "
+                f"{_format_score(rec['text_sim'])} | "
                 f"{_format_score(rec['amount_utility'])} | "
                 f"{_format_score(rec['keyword_overlap'])} | "
                 f"{_format_score(rec['urgency_boost'])} | "
@@ -404,7 +460,9 @@ def main() -> int:
         raise SystemExit("--k must be greater than 0.")
 
     snapshot_path = _resolve_snapshot_path(args.snapshot, args.processed_dir)
-    stage2_weights, stage3_weights, amount_utility_mode, weights_path = _load_weight_overrides(args.weights)
+    weights_path, used_best_weights = _resolve_weight_path(args.weights, args.use_best_weights)
+    stage2_weights, stage3_weights, amount_utility_mode, weights_path = _load_weight_overrides(weights_path)
+    processed_dir = args.processed_dir if args.processed_dir.is_absolute() else ROOT_DIR / args.processed_dir
     snapshot_df = pd.read_parquet(snapshot_path)
     students = get_golden_students()
 
@@ -415,6 +473,9 @@ def main() -> int:
         stage2_weights=stage2_weights,
         stage3_weights=stage3_weights,
         amount_utility_mode=amount_utility_mode,
+        similarity_mode=args.similarity_mode,
+        model_name=args.model_name,
+        processed_dir=processed_dir,
     )
     _, _, run_two_ids, _ = _run_per_profile(
         snapshot_df,
@@ -423,6 +484,9 @@ def main() -> int:
         stage2_weights=stage2_weights,
         stage3_weights=stage3_weights,
         amount_utility_mode=amount_utility_mode,
+        similarity_mode=args.similarity_mode,
+        model_name=args.model_name,
+        processed_dir=processed_dir,
     )
 
     metrics = _metrics_payload(
@@ -431,6 +495,7 @@ def main() -> int:
         relevance_labels,
         run_one_ids,
         run_two_ids,
+        args.similarity_mode,
     )
 
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
@@ -444,6 +509,9 @@ def main() -> int:
         snapshot_count=len(snapshot_df),
         generated_at=generated_at,
         weights_path=weights_path,
+        used_best_weights=used_best_weights,
+        similarity_mode=args.similarity_mode,
+        model_name=args.model_name if args.similarity_mode == "embeddings" else None,
         metrics=metrics,
         students=students,
         per_profile_topk=run_one_topk,
@@ -456,8 +524,11 @@ def main() -> int:
         "snapshot_path": str(snapshot_path),
         "snapshot_count": int(len(snapshot_df)),
         "golden_profiles_count": len(students),
+        "similarity_mode": args.similarity_mode,
+        "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
         "weights_path": str(weights_path) if weights_path is not None else None,
         "used_baseline_weights": weights_path is None,
+        "used_best_weights": used_best_weights,
         "metrics": metrics,
         "per_profile": _to_serializable_profile_results(run_one_results, run_one_topk, relevance_labels),
     }

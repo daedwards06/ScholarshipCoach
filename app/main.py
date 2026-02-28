@@ -16,6 +16,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from app.helpers import explain_ranked_row, format_amount_range, reasons_to_text
 from scripts.run_ingest import get_latest_snapshot_path, run_ingest
+from src.embeddings.cache import ensure_embedding_store_for_df
 from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
@@ -25,6 +26,7 @@ PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 PROFILE_PATH = PROCESSED_DIR / "student_profile.json"
 BEST_WEIGHTS_PATH = PROCESSED_DIR / "best_weights.json"
 SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
+DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 
 
 def _default_profile() -> dict[str, Any]:
@@ -59,6 +61,8 @@ def _ensure_session_state() -> None:
         st.session_state.final_df = None
     if "ineligible_df" not in st.session_state:
         st.session_state.ineligible_df = None
+    st.session_state.setdefault("similarity_mode", "tfidf")
+    st.session_state.setdefault("embedding_model_name", DEFAULT_MODEL_NAME)
     _sync_widget_defaults_from_profile(st.session_state.profile)
 
 
@@ -336,6 +340,20 @@ def main() -> None:
             tuned_weights_error = str(exc)
 
         st.divider()
+        st.header("Similarity")
+        similarity_label = st.selectbox(
+            "Similarity mode",
+            options=("TF-IDF", "Embeddings"),
+            index=0 if st.session_state.get("similarity_mode", "tfidf") == "tfidf" else 1,
+        )
+        st.session_state.similarity_mode = "tfidf" if similarity_label == "TF-IDF" else "embeddings"
+        st.session_state.embedding_model_name = st.selectbox(
+            "Model",
+            options=(DEFAULT_MODEL_NAME,),
+            index=0,
+        )
+
+        st.divider()
         st.header("Ranking Weights")
         if "use_tuned_weights" not in st.session_state:
             st.session_state.use_tuned_weights = tuned_weights_payload is not None
@@ -428,6 +446,12 @@ def main() -> None:
 
     st.header("Pipeline Execution")
     st.caption(f"Active ranking weights: {active_weights_label}")
+    similarity_mode = str(st.session_state.get("similarity_mode") or "tfidf")
+    model_name = str(st.session_state.get("embedding_model_name") or DEFAULT_MODEL_NAME)
+    status_payload: dict[str, Any] = {"similarity_mode": similarity_mode}
+    if similarity_mode == "embeddings":
+        status_payload["model_name"] = model_name
+    st.write(status_payload)
     st.json(
         _weights_display_payload(
             active_stage2_weights,
@@ -444,6 +468,18 @@ def main() -> None:
     if st.button("Run Scholarship Coach", disabled=not has_snapshot, type="primary"):
         try:
             snapshot_df = _load_snapshot_cached(snapshot_path_text)
+            if similarity_mode == "embeddings":
+                if "embedding_key" not in snapshot_df.columns:
+                    st.info(
+                        "This snapshot predates persisted embedding keys. "
+                        "Embedding keys and vectors will be computed locally and cached for this run."
+                    )
+                with st.spinner("Preparing cached scholarship embeddings..."):
+                    snapshot_df = ensure_embedding_store_for_df(
+                        snapshot_df,
+                        model_name,
+                        processed_dir=PROCESSED_DIR,
+                    )
             stage1_profile = _build_stage1_profile(st.session_state.profile)
             stage2_profile = _build_stage2_profile(st.session_state.profile)
 
@@ -453,6 +489,9 @@ def main() -> None:
                 stage2_profile,
                 weights=active_stage2_weights,
                 amount_utility_mode=active_amount_utility_mode,
+                similarity_mode=similarity_mode,
+                model_name=model_name,
+                processed_dir=PROCESSED_DIR,
             )
             final_df = rerank_stage3(
                 scored_df,
@@ -504,7 +543,9 @@ def main() -> None:
             title = str(row.get("title") or row.get("scholarship_id"))
             with st.expander(title):
                 component_columns = [
+                    "text_sim",
                     "tfidf_sim",
+                    "embed_sim",
                     "amount_utility",
                     "keyword_overlap",
                     "effort_penalty",

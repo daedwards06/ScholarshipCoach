@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any, Iterable, Mapping
 from typing import Literal
 
@@ -8,6 +9,8 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from src.embeddings import cache as embedding_cache
+from src.embeddings import model as embedding_model
 from src.rank.weights import Stage2Weights
 
 
@@ -71,10 +74,10 @@ def build_student_profile_text(profile: Any) -> str:
 def build_scholarship_text(row: pd.Series) -> str:
     fields = [
         _normalize_text(row.get("title")),
+        _normalize_text(row.get("sponsor")),
         _normalize_text(row.get("description")),
         _normalize_text(row.get("eligibility_text")),
         _normalize_text(row.get("essay_prompt")),
-        _normalize_text(row.get("sponsor")),
     ]
     return " ".join(field for field in fields if field).strip()
 
@@ -163,26 +166,81 @@ def score_stage2(
     *,
     weights: Stage2Weights | None = None,
     amount_utility_mode: Literal["linear", "log"] = "log",
+    similarity_mode: Literal["tfidf", "embeddings"] = "tfidf",
+    model_name: str = embedding_model.DEFAULT_MODEL_NAME,
+    processed_dir: Path | None = None,
 ) -> pd.DataFrame:
     scored_df = eligible_df.copy()
+    transient_columns = [
+        "tfidf_sim",
+        "embed_sim",
+        "text_sim",
+        "amount_utility",
+        "keyword_overlap",
+        "effort_penalty",
+        "stage2_score",
+    ]
+    existing_transient = [column for column in transient_columns if column in scored_df.columns]
+    if existing_transient:
+        scored_df = scored_df.drop(columns=existing_transient)
+    if similarity_mode not in {"tfidf", "embeddings"}:
+        raise ValueError(
+            f"Unsupported similarity_mode '{similarity_mode}'. "
+            "Expected 'tfidf' or 'embeddings'."
+        )
+    if scored_df.empty:
+        for column in ("text_sim", "amount_utility", "keyword_overlap", "effort_penalty", "stage2_score"):
+            scored_df[column] = pd.Series(dtype=float)
+        if similarity_mode == "tfidf":
+            scored_df["tfidf_sim"] = pd.Series(dtype=float)
+        else:
+            scored_df["embed_sim"] = pd.Series(dtype=float)
+        return scored_df
     active_weights = weights or Stage2Weights.baseline()
 
     student_text = build_student_profile_text(profile)
     scholarship_texts = [build_scholarship_text(row) for _, row in scored_df.iterrows()]
-
-    tfidf_sim = compute_tfidf_similarity(student_text=student_text, scholarship_texts=scholarship_texts)
+    if similarity_mode == "tfidf":
+        text_sim = compute_tfidf_similarity(
+            student_text=student_text,
+            scholarship_texts=scholarship_texts,
+        )
+        similarity_column = "tfidf_sim"
+    elif similarity_mode == "embeddings":
+        scored_df = embedding_cache.ensure_embedding_store_for_df(
+            scored_df,
+            model_name,
+            processed_dir=processed_dir,
+        )
+        store = embedding_cache.load_embedding_store(model_name, processed_dir=processed_dir)
+        student_vector = embedding_model.embed_texts(
+            [student_text],
+            model_name=model_name,
+            batch_size=1,
+        )
+        scholarship_vectors = np.vstack(
+            [
+                np.asarray(store[str(row["embedding_key"])], dtype=np.float32)
+                for _, row in scored_df.iterrows()
+            ]
+        )
+        text_sim = scholarship_vectors @ student_vector[0]
+        similarity_column = "embed_sim"
     amount_utility = _compute_amount_utility(scored_df, mode=amount_utility_mode)
     keyword_overlap = _compute_keyword_overlap(scored_df, profile)
     effort_penalty = _compute_effort_penalty(scored_df)
+    w_text = active_weights.tfidf
 
     stage2_score = (
-        (active_weights.tfidf * tfidf_sim)
+        (w_text * text_sim)
         + (active_weights.amount * amount_utility)
         + (active_weights.keyword * keyword_overlap)
         - (active_weights.effort * effort_penalty)
     )
 
-    scored_df["tfidf_sim"] = np.clip(tfidf_sim, 0.0, 1.0)
+    clipped_text_sim = np.clip(text_sim, 0.0, 1.0)
+    scored_df[similarity_column] = clipped_text_sim
+    scored_df["text_sim"] = clipped_text_sim
     scored_df["amount_utility"] = np.clip(amount_utility, 0.0, 1.0)
     scored_df["keyword_overlap"] = np.clip(keyword_overlap, 0.0, 1.0)
     scored_df["effort_penalty"] = np.clip(effort_penalty, 0.0, 1.0)

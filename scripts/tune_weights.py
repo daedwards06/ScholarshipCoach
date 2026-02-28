@@ -28,6 +28,7 @@ DEFAULT_K = 10
 DEFAULT_MAX_CONFIGS = 200
 DEFAULT_OUTDIR = ROOT_DIR / "reports" / "weight_tuning"
 BEST_WEIGHTS_PATH = ROOT_DIR / "data" / "processed" / "best_weights.json"
+DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +86,18 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=0,
         help="Accepted for CLI stability. No randomness is used by this script.",
+    )
+    parser.add_argument(
+        "--similarity-mode",
+        choices=("tfidf", "embeddings"),
+        default="tfidf",
+        help="Stage 2 text similarity mode. Defaults to tfidf.",
+    )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default=DEFAULT_MODEL_NAME,
+        help=f"Embedding model alias/name. Defaults to {DEFAULT_MODEL_NAME}.",
     )
     return parser.parse_args()
 
@@ -237,6 +250,9 @@ def _field_diversity_at_k(
 def _prepare_profile_caches(
     snapshot_df: pd.DataFrame,
     students: list[GoldenStudent],
+    *,
+    similarity_mode: str,
+    model_name: str,
 ) -> list[ProfileCache]:
     caches: list[ProfileCache] = []
 
@@ -250,6 +266,8 @@ def _prepare_profile_caches(
                 student.as_stage2_profile(),
                 weights=Stage2Weights.baseline(),
                 amount_utility_mode="log",
+                similarity_mode=similarity_mode,
+                model_name=model_name,
             )
             component_df = rerank_stage3(
                 scored_df,
@@ -277,8 +295,12 @@ def _rerank_profile_cache(cache: ProfileCache, config: WeightConfig) -> pd.DataF
         return cache.component_df.copy()
 
     reranked_df = cache.component_df.copy()
+    similarity_series = pd.to_numeric(
+        reranked_df.get("text_sim", reranked_df.get("tfidf_sim")),
+        errors="coerce",
+    ).fillna(0.0)
     stage2_score = (
-        (config.stage2_weights.tfidf * pd.to_numeric(reranked_df["tfidf_sim"], errors="coerce").fillna(0.0))
+        (config.stage2_weights.tfidf * similarity_series)
         + (
             config.stage2_weights.amount
             * pd.to_numeric(reranked_df["amount_utility"], errors="coerce").fillna(0.0)
@@ -427,6 +449,8 @@ def _report_markdown(
     baseline_result: dict[str, Any],
     best_result: dict[str, Any],
     leaderboard: list[dict[str, Any]],
+    similarity_mode: str = "tfidf",
+    model_name: str | None = None,
 ) -> str:
     baseline_metrics = baseline_result["metrics"]
     best_metrics = best_result["metrics"]
@@ -440,6 +464,9 @@ def _report_markdown(
     lines.append(f"- Top-K: {k}")
     lines.append(f"- Configs evaluated: {config_count}")
     lines.append(f"- Seed argument: {seed} (accepted for CLI parity; no randomness is used)")
+    lines.append(f"- Similarity mode: `{similarity_mode}`")
+    if similarity_mode == "embeddings" and model_name:
+        lines.append(f"- Embedding model: `{model_name}`")
     lines.append("")
     lines.append("## Baseline")
     lines.append("")
@@ -530,7 +557,12 @@ def main() -> int:
 
     snapshot_df = pd.read_parquet(snapshot_path)
     students = get_golden_students()
-    profile_caches = _prepare_profile_caches(snapshot_df, students)
+    profile_caches = _prepare_profile_caches(
+        snapshot_df,
+        students,
+        similarity_mode=args.similarity_mode,
+        model_name=args.model_name,
+    )
     configs = generate_candidate_configs(max_configs=args.max_configs)
 
     evaluation_results: list[dict[str, Any]] = []
@@ -563,6 +595,8 @@ def main() -> int:
         k=args.k,
         seed=args.seed,
         config_count=len(evaluation_results),
+        similarity_mode=args.similarity_mode,
+        model_name=args.model_name if args.similarity_mode == "embeddings" else None,
         baseline_result=baseline_result,
         best_result=best_result,
         leaderboard=leaderboard,
@@ -575,12 +609,16 @@ def main() -> int:
         "snapshot_count": int(len(snapshot_df)),
         "k": int(args.k),
         "seed": int(args.seed),
+        "similarity_mode": args.similarity_mode,
+        "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
         "baseline_metrics": baseline_result["metrics"],
         "best_config": {
             "config_id": best_result["config_id"],
             "stage2_weights": best_result["stage2_weights"],
             "stage3_weights": best_result["stage3_weights"],
             "amount_utility_mode": best_result["amount_utility_mode"],
+            "similarity_mode": args.similarity_mode,
+            "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
             "metrics": best_result["metrics"],
         },
         "per_profile_topk_ids_best_config": best_result["per_profile_topk_ids"],
@@ -592,6 +630,8 @@ def main() -> int:
         "stage2_weights": best_result["stage2_weights"],
         "stage3_weights": best_result["stage3_weights"],
         "amount_utility_mode": best_result["amount_utility_mode"],
+        "similarity_mode": args.similarity_mode,
+        "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
         "snapshot_used": str(snapshot_path),
         "timestamp": timestamp.isoformat(),
     }

@@ -1,0 +1,540 @@
+{
+  "all_configs": [
+    {
+      "amount_utility_mode": "log",
+      "config_id": "s2_t0.70_a0.05_k0.05_e0.05__s3_s0.80_u0.10_v0.10__log",
+      "metrics": {
+        "coverage_at_k": 0.3375,
+        "details": {
+          "amount_distribution": {
+            "count": 77,
+            "max": 740000.0,
+            "mean": 104928.57142857143,
+            "median": 10000.0
+          },
+          "coverage": {
+            "coverage_at_k": 0.3375,
+            "k": 10,
+            "total_recommended": 80,
+            "unique_recommended_count": 27
+          },
+          "eligibility": {
+            "eligibility_precision": 0.85,
+            "eligible_count": 1088,
+            "ineligible_reason_breakdown": {
+              "DEADLINE_PASSED": 184,
+              "EDUCATION_LEVEL_MISMATCH": 16
+            },
+            "total_count": 1280
+          },
+          "k": 10,
+          "source_diversity": {
+            "diversity_at_k": 0.0125,
+            "field": "source",
+            "k": 10,
+            "labeled_count": 80,
+            "unique_count": 1
+          },
+          "sponsor_diversity": {
+            "diversity_at_k": 0.0125,
+            "field": "sponsor",
+            "k": 10,
+            "labeled_count": 80,
+            "unique_count": 1
+          }
+        },
+        "eligibility_rate": 0.85,
+        "median_amount_max_topk": 10000.0,
+        "ndcg_at_k": 0.9109290014824439,
+        "ranking_stability": true,
+        "source_diversity_at_k": 0.0125,
+        "sponsor_diversity_at_k": 0.0125
+      },
+      "per_profile_topk_ids": {
+        "golden_az_math_ug_pr": [
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc"
+        ],
+        "golden_ca_cs_ug_us": [
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+          "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+          "09c1b3428b5562521804eaa7332395ded619a823",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11"
+        ],
+        "golden_fl_education_ug_us": [
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "73776eef844a92f65e47c29afdab3bb58489cd53",
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "12b32fe32f6fefbbaeeacec939b81940a902ab37",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "15d0e133307addc9b908da38e79ed194eb8c0128"
+        ],
+        "golden_il_mech_ug_us": [
+          "d55eae22472670dbb8773c242be62008c2f9b271",
+          "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+          "811e3a4b00b7ced741d06847f436ea653feb5e2a",
+          "189b16f55dcd249701c2ef2b13b354ba20103f72"
+        ],
+        "golden_nc_psych_ug_us": [
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+          "73776eef844a92f65e47c29afdab3bb58489cd53",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+          "12b32fe32f6fefbbaeeacec939b81940a902ab37"
+        ],
+        "golden_ny_business_grad_us": [
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "f7533a4286b3178fb5bf4e5d686196f34e9338e5",
+          "d55eae22472670dbb8773c242be62008c2f9b271",
+          "811e3a4b00b7ced741d06847f436ea653feb5e2a",
+          "581b68695c69b195bc51316158a41bf66dbe491e",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29"
+        ],
+        "golden_tx_nursing_ug_us": [
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "c2d3e31a320f446d0db2b358ce65e077ac8eacd3",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "14028964ed1c858e37f713cf2154fedb54254170",
+          "74742ed42aa8585c70d8bfa012ce7a7602ca6135"
+        ],
+        "golden_wa_env_grad_us": [
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+          "8c3717c7e8daf0d138fde6667deb337730a2b6fd",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "2bb87361a8595c0cbbd2b9f8b96c5da4ceaa7601"
+        ]
+      },
+      "stage2_weights": {
+        "amount": 0.05,
+        "effort": 0.05,
+        "keyword": 0.05,
+        "tfidf": 0.7
+      },
+      "stage3_weights": {
+        "ev": 0.1,
+        "stage2": 0.8,
+        "urgency": 0.1
+      }
+    },
+    {
+      "amount_utility_mode": "log",
+      "config_id": "s2_t0.70_a0.20_k0.10_e0.10__s3_s0.80_u0.15_v0.05__log",
+      "metrics": {
+        "coverage_at_k": 0.2125,
+        "details": {
+          "amount_distribution": {
+            "count": 80,
+            "max": 740000.0,
+            "mean": 24850.0,
+            "median": 10000.0
+          },
+          "coverage": {
+            "coverage_at_k": 0.2125,
+            "k": 10,
+            "total_recommended": 80,
+            "unique_recommended_count": 17
+          },
+          "eligibility": {
+            "eligibility_precision": 0.85,
+            "eligible_count": 1088,
+            "ineligible_reason_breakdown": {
+              "DEADLINE_PASSED": 184,
+              "EDUCATION_LEVEL_MISMATCH": 16
+            },
+            "total_count": 1280
+          },
+          "k": 10,
+          "source_diversity": {
+            "diversity_at_k": 0.0125,
+            "field": "source",
+            "k": 10,
+            "labeled_count": 80,
+            "unique_count": 1
+          },
+          "sponsor_diversity": {
+            "diversity_at_k": 0.0125,
+            "field": "sponsor",
+            "k": 10,
+            "labeled_count": 80,
+            "unique_count": 1
+          }
+        },
+        "eligibility_rate": 0.85,
+        "median_amount_max_topk": 10000.0,
+        "ndcg_at_k": 0.8806174577859928,
+        "ranking_stability": true,
+        "source_diversity_at_k": 0.0125,
+        "sponsor_diversity_at_k": 0.0125
+      },
+      "per_profile_topk_ids": {
+        "golden_az_math_ug_pr": [
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11"
+        ],
+        "golden_ca_cs_ug_us": [
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1"
+        ],
+        "golden_fl_education_ug_us": [
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "12b32fe32f6fefbbaeeacec939b81940a902ab37",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e"
+        ],
+        "golden_il_mech_ug_us": [
+          "d55eae22472670dbb8773c242be62008c2f9b271",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "811e3a4b00b7ced741d06847f436ea653feb5e2a"
+        ],
+        "golden_nc_psych_ug_us": [
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e"
+        ],
+        "golden_ny_business_grad_us": [
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1"
+        ],
+        "golden_tx_nursing_ug_us": [
+          "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "12b32fe32f6fefbbaeeacec939b81940a902ab37",
+          "0af734f1f50f689fdb5429cf93df35da9800d4e1"
+        ],
+        "golden_wa_env_grad_us": [
+          "2092beed08b787f62e84eecdb07d1c309f41becf",
+          "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+          "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+          "225db31414abec4248a6bb82248c97847a63918e",
+          "fb590a52d39649d993844a0ec0a5457e506d3c70",
+          "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+          "786b0277378502c9b765bbc5d42543df6c59b51c",
+          "87e6b7104e82bff4848e55763fc4d42733efbd29",
+          "8c3717c7e8daf0d138fde6667deb337730a2b6fd",
+          "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b"
+        ]
+      },
+      "stage2_weights": {
+        "amount": 0.2,
+        "effort": 0.1,
+        "keyword": 0.1,
+        "tfidf": 0.7
+      },
+      "stage3_weights": {
+        "ev": 0.05,
+        "stage2": 0.8,
+        "urgency": 0.15
+      }
+    }
+  ],
+  "baseline_metrics": {
+    "coverage_at_k": 0.2125,
+    "details": {
+      "amount_distribution": {
+        "count": 80,
+        "max": 740000.0,
+        "mean": 24850.0,
+        "median": 10000.0
+      },
+      "coverage": {
+        "coverage_at_k": 0.2125,
+        "k": 10,
+        "total_recommended": 80,
+        "unique_recommended_count": 17
+      },
+      "eligibility": {
+        "eligibility_precision": 0.85,
+        "eligible_count": 1088,
+        "ineligible_reason_breakdown": {
+          "DEADLINE_PASSED": 184,
+          "EDUCATION_LEVEL_MISMATCH": 16
+        },
+        "total_count": 1280
+      },
+      "k": 10,
+      "source_diversity": {
+        "diversity_at_k": 0.0125,
+        "field": "source",
+        "k": 10,
+        "labeled_count": 80,
+        "unique_count": 1
+      },
+      "sponsor_diversity": {
+        "diversity_at_k": 0.0125,
+        "field": "sponsor",
+        "k": 10,
+        "labeled_count": 80,
+        "unique_count": 1
+      }
+    },
+    "eligibility_rate": 0.85,
+    "median_amount_max_topk": 10000.0,
+    "ndcg_at_k": 0.8806174577859928,
+    "ranking_stability": true,
+    "source_diversity_at_k": 0.0125,
+    "sponsor_diversity_at_k": 0.0125
+  },
+  "best_config": {
+    "amount_utility_mode": "log",
+    "config_id": "s2_t0.70_a0.05_k0.05_e0.05__s3_s0.80_u0.10_v0.10__log",
+    "metrics": {
+      "coverage_at_k": 0.3375,
+      "details": {
+        "amount_distribution": {
+          "count": 77,
+          "max": 740000.0,
+          "mean": 104928.57142857143,
+          "median": 10000.0
+        },
+        "coverage": {
+          "coverage_at_k": 0.3375,
+          "k": 10,
+          "total_recommended": 80,
+          "unique_recommended_count": 27
+        },
+        "eligibility": {
+          "eligibility_precision": 0.85,
+          "eligible_count": 1088,
+          "ineligible_reason_breakdown": {
+            "DEADLINE_PASSED": 184,
+            "EDUCATION_LEVEL_MISMATCH": 16
+          },
+          "total_count": 1280
+        },
+        "k": 10,
+        "source_diversity": {
+          "diversity_at_k": 0.0125,
+          "field": "source",
+          "k": 10,
+          "labeled_count": 80,
+          "unique_count": 1
+        },
+        "sponsor_diversity": {
+          "diversity_at_k": 0.0125,
+          "field": "sponsor",
+          "k": 10,
+          "labeled_count": 80,
+          "unique_count": 1
+        }
+      },
+      "eligibility_rate": 0.85,
+      "median_amount_max_topk": 10000.0,
+      "ndcg_at_k": 0.9109290014824439,
+      "ranking_stability": true,
+      "source_diversity_at_k": 0.0125,
+      "sponsor_diversity_at_k": 0.0125
+    },
+    "model_name": "all-MiniLM-L6-v2",
+    "similarity_mode": "embeddings",
+    "stage2_weights": {
+      "amount": 0.05,
+      "effort": 0.05,
+      "keyword": 0.05,
+      "tfidf": 0.7
+    },
+    "stage3_weights": {
+      "ev": 0.1,
+      "stage2": 0.8,
+      "urgency": 0.1
+    }
+  },
+  "generated_at": "2026-02-28T19:47:09.611745+00:00",
+  "k": 10,
+  "model_name": "all-MiniLM-L6-v2",
+  "per_profile_topk_ids_best_config": {
+    "golden_az_math_ug_pr": [
+      "225db31414abec4248a6bb82248c97847a63918e",
+      "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+      "2092beed08b787f62e84eecdb07d1c309f41becf",
+      "fb590a52d39649d993844a0ec0a5457e506d3c70",
+      "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+      "786b0277378502c9b765bbc5d42543df6c59b51c",
+      "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+      "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+      "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+      "aa024d318ae6231e8eeb33d9ebc392b990a38efc"
+    ],
+    "golden_ca_cs_ug_us": [
+      "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+      "786b0277378502c9b765bbc5d42543df6c59b51c",
+      "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+      "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+      "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+      "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+      "2092beed08b787f62e84eecdb07d1c309f41becf",
+      "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+      "09c1b3428b5562521804eaa7332395ded619a823",
+      "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11"
+    ],
+    "golden_fl_education_ug_us": [
+      "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+      "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+      "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+      "786b0277378502c9b765bbc5d42543df6c59b51c",
+      "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+      "73776eef844a92f65e47c29afdab3bb58489cd53",
+      "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+      "12b32fe32f6fefbbaeeacec939b81940a902ab37",
+      "87e6b7104e82bff4848e55763fc4d42733efbd29",
+      "15d0e133307addc9b908da38e79ed194eb8c0128"
+    ],
+    "golden_il_mech_ug_us": [
+      "d55eae22472670dbb8773c242be62008c2f9b271",
+      "d44e8eabb85ca7f9a2978d0719987424d76b8398",
+      "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+      "2092beed08b787f62e84eecdb07d1c309f41becf",
+      "225db31414abec4248a6bb82248c97847a63918e",
+      "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+      "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+      "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+      "811e3a4b00b7ced741d06847f436ea653feb5e2a",
+      "189b16f55dcd249701c2ef2b13b354ba20103f72"
+    ],
+    "golden_nc_psych_ug_us": [
+      "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+      "87e6b7104e82bff4848e55763fc4d42733efbd29",
+      "0af734f1f50f689fdb5429cf93df35da9800d4e1",
+      "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+      "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+      "73776eef844a92f65e47c29afdab3bb58489cd53",
+      "2092beed08b787f62e84eecdb07d1c309f41becf",
+      "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+      "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+      "12b32fe32f6fefbbaeeacec939b81940a902ab37"
+    ],
+    "golden_ny_business_grad_us": [
+      "57d4e058fede04b020ba2afecc515d77f7c5b47e",
+      "2092beed08b787f62e84eecdb07d1c309f41becf",
+      "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+      "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+      "fb590a52d39649d993844a0ec0a5457e506d3c70",
+      "f7533a4286b3178fb5bf4e5d686196f34e9338e5",
+      "d55eae22472670dbb8773c242be62008c2f9b271",
+      "811e3a4b00b7ced741d06847f436ea653feb5e2a",
+      "581b68695c69b195bc51316158a41bf66dbe491e",
+      "87e6b7104e82bff4848e55763fc4d42733efbd29"
+    ],
+    "golden_tx_nursing_ug_us": [
+      "aa024d318ae6231e8eeb33d9ebc392b990a38efc",
+      "c2d3e31a320f446d0db2b358ce65e077ac8eacd3",
+      "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+      "2bd0227115c80fa06afea53a3159d52a11bc7e26",
+      "225db31414abec4248a6bb82248c97847a63918e",
+      "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+      "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+      "87e6b7104e82bff4848e55763fc4d42733efbd29",
+      "14028964ed1c858e37f713cf2154fedb54254170",
+      "74742ed42aa8585c70d8bfa012ce7a7602ca6135"
+    ],
+    "golden_wa_env_grad_us": [
+      "2092beed08b787f62e84eecdb07d1c309f41becf",
+      "3ce0d69e1a56eab04bb4704fc6398ce2f0fa530b",
+      "83a4c4ac9abd874a5d0f7f515b63a8124d10b38e",
+      "8c3717c7e8daf0d138fde6667deb337730a2b6fd",
+      "f73e88e7f2dcefa50c2bff11e0a01114ad1e6b11",
+      "87e6b7104e82bff4848e55763fc4d42733efbd29",
+      "225db31414abec4248a6bb82248c97847a63918e",
+      "fb590a52d39649d993844a0ec0a5457e506d3c70",
+      "786b0277378502c9b765bbc5d42543df6c59b51c",
+      "2bb87361a8595c0cbbd2b9f8b96c5da4ceaa7601"
+    ]
+  },
+  "seed": 0,
+  "similarity_mode": "embeddings",
+  "snapshot_count": 160,
+  "snapshot_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet"
+}
