@@ -1,0 +1,164 @@
+{
+  "amount_utility_mode": "log",
+  "calibration_enabled": false,
+  "config_id": "s2_t0.70_a0.05_k0.15_e0.05__s3_s0.95_u0.05_v0.00__log",
+  "label_mode": "hybrid",
+  "metrics": {
+    "avg_expected_value_norm_topk": 0.02073634229782458,
+    "avg_expected_value_topk": 11527.7875544336,
+    "avg_p_win_topk": 0.6551104078103425,
+    "coverage_at_k": 0.5125,
+    "details": {
+      "amount_distribution": {
+        "count": 74,
+        "max": 200000.0,
+        "mean": 18815.87837837838,
+        "median": 8750.0
+      },
+      "coverage": {
+        "coverage_at_k": 0.5125,
+        "k": 10,
+        "total_recommended": 80,
+        "unique_recommended_count": 41
+      },
+      "eligibility": {
+        "eligibility_precision": 0.85,
+        "eligible_count": 1088,
+        "ineligible_reason_breakdown": {
+          "DEADLINE_PASSED": 184,
+          "EDUCATION_LEVEL_MISMATCH": 16
+        },
+        "total_count": 1280
+      },
+      "k": 10,
+      "per_profile_metrics": {
+        "golden_az_math_ug_pr": {
+          "avg_expected_value_norm_topk": 0.018037509451913954,
+          "avg_expected_value_topk": 9972.62100639314,
+          "avg_p_win_topk": 0.6449354123192141,
+          "eligible_count": 136,
+          "median_expected_value_topk": 6290.176260566341,
+          "median_p_win_topk": 0.6462629192818702,
+          "student_id": "golden_az_math_ug_pr",
+          "topk_count": 10
+        },
+        "golden_ca_cs_ug_us": {
+          "avg_expected_value_norm_topk": 0.006603447586686399,
+          "avg_expected_value_topk": 3562.664598813648,
+          "avg_p_win_topk": 0.6051642244065687,
+          "eligible_count": 136,
+          "median_expected_value_topk": 3023.685556969752,
+          "median_p_win_topk": 0.6064444722333326,
+          "student_id": "golden_ca_cs_ug_us",
+          "topk_count": 10
+        },
+        "golden_fl_education_ug_us": {
+          "avg_expected_value_norm_topk": 0.011882458337293123,
+          "avg_expected_value_topk": 6702.1373125524915,
+          "avg_p_win_topk": 0.685023702439021,
+          "eligible_count": 136,
+          "median_expected_value_topk": 5008.486296430956,
+          "median_p_win_topk": 0.6787907806580032,
+          "student_id": "golden_fl_education_ug_us",
+          "topk_count": 10
+        },
+        "golden_il_mech_ug_us": {
+          "avg_expected_value_norm_topk": 0.013481809404147097,
+          "avg_expected_value_topk": 7219.657941322219,
+          "avg_p_win_topk": 0.6230362979075037,
+          "eligible_count": 136,
+          "median_expected_value_topk": 3380.557675556175,
+          "median_p_win_topk": 0.6221537486879873,
+          "student_id": "golden_il_mech_ug_us",
+          "topk_count": 10
+        },
+        "golden_nc_psych_ug_us": {
+          "avg_expected_value_norm_topk": 0.031048031830321,
+          "avg_expected_value_topk": 17402.375136519066,
+          "avg_p_win_topk": 0.687978691449924,
+          "eligible_count": 136,
+          "median_expected_value_topk": 3493.0625190404544,
+          "median_p_win_topk": 0.6839175493931402,
+          "student_id": "golden_nc_psych_ug_us",
+          "topk_count": 10
+        },
+        "golden_ny_business_grad_us": {
+          "avg_expected_value_norm_topk": 0.019581564802082237,
+          "avg_expected_value_topk": 10785.644958496408,
+          "avg_p_win_topk": 0.6240860981495405,
+          "eligible_count": 136,
+          "median_expected_value_topk": 6335.354762337503,
+          "median_p_win_topk": 0.6289642742073493,
+          "student_id": "golden_ny_business_grad_us",
+          "topk_count": 10
+        },
+        "golden_tx_nursing_ug_us": {
+          "avg_expected_value_norm_topk": 0.028685673107066944,
+          "avg_expected_value_topk": 15781.564394214638,
+          "avg_p_win_topk": 0.6887847297400185,
+          "eligible_count": 136,
+          "median_expected_value_topk": 1909.5093690834967,
+          "median_p_win_topk": 0.6819160880479476,
+          "student_id": "golden_tx_nursing_ug_us",
+          "topk_count": 10
+        },
+        "golden_wa_env_grad_us": {
+          "avg_expected_value_norm_topk": 0.03657024386308587,
+          "avg_expected_value_topk": 20795.635087157192,
+          "avg_p_win_topk": 0.6818741060709497,
+          "eligible_count": 136,
+          "median_expected_value_topk": 6580.071555754856,
+          "median_p_win_topk": 0.6808720544701199,
+          "student_id": "golden_wa_env_grad_us",
+          "topk_count": 10
+        }
+      },
+      "source_diversity": {
+        "diversity_at_k": 0.0125,
+        "field": "source",
+        "k": 10,
+        "labeled_count": 80,
+        "unique_count": 1
+      },
+      "sponsor_diversity": {
+        "diversity_at_k": 0.0125,
+        "field": "sponsor",
+        "k": 10,
+        "labeled_count": 80,
+        "unique_count": 1
+      }
+    },
+    "eligibility_rate": 0.85,
+    "median_amount_max_topk": 8750.0,
+    "median_expected_value_topk": 4502.612999467442,
+    "median_p_win_topk": 0.6536652358724688,
+    "ndcg_at_k": 0.5636704363983964,
+    "ranking_stability": true,
+    "source_diversity_at_k": 0.0125,
+    "sponsor_diversity_at_k": 0.0125
+  },
+  "model_name": "all-MiniLM-L6-v2",
+  "objective": "pareto",
+  "objective_score": 0.4991429397086599,
+  "pareto_knee_score": 1.3489560538660936,
+  "similarity_mode": "embeddings",
+  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet",
+  "stage2_weights": {
+    "amount": 0.05,
+    "effort": 0.05,
+    "keyword": 0.15,
+    "tfidf": 0.7
+  },
+  "stage3_weights": {
+    "ev": 0.0,
+    "stage2": 0.95,
+    "urgency": 0.05
+  },
+  "thresholds": {
+    "active_threshold": 0.3,
+    "embed_threshold": 0.3,
+    "tfidf_threshold": 0.12
+  },
+  "timestamp": "2026-03-01T04:37:03.498503+00:00",
+  "use_win_model": true
+}

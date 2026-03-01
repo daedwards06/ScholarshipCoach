@@ -27,7 +27,14 @@ from src.win_model.train import train_win_model
 
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 PROFILE_PATH = PROCESSED_DIR / "student_profile.json"
-BEST_WEIGHTS_PATH = PROCESSED_DIR / "best_weights.json"
+BEST_WEIGHTS_LATEST_PATH = PROCESSED_DIR / "best_weights_latest.json"
+WEIGHTS_PROFILE_PATHS = {
+    "Latest": BEST_WEIGHTS_LATEST_PATH,
+    "Relevance": PROCESSED_DIR / "best_weights_relevance.json",
+    "Blended": PROCESSED_DIR / "best_weights_blended.json",
+    "Pareto": PROCESSED_DIR / "best_weights_pareto.json",
+}
+WEIGHTS_PROFILE_OPTIONS = tuple(WEIGHTS_PROFILE_PATHS.keys()) + ("Custom file path",)
 SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 
@@ -68,6 +75,8 @@ def _ensure_session_state() -> None:
         st.session_state.use_win_model = False
     st.session_state.setdefault("similarity_mode", "tfidf")
     st.session_state.setdefault("embedding_model_name", DEFAULT_MODEL_NAME)
+    st.session_state.setdefault("weights_profile", "Latest")
+    st.session_state.setdefault("custom_weights_path", "")
     _sync_widget_defaults_from_profile(st.session_state.profile)
 
 
@@ -106,16 +115,38 @@ def _save_profile_to_disk(profile: dict[str, Any]) -> None:
     PROFILE_PATH.write_text(json.dumps(profile, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def _load_best_weights() -> dict[str, Any] | None:
-    if not BEST_WEIGHTS_PATH.exists():
+def _resolve_weights_profile_path(profile_name: str, custom_path: str = "") -> Path | None:
+    if profile_name == "Custom file path":
+        raw_path = custom_path.strip()
+        if not raw_path:
+            return None
+        candidate = Path(raw_path)
+        return candidate if candidate.is_absolute() else ROOT_DIR / candidate
+
+    if profile_name == "Latest":
+        if not BEST_WEIGHTS_LATEST_PATH.exists():
+            return None
+        pointer_payload = json.loads(BEST_WEIGHTS_LATEST_PATH.read_text(encoding="utf-8"))
+        raw_path = str(pointer_payload.get("path") or "").strip()
+        if not raw_path:
+            return None
+        candidate = Path(raw_path)
+        return candidate if candidate.is_absolute() else ROOT_DIR / candidate
+
+    return WEIGHTS_PROFILE_PATHS.get(profile_name)
+
+
+def _load_weights_profile(profile_name: str, custom_path: str = "") -> dict[str, Any] | None:
+    weights_path = _resolve_weights_profile_path(profile_name, custom_path)
+    if weights_path is None or not weights_path.exists():
         return None
 
-    payload = json.loads(BEST_WEIGHTS_PATH.read_text(encoding="utf-8"))
+    payload = json.loads(weights_path.read_text(encoding="utf-8"))
     stage2_weights = Stage2Weights.from_mapping(payload.get("stage2_weights"))
     stage3_weights = Stage3Weights.from_mapping(payload.get("stage3_weights"))
     amount_utility_mode = str(payload.get("amount_utility_mode") or "log")
     if amount_utility_mode not in {"linear", "log"}:
-        raise ValueError("best_weights.json has an invalid amount_utility_mode.")
+        raise ValueError(f"{weights_path.name} has an invalid amount_utility_mode.")
 
     return {
         "stage2_weights": stage2_weights,
@@ -124,6 +155,11 @@ def _load_best_weights() -> dict[str, Any] | None:
         "snapshot_used": str(payload.get("snapshot_used") or ""),
         "timestamp": str(payload.get("timestamp") or ""),
         "use_win_model": bool(payload.get("use_win_model", False)),
+        "objective": str(payload.get("objective") or ""),
+        "config_id": str(payload.get("config_id") or ""),
+        "source_path": str(weights_path),
+        "source_name": weights_path.name,
+        "selected_profile": profile_name,
     }
 
 
@@ -382,10 +418,6 @@ def main() -> None:
 
         tuned_weights_payload: dict[str, Any] | None = None
         tuned_weights_error: str | None = None
-        try:
-            tuned_weights_payload = _load_best_weights()
-        except Exception as exc:
-            tuned_weights_error = str(exc)
 
         st.divider()
         st.header("Similarity")
@@ -403,19 +435,34 @@ def main() -> None:
 
         st.divider()
         st.header("Ranking Weights")
-        if "use_tuned_weights" not in st.session_state:
-            st.session_state.use_tuned_weights = tuned_weights_payload is not None
-        use_tuned_weights = st.checkbox(
-            "Use tuned weights (best_weights.json)",
-            key="use_tuned_weights",
-            disabled=tuned_weights_payload is None,
+        selected_weights_profile = st.selectbox(
+            "Weights profile",
+            options=WEIGHTS_PROFILE_OPTIONS,
+            index=WEIGHTS_PROFILE_OPTIONS.index(st.session_state.get("weights_profile", "Latest")),
+            key="weights_profile",
         )
+        custom_weights_path = ""
+        if selected_weights_profile == "Custom file path":
+            custom_weights_path = st.text_input(
+                "Custom weights JSON path",
+                key="custom_weights_path",
+                placeholder="data/processed/best_weights_relevance.json",
+            )
+        try:
+            tuned_weights_payload = _load_weights_profile(selected_weights_profile, custom_weights_path)
+        except Exception as exc:
+            tuned_weights_error = str(exc)
+
         if tuned_weights_error:
-            st.warning(f"Could not load {BEST_WEIGHTS_PATH.name}: {tuned_weights_error}")
+            st.warning(f"Could not load selected weights profile: {tuned_weights_error}")
         elif tuned_weights_payload is None:
-            st.caption(f"No tuned weights found at {BEST_WEIGHTS_PATH}. Using baseline weights.")
+            st.caption("Selected weights profile is unavailable. Baseline weights will be used.")
         else:
-            st.caption(f"Loaded tuned weights from {BEST_WEIGHTS_PATH.name}.")
+            objective_label = tuned_weights_payload.get("objective") or "unspecified"
+            st.caption(
+                f"Loaded `{selected_weights_profile}` weights from {tuned_weights_payload['source_name']} "
+                f"(objective: {objective_label})."
+            )
             if tuned_weights_payload.get("use_win_model"):
                 st.caption("This tuned weights file was generated with the win model enabled.")
 
@@ -460,16 +507,18 @@ def main() -> None:
 
     tuned_weights_payload = None
     try:
-        tuned_weights_payload = _load_best_weights()
+        tuned_weights_payload = _load_weights_profile(
+            str(st.session_state.get("weights_profile") or "Latest"),
+            str(st.session_state.get("custom_weights_path") or ""),
+        )
     except Exception:
         tuned_weights_payload = None
 
-    use_tuned_weights = bool(st.session_state.get("use_tuned_weights")) and tuned_weights_payload is not None
-    if use_tuned_weights and tuned_weights_payload is not None:
+    if tuned_weights_payload is not None:
         active_stage2_weights = tuned_weights_payload["stage2_weights"]
         active_stage3_weights = tuned_weights_payload["stage3_weights"]
         active_amount_utility_mode = tuned_weights_payload["amount_utility_mode"]
-        active_weights_label = "tuned"
+        active_weights_label = str(tuned_weights_payload.get("selected_profile") or "tuned")
     else:
         active_stage2_weights = Stage2Weights.baseline()
         active_stage3_weights = Stage3Weights.baseline()
@@ -536,11 +585,21 @@ def main() -> None:
     similarity_mode = str(st.session_state.get("similarity_mode") or "tfidf")
     model_name = str(st.session_state.get("embedding_model_name") or DEFAULT_MODEL_NAME)
     use_win_model = bool(st.session_state.get("use_win_model"))
-    status_payload: dict[str, Any] = {"similarity_mode": similarity_mode}
+    status_payload: dict[str, Any] = {"similarity_mode": similarity_mode, "weights_profile": active_weights_label}
     if similarity_mode == "embeddings":
         status_payload["model_name"] = model_name
     status_payload["use_win_model"] = use_win_model
+    if tuned_weights_payload is not None:
+        status_payload["weights_objective"] = tuned_weights_payload.get("objective")
+        status_payload["weights_file"] = tuned_weights_payload.get("source_name")
+        status_payload["weights_timestamp"] = tuned_weights_payload.get("timestamp")
+        if tuned_weights_payload.get("config_id"):
+            status_payload["weights_config_id"] = tuned_weights_payload.get("config_id")
     st.write(status_payload)
+    if tuned_weights_payload is not None and tuned_weights_payload.get("use_win_model") and not use_win_model:
+        st.warning(
+            "The selected weights profile was tuned with the win model enabled, but 'Use Win Model in Ranking' is off."
+        )
     st.json(
         _weights_display_payload(
             active_stage2_weights,

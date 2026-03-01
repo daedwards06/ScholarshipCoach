@@ -1,0 +1,8 @@
+{
+  "config_id": "s2_t0.70_a0.05_k0.15_e0.05__s3_s0.95_u0.05_v0.00__log",
+  "objective": "pareto",
+  "path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\best_weights_pareto.json",
+  "similarity_mode": "embeddings",
+  "timestamp": "2026-03-01T04:37:03.498503+00:00",
+  "use_win_model": true
+}
