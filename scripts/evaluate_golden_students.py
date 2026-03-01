@@ -22,6 +22,13 @@ from src.eval.metrics import (
     eligibility_precision,
     ranking_stability,
 )
+from src.eval.relevance import (
+    RelevanceConfig,
+    calibrate_similarity_threshold,
+    get_similarity_threshold,
+    proxy_relevance_label,
+    proxy_relevance_labels,
+)
 from src.io.snapshotting import get_latest_snapshot_path
 from src.rank.stage1_eligibility import apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
@@ -29,7 +36,6 @@ from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
 
 MAX_K = 10
-TEXT_SIM_PROXY_THRESHOLD = 0.12
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 BEST_WEIGHTS_PATH = ROOT_DIR / "data" / "processed" / "best_weights.json"
 
@@ -77,6 +83,30 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=DEFAULT_MODEL_NAME,
         help=f"Embedding model alias/name. Defaults to {DEFAULT_MODEL_NAME}.",
+    )
+    parser.add_argument(
+        "--label-mode",
+        choices=("hybrid", "no_similarity"),
+        default="hybrid",
+        help="Proxy relevance labeling mode. Defaults to hybrid.",
+    )
+    parser.add_argument(
+        "--tfidf-threshold",
+        type=float,
+        default=0.12,
+        help="Proxy relevance threshold for tfidf mode. Defaults to 0.12.",
+    )
+    parser.add_argument(
+        "--embed-threshold",
+        type=float,
+        default=0.30,
+        help="Proxy relevance threshold for embeddings mode. Defaults to 0.30.",
+    )
+    parser.add_argument(
+        "--calibrate-thresholds",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Report a deterministic suggested similarity threshold from eligible-item distributions.",
     )
     parser.add_argument(
         "--use-best-weights",
@@ -140,68 +170,25 @@ def _resolve_weight_path(
     return BEST_WEIGHTS_PATH, True
 
 
-def _normalize_text(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip().lower()
-    return text or None
-
-
-def _normalize_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple, set)):
-        result: list[str] = []
-        for item in value:
-            norm = _normalize_text(item)
-            if norm:
-                result.append(norm)
-        return result
-    norm = _normalize_text(value)
-    return [norm] if norm else []
-
-
-def _keyword_overlap_positive(row: pd.Series) -> bool:
-    overlap = row.get("keyword_overlap")
-    if overlap is None or pd.isna(overlap):
-        return False
-    return float(overlap) > 0.0
-
-
-def _major_state_education_match(row: pd.Series, student: GoldenStudent) -> bool:
-    profile = student.profile
-    profile_major = _normalize_text(profile.major)
-    profile_state = _normalize_text(profile.state)
-    profile_edu = _normalize_text(profile.education_level)
-
-    majors_allowed = _normalize_list(row.get("majors_allowed"))
-    states_allowed = _normalize_list(row.get("states_allowed"))
-    scholarship_edu = _normalize_text(row.get("education_level"))
-
-    major_match = (not majors_allowed) or (profile_major in majors_allowed)
-    state_match = (not states_allowed) or (profile_state in states_allowed)
-    education_match = (scholarship_edu is None) or (scholarship_edu == profile_edu)
-    return major_match and state_match and education_match
-
-
-def _proxy_relevance_label(row: pd.Series, student: GoldenStudent) -> int:
-    keyword_overlap_positive = _keyword_overlap_positive(row)
-    text_similarity = float(
-        row.get("text_sim") or row.get("tfidf_sim") or row.get("embed_sim") or 0.0
-    )
-    strict_match = _major_state_education_match(row, student)
-
-    if strict_match and keyword_overlap_positive:
-        return 2
-    if keyword_overlap_positive or text_similarity >= TEXT_SIM_PROXY_THRESHOLD:
-        return 1
-    return 0
-
-
 def _safe_number(value: Any) -> float | None:
     if value is None or pd.isna(value):
         return None
     return float(value)
+
+
+def _proxy_relevance_label(
+    row: pd.Series,
+    student: GoldenStudent,
+    *,
+    similarity_mode: str = "tfidf",
+    relevance_config: RelevanceConfig = RelevanceConfig(),
+) -> int:
+    return proxy_relevance_label(
+        row,
+        student,
+        similarity_mode=similarity_mode,
+        cfg=relevance_config,
+    )
 
 
 def _profile_topk_records(topk_df: pd.DataFrame, k: int) -> list[dict[str, Any]]:
@@ -237,6 +224,7 @@ def _run_per_profile(
     amount_utility_mode: str = "log",
     similarity_mode: str = "tfidf",
     model_name: str = DEFAULT_MODEL_NAME,
+    relevance_config: RelevanceConfig = RelevanceConfig(),
     processed_dir: Path | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, list[str]], dict[str, list[int]]]:
     per_profile_results: list[dict[str, Any]] = []
@@ -270,7 +258,12 @@ def _run_per_profile(
             topk_df = pd.DataFrame()
 
         top_records = _profile_topk_records(topk_df, k)
-        labels = [_proxy_relevance_label(row, student) for _, row in topk_df.iterrows()]
+        labels = proxy_relevance_labels(
+            topk_df,
+            student,
+            similarity_mode=similarity_mode,
+            cfg=relevance_config,
+        )
         profile_id = student.student_id
 
         per_profile_results.append(
@@ -291,6 +284,29 @@ def _run_per_profile(
     return per_profile_results, per_profile_topk, ordered_ids, relevance_labels
 
 
+def _calibration_payload(
+    per_profile_results: list[dict[str, Any]],
+    *,
+    enabled: bool,
+    similarity_mode: str,
+) -> dict[str, Any] | None:
+    if not enabled:
+        return None
+
+    eligible_frames = [
+        result["scored_df"]
+        for result in per_profile_results
+        if isinstance(result.get("scored_df"), pd.DataFrame)
+    ]
+    suggested_threshold = calibrate_similarity_threshold(eligible_frames)
+    return {
+        "enabled": True,
+        "similarity_mode": similarity_mode,
+        "target_similarity_only_share": 0.25,
+        "suggested_threshold": suggested_threshold,
+    }
+
+
 def _metrics_payload(
     per_profile_results: list[dict[str, Any]],
     per_profile_topk: dict[str, list[dict[str, Any]]],
@@ -298,6 +314,8 @@ def _metrics_payload(
     run_one_ids: dict[str, list[str]],
     run_two_ids: dict[str, list[str]],
     similarity_mode: str,
+    relevance_config: RelevanceConfig,
+    calibration: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     max_k_observed = max((len(records) for records in per_profile_topk.values()), default=0)
     coverage = coverage_at_k(per_profile_topk, k=max_k_observed)
@@ -314,11 +332,25 @@ def _metrics_payload(
         "proxy_relevance": {
             "labels": {
                 "2": "major/state/education match and keyword overlap > 0",
-                "1": "keyword overlap > 0 OR text similarity >= threshold",
+                "1": (
+                    "keyword overlap > 0 OR text similarity >= mode threshold"
+                    if relevance_config.label_mode == "hybrid"
+                    else "keyword overlap > 0"
+                ),
                 "0": "otherwise",
             },
-            "text_similarity_threshold": TEXT_SIM_PROXY_THRESHOLD,
+            "label_mode": relevance_config.label_mode,
+            "strict_requires_all_of": list(relevance_config.strict_requires_all_of),
+            "text_similarity_thresholds": {
+                "tfidf": relevance_config.tfidf_threshold,
+                "embeddings": relevance_config.embed_threshold,
+            },
+            "active_text_similarity_threshold": get_similarity_threshold(
+                similarity_mode,
+                relevance_config,
+            ),
             "similarity_mode": similarity_mode,
+            "calibration": calibration,
         },
     }
 
@@ -348,6 +380,9 @@ def _markdown_report(
     model_name: str | None = None,
 ) -> str:
     lines: list[str] = []
+    proxy_relevance = metrics.get("proxy_relevance", {})
+    thresholds = proxy_relevance.get("text_similarity_thresholds", {})
+    calibration = proxy_relevance.get("calibration")
     lines.append("# Golden Student Offline Evaluation")
     lines.append("")
     lines.append(f"- Generated at (UTC): {generated_at}")
@@ -355,6 +390,23 @@ def _markdown_report(
     lines.append(f"- Snapshot records: {snapshot_count}")
     lines.append(f"- Golden profiles: {len(students)}")
     lines.append(f"- Similarity mode: `{similarity_mode}`")
+    lines.append(f"- Label mode: `{proxy_relevance.get('label_mode', 'hybrid')}`")
+    lines.append(f"- TF-IDF relevance threshold: {thresholds.get('tfidf', 0.12):.4f}")
+    lines.append(f"- Embeddings relevance threshold: {thresholds.get('embeddings', 0.30):.4f}")
+    lines.append(
+        f"- Active relevance threshold: {proxy_relevance.get('active_text_similarity_threshold', 0.0):.4f}"
+    )
+    if calibration and calibration.get("enabled"):
+        suggested = calibration.get("suggested_threshold")
+        if suggested is None:
+            lines.append(
+                f"- Suggested calibrated {calibration.get('similarity_mode', similarity_mode)} threshold: n/a"
+            )
+        else:
+            lines.append(
+                f"- Suggested calibrated {calibration.get('similarity_mode', similarity_mode)} threshold: "
+                f"{float(suggested):.4f}"
+            )
     if similarity_mode == "embeddings" and model_name:
         lines.append(f"- Embedding model: `{model_name}`")
     if weights_path is None:
@@ -459,6 +511,11 @@ def main() -> int:
     if args.k <= 0:
         raise SystemExit("--k must be greater than 0.")
 
+    relevance_config = RelevanceConfig(
+        label_mode=args.label_mode,
+        tfidf_threshold=args.tfidf_threshold,
+        embed_threshold=args.embed_threshold,
+    )
     snapshot_path = _resolve_snapshot_path(args.snapshot, args.processed_dir)
     weights_path, used_best_weights = _resolve_weight_path(args.weights, args.use_best_weights)
     stage2_weights, stage3_weights, amount_utility_mode, weights_path = _load_weight_overrides(weights_path)
@@ -475,6 +532,7 @@ def main() -> int:
         amount_utility_mode=amount_utility_mode,
         similarity_mode=args.similarity_mode,
         model_name=args.model_name,
+        relevance_config=relevance_config,
         processed_dir=processed_dir,
     )
     _, _, run_two_ids, _ = _run_per_profile(
@@ -486,7 +544,13 @@ def main() -> int:
         amount_utility_mode=amount_utility_mode,
         similarity_mode=args.similarity_mode,
         model_name=args.model_name,
+        relevance_config=relevance_config,
         processed_dir=processed_dir,
+    )
+    calibration = _calibration_payload(
+        run_one_results,
+        enabled=args.calibrate_thresholds,
+        similarity_mode=args.similarity_mode,
     )
 
     metrics = _metrics_payload(
@@ -496,6 +560,8 @@ def main() -> int:
         run_one_ids,
         run_two_ids,
         args.similarity_mode,
+        relevance_config,
+        calibration,
     )
 
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
@@ -526,6 +592,14 @@ def main() -> int:
         "golden_profiles_count": len(students),
         "similarity_mode": args.similarity_mode,
         "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
+        "label_mode": relevance_config.label_mode,
+        "tfidf_threshold": relevance_config.tfidf_threshold,
+        "embed_threshold": relevance_config.embed_threshold,
+        "active_text_similarity_threshold": get_similarity_threshold(
+            args.similarity_mode,
+            relevance_config,
+        ),
+        "calibration": calibration,
         "weights_path": str(weights_path) if weights_path is not None else None,
         "used_baseline_weights": weights_path is None,
         "used_best_weights": used_best_weights,

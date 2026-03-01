@@ -94,9 +94,21 @@ def test_markdown_report_records_weight_source() -> None:
                 "k": 1,
                 "value": 1.0,
             },
+            "proxy_relevance": {
+                "label_mode": "hybrid",
+                "text_similarity_thresholds": {
+                    "tfidf": 0.12,
+                    "embeddings": 0.30,
+                },
+                "active_text_similarity_threshold": 0.12,
+                "calibration": None,
+            },
         },
         students=[],
         per_profile_topk={},
     )
 
     assert f"- Weights file: `{Path('data/processed/best_weights.json')}`" in report
+    assert "- Label mode: `hybrid`" in report
+    assert "- TF-IDF relevance threshold: 0.1200" in report
+    assert "- Embeddings relevance threshold: 0.3000" in report

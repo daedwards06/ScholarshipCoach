@@ -9,6 +9,13 @@
   - If omitted, the script loads the latest `data/processed/scholarships_snapshot_YYYYMMDD.parquet`
 - Similarity mode:
   - `--similarity-mode tfidf|embeddings`
+- Label mode:
+  - `--label-mode hybrid|no_similarity`
+- Proxy relevance thresholds:
+  - `--tfidf-threshold 0.12`
+  - `--embed-threshold 0.30`
+- Optional calibration:
+  - `--calibrate-thresholds` reports a deterministic suggested threshold for the active similarity mode
 - Embedding model:
   - `--model-name all-MiniLM-L6-v2`
 - Golden student set:
@@ -69,10 +76,16 @@ For portfolio-friendly offline evaluation, relevance labels are heuristic (not h
 
 - Label `2` (high):
   - major/state/education match AND keyword overlap > 0
-- Label `1` (medium):
-  - keyword overlap > 0 OR text similarity above threshold
+- Label `1` (medium), `hybrid` mode:
+  - keyword overlap > 0 OR text similarity above the active mode-specific threshold
+- Label `1` (medium), `no_similarity` mode:
+  - keyword overlap > 0
 - Label `0` (low):
   - otherwise
+
+Mode-specific thresholds exist because embedding similarity scores are typically distributed differently than TF-IDF scores. Using separate defaults avoids inflating proxy relevance labels in embedding mode and keeps offline comparisons more interpretable.
+
+`--calibrate-thresholds` is an evaluation-only reporting aid. It looks at eligible items with `keyword_overlap == 0`, computes a per-profile similarity cutoff that leaves roughly the top 25% labeled by similarity alone, and reports the median suggested threshold across profiles. The script does not auto-save or auto-apply that suggested value.
 
 This is an evaluation-only proxy. It is not a production relevance model.
 
