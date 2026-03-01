@@ -15,9 +15,14 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from scripts.evaluate_golden_students import _proxy_relevance_label
 from src.eval.golden_students import GoldenStudent, get_golden_students
 from src.eval.metrics import amount_distribution_stats, compute_ndcg_at_k, coverage_at_k, eligibility_precision
+from src.eval.relevance import (
+    RelevanceConfig,
+    calibrate_similarity_threshold,
+    get_similarity_threshold,
+    proxy_relevance_label,
+)
 from src.io.snapshotting import get_latest_snapshot_path, write_json_atomic
 from src.rank.stage1_eligibility import apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
@@ -30,6 +35,7 @@ DEFAULT_MAX_CONFIGS = 200
 DEFAULT_OUTDIR = ROOT_DIR / "reports" / "weight_tuning"
 BEST_WEIGHTS_PATH = ROOT_DIR / "data" / "processed" / "best_weights.json"
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
+CALIBRATION_TARGET_SHARE = 0.25
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +62,7 @@ class ProfileCache:
     component_df: pd.DataFrame
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Deterministic Stage 2/Stage 3 weight tuning.")
     parser.add_argument(
         "--snapshot",
@@ -106,7 +112,31 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help="Use expected_value_norm from the trained win model as the Stage 3 ev signal.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--label-mode",
+        choices=("hybrid", "no_similarity"),
+        default="hybrid",
+        help="Proxy relevance labeling mode. Defaults to hybrid.",
+    )
+    parser.add_argument(
+        "--tfidf-threshold",
+        type=float,
+        default=0.12,
+        help="Proxy relevance threshold for tfidf mode. Defaults to 0.12.",
+    )
+    parser.add_argument(
+        "--embed-threshold",
+        type=float,
+        default=0.30,
+        help="Proxy relevance threshold for embeddings mode. Defaults to 0.30.",
+    )
+    parser.add_argument(
+        "--calibrate-thresholds",
+        action="store_true",
+        default=False,
+        help="Use a deterministic calibrated threshold for the active similarity mode for this run only.",
+    )
+    return parser.parse_args(argv)
 
 
 def _resolve_snapshot_path(snapshot: Path | None) -> Path:
@@ -353,12 +383,58 @@ def _rerank_profile_cache(
     return reranked_df.reset_index(drop=True)
 
 
+def _resolved_relevance_config(
+    profile_caches: list[ProfileCache],
+    *,
+    similarity_mode: str,
+    relevance_config: RelevanceConfig,
+    calibrate_thresholds: bool,
+) -> tuple[RelevanceConfig, dict[str, Any]]:
+    calibrated_threshold: float | None = None
+    if calibrate_thresholds:
+        calibrated_threshold = calibrate_similarity_threshold(
+            [cache.component_df for cache in profile_caches],
+            target_share=CALIBRATION_TARGET_SHARE,
+        )
+
+    effective_config = relevance_config
+    if calibrated_threshold is not None:
+        if similarity_mode == "tfidf":
+            effective_config = RelevanceConfig(
+                label_mode=relevance_config.label_mode,
+                tfidf_threshold=float(calibrated_threshold),
+                embed_threshold=relevance_config.embed_threshold,
+                strict_requires_all_of=relevance_config.strict_requires_all_of,
+            )
+        elif similarity_mode == "embeddings":
+            effective_config = RelevanceConfig(
+                label_mode=relevance_config.label_mode,
+                tfidf_threshold=relevance_config.tfidf_threshold,
+                embed_threshold=float(calibrated_threshold),
+                strict_requires_all_of=relevance_config.strict_requires_all_of,
+            )
+
+    labeling = {
+        "similarity_mode": similarity_mode,
+        "label_mode": effective_config.label_mode,
+        "tfidf_threshold": float(effective_config.tfidf_threshold),
+        "embed_threshold": float(effective_config.embed_threshold),
+        "active_threshold": float(get_similarity_threshold(similarity_mode, effective_config)),
+        "calibration_enabled": bool(calibrate_thresholds),
+        "calibrated_threshold": float(calibrated_threshold) if calibrated_threshold is not None else None,
+        "calibration_target_similarity_only_share": CALIBRATION_TARGET_SHARE if calibrate_thresholds else None,
+    }
+    return effective_config, labeling
+
+
 def _run_config_once(
     profile_caches: list[ProfileCache],
     *,
     config: WeightConfig,
     k: int,
     use_win_model: bool,
+    similarity_mode: str,
+    relevance_config: RelevanceConfig,
 ) -> dict[str, Any]:
     per_profile_results: list[dict[str, Any]] = []
     per_profile_topk: dict[str, list[dict[str, Any]]] = {}
@@ -378,7 +454,13 @@ def _run_config_once(
         per_profile_topk[cache.student.student_id] = records
         ordered_ids[cache.student.student_id] = [record["scholarship_id"] for record in records]
         relevance_labels[cache.student.student_id] = [
-            _proxy_relevance_label(row, cache.student) for _, row in topk_df.iterrows()
+            proxy_relevance_label(
+                row,
+                cache.student,
+                similarity_mode=similarity_mode,
+                cfg=relevance_config,
+            )
+            for _, row in topk_df.iterrows()
         ]
         per_profile_results.append(
             {
@@ -472,9 +554,11 @@ def _report_markdown(
     model_name: str | None = None,
     use_win_model: bool = False,
     win_model_path: Path | None = None,
+    labeling: dict[str, Any] | None = None,
 ) -> str:
     baseline_metrics = baseline_result["metrics"]
     best_metrics = best_result["metrics"]
+    labeling = labeling or {}
 
     lines: list[str] = []
     lines.append("# Weight Tuning Report")
@@ -486,6 +570,17 @@ def _report_markdown(
     lines.append(f"- Configs evaluated: {config_count}")
     lines.append(f"- Seed argument: {seed} (accepted for CLI parity; no randomness is used)")
     lines.append(f"- Similarity mode: `{similarity_mode}`")
+    lines.append(f"- Label mode: `{labeling.get('label_mode', 'hybrid')}`")
+    lines.append(f"- TF-IDF relevance threshold: {float(labeling.get('tfidf_threshold', 0.12)):.4f}")
+    lines.append(f"- Embeddings relevance threshold: {float(labeling.get('embed_threshold', 0.30)):.4f}")
+    lines.append(f"- Active relevance threshold: {float(labeling.get('active_threshold', 0.0)):.4f}")
+    lines.append(f"- Calibration enabled: {bool(labeling.get('calibration_enabled', False))}")
+    if bool(labeling.get("calibration_enabled", False)):
+        calibrated_threshold = labeling.get("calibrated_threshold")
+        if calibrated_threshold is None:
+            lines.append("- Calibrated threshold used: n/a")
+        else:
+            lines.append(f"- Calibrated threshold used: {float(calibrated_threshold):.4f}")
     if similarity_mode == "embeddings" and model_name:
         lines.append(f"- Embedding model: `{model_name}`")
     lines.append(f"- Use win model: {use_win_model}")
@@ -586,6 +681,11 @@ def main() -> int:
     students = get_golden_students()
     active_win_model: Any | None = load_latest_model() if args.use_win_model else None
     active_win_model_path: Path | None = get_latest_model_path() if args.use_win_model else None
+    relevance_config = RelevanceConfig(
+        label_mode=args.label_mode,
+        tfidf_threshold=args.tfidf_threshold,
+        embed_threshold=args.embed_threshold,
+    )
     profile_caches = _prepare_profile_caches(
         snapshot_df,
         students,
@@ -594,12 +694,32 @@ def main() -> int:
         use_win_model=args.use_win_model,
         win_model=active_win_model,
     )
+    effective_relevance_config, labeling = _resolved_relevance_config(
+        profile_caches,
+        similarity_mode=args.similarity_mode,
+        relevance_config=relevance_config,
+        calibrate_thresholds=args.calibrate_thresholds,
+    )
     configs = generate_candidate_configs(max_configs=args.max_configs)
 
     evaluation_results: list[dict[str, Any]] = []
     for config in configs:
-        first_run = _run_config_once(profile_caches, config=config, k=args.k, use_win_model=args.use_win_model)
-        second_run = _run_config_once(profile_caches, config=config, k=args.k, use_win_model=args.use_win_model)
+        first_run = _run_config_once(
+            profile_caches,
+            config=config,
+            k=args.k,
+            use_win_model=args.use_win_model,
+            similarity_mode=args.similarity_mode,
+            relevance_config=effective_relevance_config,
+        )
+        second_run = _run_config_once(
+            profile_caches,
+            config=config,
+            k=args.k,
+            use_win_model=args.use_win_model,
+            similarity_mode=args.similarity_mode,
+            relevance_config=effective_relevance_config,
+        )
         metrics = _metrics_summary(first_run=first_run, second_run=second_run, k=args.k)
         evaluation_results.append(
             {
@@ -633,6 +753,7 @@ def main() -> int:
         baseline_result=baseline_result,
         best_result=best_result,
         leaderboard=leaderboard,
+        labeling=labeling,
     )
     _write_markdown(report_path, report_text)
 
@@ -646,6 +767,7 @@ def main() -> int:
         "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
         "use_win_model": bool(args.use_win_model),
         "win_model_path": str(active_win_model_path) if active_win_model_path is not None else None,
+        "labeling": labeling,
         "baseline_metrics": baseline_result["metrics"],
         "best_config": {
             "config_id": best_result["config_id"],
@@ -669,9 +791,18 @@ def main() -> int:
         "use_win_model": bool(args.use_win_model),
         "similarity_mode": args.similarity_mode,
         "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
+        "label_mode": labeling["label_mode"],
+        "thresholds": {
+            "tfidf_threshold": labeling["tfidf_threshold"],
+            "embed_threshold": labeling["embed_threshold"],
+            "active_threshold": labeling["active_threshold"],
+        },
+        "calibration_enabled": labeling["calibration_enabled"],
         "snapshot_used": str(snapshot_path),
         "timestamp": timestamp.isoformat(),
     }
+    if labeling["calibrated_threshold"] is not None:
+        best_weights_payload["calibrated_threshold"] = labeling["calibrated_threshold"]
     write_json_atomic(best_weights_payload, BEST_WEIGHTS_PATH)
 
     print(f"Report written to {report_path}")

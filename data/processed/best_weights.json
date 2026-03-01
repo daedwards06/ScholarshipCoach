@@ -1,19 +1,26 @@
 {
   "amount_utility_mode": "log",
-  "model_name": null,
-  "similarity_mode": "tfidf",
-  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260228.parquet",
+  "calibration_enabled": false,
+  "label_mode": "hybrid",
+  "model_name": "all-MiniLM-L6-v2",
+  "similarity_mode": "embeddings",
+  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet",
   "stage2_weights": {
-    "amount": 0.2,
+    "amount": 0.05,
     "effort": 0.1,
-    "keyword": 0.1,
+    "keyword": 0.15,
     "tfidf": 0.7
   },
   "stage3_weights": {
-    "ev": 0.05,
-    "stage2": 0.8,
-    "urgency": 0.15
+    "ev": 0.0,
+    "stage2": 0.95,
+    "urgency": 0.05
   },
-  "timestamp": "2026-03-01T02:12:09.886308+00:00",
+  "thresholds": {
+    "active_threshold": 0.3,
+    "embed_threshold": 0.3,
+    "tfidf_threshold": 0.12
+  },
+  "timestamp": "2026-03-01T03:54:39.500990+00:00",
   "use_win_model": true
 }
