@@ -45,3 +45,16 @@ If any of those text fields change, the key changes and the vector is recomputed
 - Embedding store rows are written in sorted `embedding_key` order
 - The sentence-transformer model is loaded once per process, kept in eval mode, run on CPU, and returns normalized vectors
 - Re-running evaluation or tuning against the same saved snapshot and cached embeddings should produce the same ordering
+
+## Optional Win Probability Model
+
+Stage 3 now has an optional local-only win probability layer for portfolio demonstration.
+
+- Training uses synthetic labels only; there are no real won/lost outcomes in this project
+- Pairwise features are deterministic and built from profile fit, Stage 2 similarity, deadline timing, essay effort, and award size
+- The model predicts `p_win` for each `(student, scholarship)` pair
+- Expected value is `expected_value = p_win * amount_value`
+- When the win model is enabled, the Stage 3 `ev` weight applies to `expected_value_norm`
+- When the win model is disabled, the existing `ev_proxy_norm` path is unchanged
+
+This model is illustrative. It should not be treated as a real outcome predictor or a guarantee of scholarship success.

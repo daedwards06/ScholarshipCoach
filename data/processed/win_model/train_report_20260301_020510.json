@@ -1,0 +1,242 @@
+{
+  "feature_names": [
+    "gpa",
+    "min_gpa",
+    "gpa_above_min",
+    "keyword_overlap",
+    "text_sim",
+    "days_to_deadline",
+    "amount_value",
+    "amount_log",
+    "major_match",
+    "state_match",
+    "education_level_match",
+    "essay_required",
+    "source_is_scholarship_america"
+  ],
+  "generated_at": "2026-03-01T02:05:10Z",
+  "latest_model_pointer": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\win_model\\latest_model.txt",
+  "meta_preview": [
+    {
+      "p_true": 0.46986061848799604,
+      "profile_id": "golden_tx_nursing_ug_us",
+      "scholarship_id": "7bc2652b4590fbb0dca057fdaa502ee6f0fff4f1"
+    },
+    {
+      "p_true": 0.4138877112550336,
+      "profile_id": "golden_ny_business_grad_us",
+      "scholarship_id": "a3ebc4e9d4c4a8036bfef7b312b9bfd5ca9d9c62"
+    },
+    {
+      "p_true": 0.5381528101901405,
+      "profile_id": "golden_nc_psych_ug_us",
+      "scholarship_id": "d5b584159c999c9627db0144930f4b3976fe9319"
+    },
+    {
+      "p_true": 0.5286035165136749,
+      "profile_id": "golden_ny_business_grad_us",
+      "scholarship_id": "0af734f1f50f689fdb5429cf93df35da9800d4e1"
+    },
+    {
+      "p_true": 0.41709853115108164,
+      "profile_id": "golden_wa_env_grad_us",
+      "scholarship_id": "3471137d25629a676051905ca3f7de5c47250623"
+    },
+    {
+      "p_true": 0.3716083058243359,
+      "profile_id": "golden_wa_env_grad_us",
+      "scholarship_id": "fe16e48d77e35f24f1878e4b475ae946e0df41ed"
+    },
+    {
+      "p_true": 0.4148899622447149,
+      "profile_id": "golden_fl_education_ug_us",
+      "scholarship_id": "3471137d25629a676051905ca3f7de5c47250623"
+    },
+    {
+      "p_true": 0.4256301134458652,
+      "profile_id": "golden_ny_business_grad_us",
+      "scholarship_id": "42ecdb4a2dc3b46e5e70a012e05d0faf305734a1"
+    },
+    {
+      "p_true": 0.5326841611948745,
+      "profile_id": "golden_tx_nursing_ug_us",
+      "scholarship_id": "5533a5c089281ea2c47c9b2b4543762dfee09096"
+    },
+    {
+      "p_true": 0.5986876601124519,
+      "profile_id": "golden_ny_business_grad_us",
+      "scholarship_id": "cd3d342a5521032b1531904d233e3d53415f1afd"
+    },
+    {
+      "p_true": 0.5310311031498235,
+      "profile_id": "golden_ny_business_grad_us",
+      "scholarship_id": "d5b584159c999c9627db0144930f4b3976fe9319"
+    },
+    {
+      "p_true": 0.5945667431755266,
+      "profile_id": "golden_ny_business_grad_us",
+      "scholarship_id": "c8d59e8b0eb51b2887d8daa2b24724b80e2f472b"
+    },
+    {
+      "p_true": 0.36756536228144765,
+      "profile_id": "golden_fl_education_ug_us",
+      "scholarship_id": "3bbf52be2c97599480aa30a2dfb9fa082a45b435"
+    },
+    {
+      "p_true": 0.4183485025105753,
+      "profile_id": "golden_il_mech_ug_us",
+      "scholarship_id": "de2fbe823b12e15f8f9468145af7ec8ceb474caa"
+    },
+    {
+      "p_true": 0.4362337305950932,
+      "profile_id": "golden_tx_nursing_ug_us",
+      "scholarship_id": "413240e07361cd3d6e49e323d6aaa56784c66d34"
+    },
+    {
+      "p_true": 0.5229433990599394,
+      "profile_id": "golden_tx_nursing_ug_us",
+      "scholarship_id": "e2be4a65391dc6c022ac153e6178b0329b3e776d"
+    },
+    {
+      "p_true": 0.5230165043848829,
+      "profile_id": "golden_nc_psych_ug_us",
+      "scholarship_id": "e2be4a65391dc6c022ac153e6178b0329b3e776d"
+    },
+    {
+      "p_true": 0.46851522853118543,
+      "profile_id": "golden_wa_env_grad_us",
+      "scholarship_id": "7bc2652b4590fbb0dca057fdaa502ee6f0fff4f1"
+    },
+    {
+      "p_true": 0.6031840971858173,
+      "profile_id": "golden_fl_education_ug_us",
+      "scholarship_id": "f804efefda44e61f75a5a2674462ab3063fab287"
+    },
+    {
+      "p_true": 0.5386623364120164,
+      "profile_id": "golden_ca_cs_ug_us",
+      "scholarship_id": "10e3d9bddb3d3682d122e4e86422e089fa6818d4"
+    },
+    {
+      "p_true": 0.43406496023795244,
+      "profile_id": "golden_il_mech_ug_us",
+      "scholarship_id": "413240e07361cd3d6e49e323d6aaa56784c66d34"
+    },
+    {
+      "p_true": 0.42452761699639524,
+      "profile_id": "golden_nc_psych_ug_us",
+      "scholarship_id": "42ecdb4a2dc3b46e5e70a012e05d0faf305734a1"
+    },
+    {
+      "p_true": 0.4183485025105753,
+      "profile_id": "golden_nc_psych_ug_us",
+      "scholarship_id": "de2fbe823b12e15f8f9468145af7ec8ceb474caa"
+    },
+    {
+      "p_true": 0.5294080059218333,
+      "profile_id": "golden_fl_education_ug_us",
+      "scholarship_id": "87e6b7104e82bff4848e55763fc4d42733efbd29"
+    },
+    {
+      "p_true": 0.5229433990599394,
+      "profile_id": "golden_tx_nursing_ug_us",
+      "scholarship_id": "e2be4a65391dc6c022ac153e6178b0329b3e776d"
+    }
+  ],
+  "metrics": {
+    "brier_score": 0.24241932793376775,
+    "calibration_bins": [
+      {
+        "bin": 0,
+        "count": 0,
+        "lower": 0.0,
+        "observed_rate": null,
+        "predicted_prob_mean": null,
+        "upper": 0.1
+      },
+      {
+        "bin": 1,
+        "count": 0,
+        "lower": 0.1,
+        "observed_rate": null,
+        "predicted_prob_mean": null,
+        "upper": 0.2
+      },
+      {
+        "bin": 2,
+        "count": 0,
+        "lower": 0.2,
+        "observed_rate": null,
+        "predicted_prob_mean": null,
+        "upper": 0.3
+      },
+      {
+        "bin": 3,
+        "count": 97,
+        "lower": 0.3,
+        "observed_rate": 0.31958762886597936,
+        "predicted_prob_mean": 0.3908931202584597,
+        "upper": 0.4
+      },
+      {
+        "bin": 4,
+        "count": 597,
+        "lower": 0.4,
+        "observed_rate": 0.4304857621440536,
+        "predicted_prob_mean": 0.4442697991694656,
+        "upper": 0.5
+      },
+      {
+        "bin": 5,
+        "count": 743,
+        "lower": 0.5,
+        "observed_rate": 0.5410497981157469,
+        "predicted_prob_mean": 0.5387640333865444,
+        "upper": 0.6
+      },
+      {
+        "bin": 6,
+        "count": 163,
+        "lower": 0.6,
+        "observed_rate": 0.6748466257668712,
+        "predicted_prob_mean": 0.6063637360281349,
+        "upper": 0.7
+      },
+      {
+        "bin": 7,
+        "count": 0,
+        "lower": 0.7,
+        "observed_rate": null,
+        "predicted_prob_mean": null,
+        "upper": 0.8
+      },
+      {
+        "bin": 8,
+        "count": 0,
+        "lower": 0.8,
+        "observed_rate": null,
+        "predicted_prob_mean": null,
+        "upper": 0.9
+      },
+      {
+        "bin": 9,
+        "count": 0,
+        "lower": 0.9,
+        "observed_rate": null,
+        "predicted_prob_mean": null,
+        "upper": 1.0
+      }
+    ],
+    "log_loss": 0.677847633865127,
+    "n_samples": 8000,
+    "positive_rate": 0.499875,
+    "roc_auc": 0.6029351562499999
+  },
+  "model_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\win_model\\models\\win_model_20260301_020510.joblib",
+  "seed": 0,
+  "split_sizes": {
+    "calibration": 1600,
+    "test": 1600,
+    "train": 4800
+  }
+}

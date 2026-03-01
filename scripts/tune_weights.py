@@ -23,6 +23,7 @@ from src.rank.stage1_eligibility import apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
+from src.win_model.infer import get_latest_model_path, load_latest_model
 
 DEFAULT_K = 10
 DEFAULT_MAX_CONFIGS = 200
@@ -98,6 +99,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=DEFAULT_MODEL_NAME,
         help=f"Embedding model alias/name. Defaults to {DEFAULT_MODEL_NAME}.",
+    )
+    parser.add_argument(
+        "--use-win-model",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use expected_value_norm from the trained win model as the Stage 3 ev signal.",
     )
     return parser.parse_args()
 
@@ -253,6 +260,8 @@ def _prepare_profile_caches(
     *,
     similarity_mode: str,
     model_name: str,
+    use_win_model: bool,
+    win_model: Any | None,
 ) -> list[ProfileCache]:
     caches: list[ProfileCache] = []
 
@@ -272,7 +281,10 @@ def _prepare_profile_caches(
             component_df = rerank_stage3(
                 scored_df,
                 today=student.profile.today,
+                profile=student.profile,
                 weights=Stage3Weights.baseline(),
+                use_win_model=use_win_model,
+                win_model=win_model,
             )
             component_df["_deadline_sort"] = pd.to_datetime(
                 component_df.get("deadline"),
@@ -290,7 +302,12 @@ def _prepare_profile_caches(
     return caches
 
 
-def _rerank_profile_cache(cache: ProfileCache, config: WeightConfig) -> pd.DataFrame:
+def _rerank_profile_cache(
+    cache: ProfileCache,
+    config: WeightConfig,
+    *,
+    use_win_model: bool,
+) -> pd.DataFrame:
     if cache.component_df.empty:
         return cache.component_df.copy()
 
@@ -315,6 +332,7 @@ def _rerank_profile_cache(cache: ProfileCache, config: WeightConfig) -> pd.DataF
         )
     )
     reranked_df["stage2_score"] = stage2_score.clip(lower=0.0, upper=1.0)
+    ev_column = "expected_value_norm" if use_win_model else "ev_proxy_norm"
     reranked_df["final_score"] = (
         (config.stage3_weights.stage2 * reranked_df["stage2_score"])
         + (
@@ -323,7 +341,7 @@ def _rerank_profile_cache(cache: ProfileCache, config: WeightConfig) -> pd.DataF
         )
         + (
             config.stage3_weights.ev
-            * pd.to_numeric(reranked_df["ev_proxy_norm"], errors="coerce").fillna(0.0)
+            * pd.to_numeric(reranked_df.get(ev_column), errors="coerce").fillna(0.0)
         )
     )
     reranked_df = reranked_df.sort_values(
@@ -340,6 +358,7 @@ def _run_config_once(
     *,
     config: WeightConfig,
     k: int,
+    use_win_model: bool,
 ) -> dict[str, Any]:
     per_profile_results: list[dict[str, Any]] = []
     per_profile_topk: dict[str, list[dict[str, Any]]] = {}
@@ -350,7 +369,7 @@ def _run_config_once(
         profile_k = min(k, len(cache.eligible_df))
 
         if profile_k > 0:
-            reranked_df = _rerank_profile_cache(cache, config)
+            reranked_df = _rerank_profile_cache(cache, config, use_win_model=use_win_model)
             topk_df = reranked_df.head(profile_k).copy()
         else:
             topk_df = pd.DataFrame()
@@ -451,6 +470,8 @@ def _report_markdown(
     leaderboard: list[dict[str, Any]],
     similarity_mode: str = "tfidf",
     model_name: str | None = None,
+    use_win_model: bool = False,
+    win_model_path: Path | None = None,
 ) -> str:
     baseline_metrics = baseline_result["metrics"]
     best_metrics = best_result["metrics"]
@@ -467,6 +488,12 @@ def _report_markdown(
     lines.append(f"- Similarity mode: `{similarity_mode}`")
     if similarity_mode == "embeddings" and model_name:
         lines.append(f"- Embedding model: `{model_name}`")
+    lines.append(f"- Use win model: {use_win_model}")
+    if use_win_model:
+        lines.append(f"- Win model path: `{win_model_path}`" if win_model_path is not None else "- Win model path: latest")
+        lines.append("- Stage 3 ev field: `expected_value_norm`")
+    else:
+        lines.append("- Stage 3 ev field: `ev_proxy_norm`")
     lines.append("")
     lines.append("## Baseline")
     lines.append("")
@@ -557,18 +584,22 @@ def main() -> int:
 
     snapshot_df = pd.read_parquet(snapshot_path)
     students = get_golden_students()
+    active_win_model: Any | None = load_latest_model() if args.use_win_model else None
+    active_win_model_path: Path | None = get_latest_model_path() if args.use_win_model else None
     profile_caches = _prepare_profile_caches(
         snapshot_df,
         students,
         similarity_mode=args.similarity_mode,
         model_name=args.model_name,
+        use_win_model=args.use_win_model,
+        win_model=active_win_model,
     )
     configs = generate_candidate_configs(max_configs=args.max_configs)
 
     evaluation_results: list[dict[str, Any]] = []
     for config in configs:
-        first_run = _run_config_once(profile_caches, config=config, k=args.k)
-        second_run = _run_config_once(profile_caches, config=config, k=args.k)
+        first_run = _run_config_once(profile_caches, config=config, k=args.k, use_win_model=args.use_win_model)
+        second_run = _run_config_once(profile_caches, config=config, k=args.k, use_win_model=args.use_win_model)
         metrics = _metrics_summary(first_run=first_run, second_run=second_run, k=args.k)
         evaluation_results.append(
             {
@@ -597,6 +628,8 @@ def main() -> int:
         config_count=len(evaluation_results),
         similarity_mode=args.similarity_mode,
         model_name=args.model_name if args.similarity_mode == "embeddings" else None,
+        use_win_model=args.use_win_model,
+        win_model_path=active_win_model_path,
         baseline_result=baseline_result,
         best_result=best_result,
         leaderboard=leaderboard,
@@ -611,12 +644,15 @@ def main() -> int:
         "seed": int(args.seed),
         "similarity_mode": args.similarity_mode,
         "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
+        "use_win_model": bool(args.use_win_model),
+        "win_model_path": str(active_win_model_path) if active_win_model_path is not None else None,
         "baseline_metrics": baseline_result["metrics"],
         "best_config": {
             "config_id": best_result["config_id"],
             "stage2_weights": best_result["stage2_weights"],
             "stage3_weights": best_result["stage3_weights"],
             "amount_utility_mode": best_result["amount_utility_mode"],
+            "use_win_model": bool(args.use_win_model),
             "similarity_mode": args.similarity_mode,
             "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
             "metrics": best_result["metrics"],
@@ -630,6 +666,7 @@ def main() -> int:
         "stage2_weights": best_result["stage2_weights"],
         "stage3_weights": best_result["stage3_weights"],
         "amount_utility_mode": best_result["amount_utility_mode"],
+        "use_win_model": bool(args.use_win_model),
         "similarity_mode": args.similarity_mode,
         "model_name": args.model_name if args.similarity_mode == "embeddings" else None,
         "snapshot_used": str(snapshot_path),

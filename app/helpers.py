@@ -44,7 +44,7 @@ def explain_ranked_row(row: pd.Series, *, max_signals: int = 3) -> list[str]:
             "Deadline soon, boosted for urgency",
         ),
         (
-            float(_coerce_float(row.get("ev_proxy_norm")) or 0.0),
+            float(_coerce_float(row.get("expected_value_norm")) or _coerce_float(row.get("ev_proxy_norm")) or 0.0),
             "Strong expected-value proxy",
         ),
     ]

@@ -48,6 +48,8 @@ class Stage2Weights:
 
 @dataclass(frozen=True, slots=True)
 class Stage3Weights:
+    """`ev` weights `expected_value_norm` when the win model is enabled, else `ev_proxy_norm`."""
+
     stage2: float
     urgency: float
     ev: float

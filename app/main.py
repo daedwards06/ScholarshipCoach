@@ -17,10 +17,13 @@ if str(ROOT_DIR) not in sys.path:
 from app.helpers import explain_ranked_row, format_amount_range, reasons_to_text
 from scripts.run_ingest import get_latest_snapshot_path, run_ingest
 from src.embeddings.cache import ensure_embedding_store_for_df
+from src.eval.golden_students import get_golden_students
 from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
+from src.win_model.infer import get_latest_model_path, load_model
+from src.win_model.train import train_win_model
 
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 PROFILE_PATH = PROCESSED_DIR / "student_profile.json"
@@ -61,6 +64,8 @@ def _ensure_session_state() -> None:
         st.session_state.final_df = None
     if "ineligible_df" not in st.session_state:
         st.session_state.ineligible_df = None
+    if "use_win_model" not in st.session_state:
+        st.session_state.use_win_model = False
     st.session_state.setdefault("similarity_mode", "tfidf")
     st.session_state.setdefault("embedding_model_name", DEFAULT_MODEL_NAME)
     _sync_widget_defaults_from_profile(st.session_state.profile)
@@ -118,6 +123,34 @@ def _load_best_weights() -> dict[str, Any] | None:
         "amount_utility_mode": amount_utility_mode,
         "snapshot_used": str(payload.get("snapshot_used") or ""),
         "timestamp": str(payload.get("timestamp") or ""),
+        "use_win_model": bool(payload.get("use_win_model", False)),
+    }
+
+
+def _load_latest_win_model_info() -> dict[str, Any] | None:
+    try:
+        model_path = get_latest_model_path()
+        model = load_model(model_path)
+    except FileNotFoundError:
+        return None
+    except Exception as exc:
+        return {
+            "path": "",
+            "timestamp": "unavailable",
+            "error": str(exc),
+            "roc_auc": None,
+            "brier_score": None,
+            "log_loss": None,
+        }
+
+    summary = getattr(model, "training_summary", {}) or {}
+    metrics = summary.get("metrics", {})
+    return {
+        "path": str(model_path),
+        "timestamp": model_path.stem.replace("win_model_", ""),
+        "roc_auc": metrics.get("roc_auc"),
+        "brier_score": metrics.get("brier_score"),
+        "log_loss": metrics.get("log_loss"),
     }
 
 
@@ -293,6 +326,21 @@ def _weights_display_payload(
     }
 
 
+def _topk_win_model_summary(df: pd.DataFrame) -> dict[str, float] | None:
+    if "p_win" not in df.columns or "expected_value" not in df.columns:
+        return None
+    p_win = pd.to_numeric(df["p_win"], errors="coerce").dropna()
+    expected_value = pd.to_numeric(df["expected_value"], errors="coerce").dropna()
+    if p_win.empty or expected_value.empty:
+        return None
+    return {
+        "mean_p_win": float(p_win.mean()),
+        "median_p_win": float(p_win.median()),
+        "mean_expected_value": float(expected_value.mean()),
+        "median_expected_value": float(expected_value.median()),
+    }
+
+
 def main() -> None:
     st.set_page_config(page_title="Scholarship Coach", layout="wide")
     st.title("Scholarship Coach")
@@ -368,6 +416,45 @@ def main() -> None:
             st.caption(f"No tuned weights found at {BEST_WEIGHTS_PATH}. Using baseline weights.")
         else:
             st.caption(f"Loaded tuned weights from {BEST_WEIGHTS_PATH.name}.")
+            if tuned_weights_payload.get("use_win_model"):
+                st.caption("This tuned weights file was generated with the win model enabled.")
+
+        st.divider()
+        st.header("Win Probability Model")
+        latest_win_model_info = _load_latest_win_model_info()
+        if st.button("Train/Refresh Win Model", use_container_width=True):
+            try:
+                latest_snapshot = get_latest_snapshot_path()
+                snapshot_df = pd.read_parquet(latest_snapshot)
+                training_info = train_win_model(
+                    snapshot_df,
+                    get_golden_students(),
+                    PROCESSED_DIR / "win_model",
+                    seed=0,
+                )
+                latest_win_model_info = _load_latest_win_model_info()
+                metrics = training_info["metrics"]
+                st.success(
+                    f"Win model trained. AUC={metrics['roc_auc']:.4f} Brier={metrics['brier_score']:.4f}"
+                )
+            except FileNotFoundError:
+                st.warning("No saved snapshot found. Load or ingest a snapshot before training the win model.")
+            except Exception as exc:
+                st.error(f"Win model training failed: {exc}")
+        st.checkbox("Use Win Model in Ranking", key="use_win_model")
+        if latest_win_model_info is None:
+            st.caption("No trained win model found yet.")
+        else:
+            st.caption(f"Latest model: {latest_win_model_info['timestamp']}")
+            if latest_win_model_info.get("error"):
+                st.warning(f"Could not load win model details: {latest_win_model_info['error']}")
+            st.write(
+                {
+                    "roc_auc": latest_win_model_info.get("roc_auc"),
+                    "brier_score": latest_win_model_info.get("brier_score"),
+                    "log_loss": latest_win_model_info.get("log_loss"),
+                }
+            )
 
     st.session_state.profile = _profile_from_widgets()
 
@@ -448,9 +535,11 @@ def main() -> None:
     st.caption(f"Active ranking weights: {active_weights_label}")
     similarity_mode = str(st.session_state.get("similarity_mode") or "tfidf")
     model_name = str(st.session_state.get("embedding_model_name") or DEFAULT_MODEL_NAME)
+    use_win_model = bool(st.session_state.get("use_win_model"))
     status_payload: dict[str, Any] = {"similarity_mode": similarity_mode}
     if similarity_mode == "embeddings":
         status_payload["model_name"] = model_name
+    status_payload["use_win_model"] = use_win_model
     st.write(status_payload)
     st.json(
         _weights_display_payload(
@@ -496,7 +585,9 @@ def main() -> None:
             final_df = rerank_stage3(
                 scored_df,
                 today=stage1_profile.today,
+                profile=stage1_profile,
                 weights=active_stage3_weights,
+                use_win_model=use_win_model,
             )
 
             st.session_state.eligible_df = eligible_df
@@ -526,6 +617,16 @@ def main() -> None:
         )
 
         st.subheader(f"Top Ranked Scholarships ({len(top_df)} shown)")
+        win_summary = _topk_win_model_summary(top_df)
+        if win_summary is not None:
+            st.write(
+                {
+                    "mean_p_win_top_k": round(win_summary["mean_p_win"], 4),
+                    "median_p_win_top_k": round(win_summary["median_p_win"], 4),
+                    "mean_expected_value_top_k": round(win_summary["mean_expected_value"], 2),
+                    "median_expected_value_top_k": round(win_summary["median_expected_value"], 2),
+                }
+            )
         table_columns = [
             "scholarship_id",
             "title",
@@ -533,6 +634,8 @@ def main() -> None:
             "deadline",
             "amount",
             "final_score",
+            "p_win",
+            "expected_value",
             "source_url",
         ]
         available_columns = [column for column in table_columns if column in top_df.columns]
@@ -551,6 +654,9 @@ def main() -> None:
                     "effort_penalty",
                     "urgency_boost",
                     "ev_proxy_norm",
+                    "p_win",
+                    "expected_value",
+                    "expected_value_norm",
                     "final_score",
                 ]
                 component_values = {

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from src.rank.weights import Stage3Weights
+from src.win_model.features import FEATURE_COLUMNS, build_pair_features
+from src.win_model.infer import load_latest_model, load_model, predict_p_win
 
 
 def _resolve_deadline(value: Any) -> pd.Timestamp | pd.NaT:
@@ -75,7 +78,11 @@ def rerank_stage3(
     scored_df: pd.DataFrame,
     today: date | None = None,
     *,
+    profile: Any | None = None,
     weights: Stage3Weights | None = None,
+    use_win_model: bool = False,
+    win_model_path: Path | None = None,
+    win_model: object | None = None,
 ) -> pd.DataFrame:
     effective_today = today or date.today()
     reranked_df = scored_df.copy()
@@ -91,11 +98,36 @@ def rerank_stage3(
     ev_proxy = amounts / np.clip(effort_cost, 1e-9, None)
     ev_proxy_norm = _normalize_minmax(ev_proxy)
 
+    ev_signal = ev_proxy_norm
+    p_win: np.ndarray | None = None
+    expected_value: np.ndarray | None = None
+    expected_value_norm: np.ndarray | None = None
+    if use_win_model and not reranked_df.empty:
+        if profile is None:
+            raise ValueError("Stage 3 win-model rerank requires a profile object.")
+        active_model = win_model
+        if active_model is None:
+            active_model = load_model(win_model_path) if win_model_path is not None else load_latest_model()
+        feature_rows = [
+            build_pair_features(
+                profile,
+                row,
+                stage2_row=row,
+                today=effective_today,
+            )
+            for _, row in reranked_df.iterrows()
+        ]
+        features_df = pd.DataFrame(feature_rows, columns=list(FEATURE_COLUMNS))
+        p_win = predict_p_win(active_model, features_df)
+        expected_value = p_win * amounts
+        expected_value_norm = _normalize_minmax(expected_value)
+        ev_signal = expected_value_norm
+
     stage2_score = pd.to_numeric(reranked_df["stage2_score"], errors="coerce").fillna(0.0).to_numpy()
     final_score = (
         (active_weights.stage2 * stage2_score)
         + (active_weights.urgency * urgency_boost)
-        + (active_weights.ev * ev_proxy_norm)
+        + (active_weights.ev * ev_signal)
     )
 
     reranked_df["days_to_deadline"] = days_to_deadline
@@ -103,6 +135,18 @@ def rerank_stage3(
     reranked_df["effort_cost"] = effort_cost
     reranked_df["ev_proxy"] = ev_proxy
     reranked_df["ev_proxy_norm"] = ev_proxy_norm
+    if use_win_model:
+        reranked_df["p_win"] = (
+            p_win if p_win is not None else np.zeros(reranked_df.shape[0], dtype=float)
+        )
+        reranked_df["expected_value"] = (
+            expected_value if expected_value is not None else np.zeros(reranked_df.shape[0], dtype=float)
+        )
+        reranked_df["expected_value_norm"] = (
+            expected_value_norm
+            if expected_value_norm is not None
+            else np.zeros(reranked_df.shape[0], dtype=float)
+        )
     reranked_df["final_score"] = final_score
 
     reranked_df["_deadline_sort"] = pd.to_datetime(reranked_df.get("deadline"), errors="coerce")
@@ -110,6 +154,7 @@ def rerank_stage3(
         by=["final_score", "_deadline_sort", "scholarship_id"],
         ascending=[False, True, True],
         na_position="last",
+        kind="mergesort",
     ).drop(columns=["_deadline_sort"])
 
     return reranked_df.reset_index(drop=True)

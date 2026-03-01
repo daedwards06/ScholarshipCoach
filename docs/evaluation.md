@@ -53,6 +53,12 @@ Top-K is computed per profile as:
 - `K = min(10, len(eligible_df))`
 - If `eligible_df` is empty, the profile gets an empty recommendation list (no crash path).
 
+Optional win-model flags:
+
+- `--use-win-model` enables `p_win` and expected-value-aware Stage 3 reranking
+- `--win-model-path <path>` uses a specific saved model; otherwise the latest saved model is used
+- `--train-win-model` trains a fresh deterministic synthetic-label model on the selected snapshot before evaluation
+
 ## Metrics
 
 - Eligibility precision:
@@ -98,3 +104,12 @@ When snapshots are small (for example 8 records):
 - many profiles may have small or zero eligible sets
 
 The harness is intentionally robust for these cases and still produces deterministic artifacts. Metric interpretability improves as the catalog grows.
+
+## Synthetic Win Probability Notes
+
+The optional win model uses synthetic labels generated from a transparent heuristic logit. This keeps the project local-only and reproducible while making `p_win` and `expected_value` visible in reports and the Streamlit UI.
+
+- `p_win` is illustrative, not a validated outcome forecast
+- `expected_value = p_win * amount_value`
+- When enabled, Stage 3 uses normalized expected value as the `ev` signal
+- Reports add top-K summaries for average and median `p_win` and expected value

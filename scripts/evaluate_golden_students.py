@@ -34,6 +34,8 @@ from src.rank.stage1_eligibility import apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
+from src.win_model.infer import get_latest_model_path, load_latest_model, load_model
+from src.win_model.train import train_win_model
 
 MAX_K = 10
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
@@ -113,6 +115,24 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=None,
         help="Load data/processed/best_weights.json when available. Defaults to true if the file exists.",
+    )
+    parser.add_argument(
+        "--use-win-model",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use the local synthetic-label win model in Stage 3 reranking.",
+    )
+    parser.add_argument(
+        "--win-model-path",
+        type=Path,
+        default=None,
+        help="Optional explicit win model artifact path. Defaults to latest_model.txt when enabled.",
+    )
+    parser.add_argument(
+        "--train-win-model",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Train a fresh win model on the selected snapshot before evaluation.",
     )
     return parser.parse_args()
 
@@ -208,10 +228,39 @@ def _profile_topk_records(topk_df: pd.DataFrame, k: int) -> list[dict[str, Any]]
                 "effort_penalty": _safe_number(row.get("effort_penalty")),
                 "urgency_boost": _safe_number(row.get("urgency_boost")),
                 "ev_proxy_norm": _safe_number(row.get("ev_proxy_norm")),
+                "p_win": _safe_number(row.get("p_win")),
+                "expected_value": _safe_number(row.get("expected_value")),
+                "expected_value_norm": _safe_number(row.get("expected_value_norm")),
                 "amount_max": _safe_number(row.get("amount_max")),
+                "deadline": None if pd.isna(row.get("deadline")) else str(row.get("deadline")),
             }
         )
     return records
+
+
+def _win_model_topk_summary(per_profile_topk: dict[str, list[dict[str, Any]]]) -> dict[str, float] | None:
+    p_win_values: list[float] = []
+    expected_values: list[float] = []
+    for records in per_profile_topk.values():
+        for record in records:
+            p_win = record.get("p_win")
+            expected_value = record.get("expected_value")
+            if p_win is not None:
+                p_win_values.append(float(p_win))
+            if expected_value is not None:
+                expected_values.append(float(expected_value))
+    if not p_win_values and not expected_values:
+        return None
+    return {
+        "avg_p_win_topk": float(sum(p_win_values) / len(p_win_values)) if p_win_values else 0.0,
+        "median_p_win_topk": float(pd.Series(p_win_values).median()) if p_win_values else 0.0,
+        "avg_expected_value_topk": float(sum(expected_values) / len(expected_values))
+        if expected_values
+        else 0.0,
+        "median_expected_value_topk": float(pd.Series(expected_values).median())
+        if expected_values
+        else 0.0,
+    }
 
 
 def _run_per_profile(
@@ -226,6 +275,9 @@ def _run_per_profile(
     model_name: str = DEFAULT_MODEL_NAME,
     relevance_config: RelevanceConfig = RelevanceConfig(),
     processed_dir: Path | None = None,
+    use_win_model: bool = False,
+    win_model_path: Path | None = None,
+    win_model: Any | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, list[str]], dict[str, list[int]]]:
     per_profile_results: list[dict[str, Any]] = []
     per_profile_topk: dict[str, list[dict[str, Any]]] = {}
@@ -249,7 +301,11 @@ def _run_per_profile(
             reranked_df = rerank_stage3(
                 scored_df,
                 today=student.profile.today,
+                profile=student.profile,
                 weights=stage3_weights,
+                use_win_model=use_win_model,
+                win_model_path=win_model_path,
+                win_model=win_model,
             )
             topk_df = reranked_df.head(k).copy()
         else:
@@ -316,6 +372,7 @@ def _metrics_payload(
     similarity_mode: str,
     relevance_config: RelevanceConfig,
     calibration: dict[str, Any] | None = None,
+    use_win_model: bool = False,
 ) -> dict[str, Any]:
     max_k_observed = max((len(records) for records in per_profile_topk.values()), default=0)
     coverage = coverage_at_k(per_profile_topk, k=max_k_observed)
@@ -323,7 +380,7 @@ def _metrics_payload(
     stability = ranking_stability(run_one_ids, run_two_ids)
     ndcg = compute_ndcg_at_k(relevance_labels, k=max_k_observed)
 
-    return {
+    payload = {
         "eligibility": eligibility_precision(per_profile_results),
         "coverage_at_k": coverage,
         "amount_distribution_topk": amounts,
@@ -353,6 +410,9 @@ def _metrics_payload(
             "calibration": calibration,
         },
     }
+    if use_win_model:
+        payload["win_model_topk"] = _win_model_topk_summary(per_profile_topk)
+    return payload
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -378,6 +438,8 @@ def _markdown_report(
     used_best_weights: bool = False,
     similarity_mode: str = "tfidf",
     model_name: str | None = None,
+    use_win_model: bool = False,
+    win_model_path: Path | None = None,
 ) -> str:
     lines: list[str] = []
     proxy_relevance = metrics.get("proxy_relevance", {})
@@ -414,6 +476,12 @@ def _markdown_report(
     else:
         lines.append(f"- Weights file: `{weights_path}`")
     lines.append(f"- Used best_weights.json: {used_best_weights}")
+    lines.append(f"- Win model enabled: {use_win_model}")
+    if use_win_model:
+        if win_model_path is None:
+            lines.append("- Win model path: latest")
+        else:
+            lines.append(f"- Win model path: `{win_model_path}`")
     lines.append("")
     lines.append("## Metrics Summary")
     lines.append("")
@@ -438,6 +506,16 @@ def _markdown_report(
     lines.append(
         f"- NDCG@K (K={metrics['ndcg_at_k']['k']}): {metrics['ndcg_at_k']['value']}"
     )
+    if use_win_model:
+        win_summary = metrics.get("win_model_topk") or {}
+        lines.append(f"- Avg p_win in top-K: {float(win_summary.get('avg_p_win_topk', 0.0)):.4f}")
+        lines.append(f"- Median p_win in top-K: {float(win_summary.get('median_p_win_topk', 0.0)):.4f}")
+        lines.append(
+            f"- Avg expected_value in top-K: {float(win_summary.get('avg_expected_value_topk', 0.0)):.2f}"
+        )
+        lines.append(
+            f"- Median expected_value in top-K: {float(win_summary.get('median_expected_value_topk', 0.0)):.2f}"
+        )
     lines.append("")
     lines.append("### Ineligible Reason Breakdown")
     lines.append("")
@@ -463,22 +541,36 @@ def _markdown_report(
             lines.append("No eligible scholarships for this profile in the selected snapshot.")
             lines.append("")
             continue
-        lines.append(
-            "| scholarship_id | final_score | stage2_score | text_sim | amount_utility | keyword_overlap | urgency_boost | ev_proxy_norm | title |"
-        )
-        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---|")
-        for rec in top_recs:
+        if use_win_model:
+            lines.append("| title | final_score | p_win | expected_value | deadline | amount |")
+            lines.append("|---|---:|---:|---:|---|---:|")
+        else:
             lines.append(
-                f"| {rec['scholarship_id']} | "
-                f"{_format_score(rec['final_score'])} | "
-                f"{_format_score(rec['stage2_score'])} | "
-                f"{_format_score(rec['text_sim'])} | "
-                f"{_format_score(rec['amount_utility'])} | "
-                f"{_format_score(rec['keyword_overlap'])} | "
-                f"{_format_score(rec['urgency_boost'])} | "
-                f"{_format_score(rec['ev_proxy_norm'])} | "
-                f"{str(rec.get('title') or '').replace('|', '/')} |"
+                "| scholarship_id | final_score | stage2_score | text_sim | amount_utility | keyword_overlap | urgency_boost | ev_proxy_norm | title |"
             )
+            lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---|")
+        for rec in top_recs:
+            if use_win_model:
+                lines.append(
+                    f"| {str(rec.get('title') or '').replace('|', '/')} | "
+                    f"{_format_score(rec['final_score'])} | "
+                    f"{_format_score(rec.get('p_win'))} | "
+                    f"{_format_score(rec.get('expected_value'))} | "
+                    f"{str(rec.get('deadline') or '-')} | "
+                    f"{float(rec.get('amount_max') or 0.0):.2f} |"
+                )
+            else:
+                lines.append(
+                    f"| {rec['scholarship_id']} | "
+                    f"{_format_score(rec['final_score'])} | "
+                    f"{_format_score(rec['stage2_score'])} | "
+                    f"{_format_score(rec['text_sim'])} | "
+                    f"{_format_score(rec['amount_utility'])} | "
+                    f"{_format_score(rec['keyword_overlap'])} | "
+                    f"{_format_score(rec['urgency_boost'])} | "
+                    f"{_format_score(rec['ev_proxy_norm'])} | "
+                    f"{str(rec.get('title') or '').replace('|', '/')} |"
+                )
         lines.append("")
 
     return "\n".join(lines)
@@ -522,6 +614,19 @@ def main() -> int:
     processed_dir = args.processed_dir if args.processed_dir.is_absolute() else ROOT_DIR / args.processed_dir
     snapshot_df = pd.read_parquet(snapshot_path)
     students = get_golden_students()
+    active_win_model_path: Path | None = None
+    active_win_model: Any | None = None
+    win_model_training: dict[str, Any] | None = None
+
+    if args.train_win_model:
+        win_model_training = train_win_model(snapshot_df, students, processed_dir / "win_model", seed=0)
+        active_win_model_path = Path(win_model_training["model_path"])
+        active_win_model = load_model(active_win_model_path)
+    elif args.use_win_model:
+        active_win_model_path = _resolve_path(args.win_model_path) if args.win_model_path else None
+        active_win_model = load_model(active_win_model_path) if active_win_model_path else load_latest_model()
+        if active_win_model_path is None:
+            active_win_model_path = get_latest_model_path()
 
     run_one_results, run_one_topk, run_one_ids, relevance_labels = _run_per_profile(
         snapshot_df,
@@ -534,6 +639,9 @@ def main() -> int:
         model_name=args.model_name,
         relevance_config=relevance_config,
         processed_dir=processed_dir,
+        use_win_model=args.use_win_model,
+        win_model_path=active_win_model_path,
+        win_model=active_win_model,
     )
     _, _, run_two_ids, _ = _run_per_profile(
         snapshot_df,
@@ -546,6 +654,9 @@ def main() -> int:
         model_name=args.model_name,
         relevance_config=relevance_config,
         processed_dir=processed_dir,
+        use_win_model=args.use_win_model,
+        win_model_path=active_win_model_path,
+        win_model=active_win_model,
     )
     calibration = _calibration_payload(
         run_one_results,
@@ -562,6 +673,7 @@ def main() -> int:
         args.similarity_mode,
         relevance_config,
         calibration,
+        args.use_win_model,
     )
 
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
@@ -578,6 +690,8 @@ def main() -> int:
         used_best_weights=used_best_weights,
         similarity_mode=args.similarity_mode,
         model_name=args.model_name if args.similarity_mode == "embeddings" else None,
+        use_win_model=args.use_win_model,
+        win_model_path=active_win_model_path,
         metrics=metrics,
         students=students,
         per_profile_topk=run_one_topk,
@@ -603,6 +717,9 @@ def main() -> int:
         "weights_path": str(weights_path) if weights_path is not None else None,
         "used_baseline_weights": weights_path is None,
         "used_best_weights": used_best_weights,
+        "use_win_model": bool(args.use_win_model),
+        "win_model_path": str(active_win_model_path) if active_win_model_path is not None else None,
+        "win_model_training": win_model_training,
         "metrics": metrics,
         "per_profile": _to_serializable_profile_results(run_one_results, run_one_topk, relevance_labels),
     }
