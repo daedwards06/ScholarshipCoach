@@ -3,17 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
-
-ROOT_DIR = Path(__file__).resolve().parents[1]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from src.eval.golden_students import GoldenStudent, get_golden_students
 from src.eval.metrics import amount_distribution_stats, compute_ndcg_at_k, coverage_at_k, eligibility_precision
@@ -29,6 +24,8 @@ from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
 from src.win_model.infer import get_latest_model_path, load_latest_model
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
 DEFAULT_K = 10
 DEFAULT_MAX_CONFIGS = 200

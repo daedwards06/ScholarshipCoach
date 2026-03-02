@@ -747,8 +747,8 @@ def _extract_description(html: str) -> str:
 
 def _extract_field_value(text: str, field_names: list[str]) -> str:
     lowered = text.lower()
-    for field in field_names:
-        key = f"{field.lower()}:"
+    for field_name in field_names:
+        key = f"{field_name.lower()}:"
         start = lowered.find(key)
         if start == -1:
             continue

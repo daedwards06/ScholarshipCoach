@@ -3,16 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
-
-ROOT_DIR = Path(__file__).resolve().parents[1]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from src.eval.golden_students import GoldenStudent, get_golden_students
 from src.eval.metrics import (
@@ -36,6 +31,8 @@ from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
 from src.win_model.infer import get_latest_model_path, load_latest_model, load_model
 from src.win_model.train import train_win_model
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
 MAX_K = 10
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"

@@ -2,17 +2,12 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 import streamlit as st
-
-ROOT_DIR = Path(__file__).resolve().parents[1]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from app.helpers import explain_ranked_row, format_amount_range, reasons_to_text
 from scripts.run_ingest import get_latest_snapshot_path, run_ingest
@@ -24,6 +19,8 @@ from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
 from src.win_model.infer import get_latest_model_path, load_model
 from src.win_model.train import train_win_model
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 PROFILE_PATH = PROCESSED_DIR / "student_profile.json"

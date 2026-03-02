@@ -2,17 +2,12 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import pandas as pd
-
-ROOT_DIR = Path(__file__).resolve().parents[1]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from src.ingest.cache import write_raw_payload
 from src.ingest.http import PoliteHttpClient
@@ -25,6 +20,8 @@ from src.io.snapshotting import (
     load_latest_snapshot_df as _load_latest_snapshot_df,
     write_json_atomic,
 )
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
 logger = logging.getLogger("run_ingest")
 
