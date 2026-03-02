@@ -28,3 +28,22 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Conda environment
+.conda/
+
+# Data pipeline artifacts (build outputs -- do not commit)
+data/raw/
+*.parquet
+data/processed/win_model/
+data/processed/embeddings/
+
+# Personal data
+student_profile.json
+
+# Run-specific logs
+reports/ingest_runs/
+
+# NOTE: the following ARE intentionally committed:
+#   data/processed/best_weights*.json  (versioned tuning results)
+#   data/processed/changes_*.json      (delta reports)

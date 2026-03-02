@@ -53,9 +53,9 @@ python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings -
 **Why:** A GitHub repo without a LICENSE is legally "all rights reserved" â€” it signals to reviewers that the author doesn't understand open-source norms. Missing these files is the fastest way to look unpolished.
 
 **Checklist:**
-- [ ] Create `LICENSE` (MIT License, author: Dominique Edwards)
-- [ ] Update `.gitignore` to include `data/raw/`, `*.parquet`, win model artifacts, `.conda/`
-- [ ] Verify `data/raw/` and large binary artifacts are NOT committed to git history
+- [x] Create `LICENSE` (MIT License, author: Dominique Edwards)
+- [x] Update `.gitignore` to include `data/raw/`, `*.parquet`, win model artifacts, `.conda/`
+- [x] Verify `data/raw/` and large binary artifacts are NOT committed to git history
 
 **Prompt for Claude Sonnet 4.6:**
 
