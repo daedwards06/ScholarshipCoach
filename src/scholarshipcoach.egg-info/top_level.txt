@@ -1,4 +1,9 @@
 __init__
+embeddings
+eval
 ingest
 io
 normalize
+rank
+text_utils
+win_model

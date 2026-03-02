@@ -1,6 +1,7 @@
 pandas
 pyarrow
 scikit-learn
+sentence-transformers
 streamlit
 requests
 

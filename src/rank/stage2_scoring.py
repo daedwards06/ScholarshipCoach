@@ -12,24 +12,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from src.embeddings import cache as embedding_cache
 from src.embeddings import model as embedding_model
 from src.rank.weights import Stage2Weights
+from src.text_utils import normalize_text as _normalize_text
 
 
 def _get_profile_value(profile: Any, key: str) -> Any:
     if isinstance(profile, Mapping):
         return profile.get(key)
     return getattr(profile, key, None)
-
-
-def _normalize_text(value: Any) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return value.strip()
-    if isinstance(value, (int, float, bool)):
-        if pd.isna(value):
-            return ""
-        return str(value).strip()
-    return str(value).strip()
 
 
 def _as_list(value: Any) -> list[str]:

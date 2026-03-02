@@ -5,11 +5,12 @@ from datetime import date, datetime
 from typing import Optional
 from urllib.parse import urlparse
 
+from src.text_utils import normalize_text as _normalize_text_base
+
 
 def _normalize_text(value: Optional[str]) -> str:
-    if value is None:
-        return ""
-    return " ".join(value.strip().lower().split())
+    """Normalize for hash stability: lowercase, strip, and collapse internal whitespace."""
+    return " ".join(_normalize_text_base(value).split())
 
 
 def _normalize_amount(value: Optional[float]) -> str:

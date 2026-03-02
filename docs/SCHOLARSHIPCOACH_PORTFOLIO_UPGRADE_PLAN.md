@@ -1,4 +1,4 @@
-# ScholarshipCoach Portfolio Upgrade Plan â€” Tier 1, 2 & 3
+﻿# ScholarshipCoach Portfolio Upgrade Plan â€” Tier 1, 2 & 3
 
 > Generated: 2026-03-01 | Based on full project audit (B+ â†’ A roadmap)
 > Target executor: Claude Sonnet 4.6 via Copilot agent mode
@@ -220,12 +220,12 @@ REQUIREMENTS:
 **Why:** `_normalize_text()` is independently defined in **7 files** with slightly different behavior. This is the single biggest DRY violation in the codebase. A portfolio reviewer scanning the project with `grep` will see this immediately. Consolidating it signals that you understand code reuse and have actively maintained the codebase.
 
 **Checklist:**
-- [ ] Create `src/text_utils.py` with a canonical `normalize_text()` function
-- [ ] Audit all 7 implementations to reconcile behavioral differences
-- [ ] Replace all 7 private copies with imports from `src/text_utils.py`
-- [ ] Add unit tests in `tests/test_text_utils.py` covering None, empty, whitespace, casing
-- [ ] Run full test suite â€” all tests pass
-- [ ] Run ruff â€” 0 errors
+- [x] Create `src/text_utils.py` with a canonical `normalize_text()` function
+- [x] Audit all 7 implementations to reconcile behavioral differences
+- [x] Replace all 7 private copies with imports from `src/text_utils.py`
+- [x] Add unit tests in `tests/test_text_utils.py` covering None, empty, whitespace, casing
+- [x] Run full test suite -- all tests pass
+- [x] Run ruff -- 0 errors
 
 **Prompt for Claude Sonnet 4.6:**
 

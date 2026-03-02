@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from src.embeddings import model as embedding_model
+from src.text_utils import normalize_text as _normalize_text
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_PROCESSED_DIR = ROOT_DIR / "data" / "processed"
@@ -19,16 +20,6 @@ EMBEDDING_TEXT_FIELDS = (
     "eligibility_text",
     "essay_prompt",
 )
-
-
-def _normalize_text(value: Any) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return value.strip()
-    if pd.isna(value):
-        return ""
-    return str(value).strip()
 
 
 def resolve_processed_dir(processed_dir: Path | None = None) -> Path:

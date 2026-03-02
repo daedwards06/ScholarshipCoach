@@ -6,6 +6,9 @@ from typing import Any
 
 import pandas as pd
 
+from src.text_utils import normalize_list as _normalize_list
+from src.text_utils import normalize_text as _normalize_text
+
 FEATURE_COLUMNS: tuple[str, ...] = (
     "gpa",
     "min_gpa",
@@ -21,28 +24,6 @@ FEATURE_COLUMNS: tuple[str, ...] = (
     "essay_required",
     "source_is_scholarship_america",
 )
-
-
-def _normalize_text(value: Any) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        text = value.strip().lower()
-        return text or None
-    text = str(value).strip().lower()
-    return text or None
-
-
-def _normalize_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        normalized = _normalize_text(value)
-        return [normalized] if normalized else []
-    if isinstance(value, (list, tuple, set)):
-        values = [_normalize_text(item) for item in value]
-        return [item for item in values if item]
-    return []
 
 
 def _profile_value(profile: Any, field_name: str) -> Any:

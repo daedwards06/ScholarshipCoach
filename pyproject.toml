@@ -27,6 +27,7 @@ dev = [
 minversion = "7.0"
 addopts = "-q"
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100

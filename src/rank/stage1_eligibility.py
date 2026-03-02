@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
 
 import pandas as pd
+
+from src.text_utils import normalize_list as _normalize_list
+from src.text_utils import normalize_text as _normalize_text
 
 
 @dataclass(slots=True)
@@ -15,30 +17,6 @@ class StudentProfile:
     education_level: str | None = None
     citizenship: str | None = None
     today: date | None = None
-
-
-def _normalize_text(value: Any) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        return normalized or None
-    return str(value).strip().lower() or None
-
-
-def _normalize_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return [item for item in (_normalize_text(v) for v in value) if item]
-    if isinstance(value, tuple):
-        return [item for item in (_normalize_text(v) for v in value) if item]
-    if isinstance(value, set):
-        return [item for item in (_normalize_text(v) for v in value) if item]
-    if isinstance(value, str):
-        normalized = _normalize_text(value)
-        return [normalized] if normalized else []
-    return []
 
 
 def _row_reasons(row: pd.Series, profile: StudentProfile, today: date) -> list[str]:

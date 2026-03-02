@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
 
+from src.text_utils import normalize_list as _normalize_list
+from src.text_utils import normalize_text as _normalize_text
+
 if TYPE_CHECKING:
     from src.eval.golden_students import GoldenStudent
 
@@ -19,27 +22,6 @@ class RelevanceConfig:
 
 
 DEFAULT_RELEVANCE_CONFIG = RelevanceConfig()
-
-
-def _normalize_text(value: object) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip().lower()
-    return text or None
-
-
-def _normalize_list(value: object) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple, set)):
-        result: list[str] = []
-        for item in value:
-            normalized = _normalize_text(item)
-            if normalized:
-                result.append(normalized)
-        return result
-    normalized = _normalize_text(value)
-    return [normalized] if normalized else []
 
 
 def _keyword_overlap_positive(row: pd.Series) -> bool:
@@ -61,7 +43,7 @@ def _strict_profile_match(
     checks: dict[str, bool] = {
         "major": (not majors_allowed) or (_normalize_text(profile.major) in majors_allowed),
         "state": (not states_allowed) or (_normalize_text(profile.state) in states_allowed),
-        "education_level": (scholarship_edu is None)
+        "education_level": (not scholarship_edu)
         or (scholarship_edu == _normalize_text(profile.education_level)),
     }
     return all(checks.get(field, False) for field in cfg.strict_requires_all_of)
