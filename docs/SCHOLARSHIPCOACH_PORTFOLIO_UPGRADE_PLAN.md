@@ -25,11 +25,19 @@
 **Why:** The current snapshot has only 28 scholarships (down from 160) due to a Feb 28 ingest that dropped 139 records. All evaluation metrics are near-meaningless at this catalog size. A fresh, full ingest restores the candidate universe and makes every downstream metric credible.
 
 **Checklist:**
-- [ ] Run full ingest with generous runtime/page caps
-- [ ] Verify snapshot record count is >= 100
-- [ ] Inspect `changes_YYYYMMDD.json` delta for sanity (no massive drops)
-- [ ] Verify embedding cache updates for new records
-- [ ] Run golden eval against the new snapshot to re-baseline metrics
+- [x] Run full ingest with generous runtime/page caps
+- [x] Verify snapshot record count is >= 100
+- [x] Inspect `changes_YYYYMMDD.json` delta for sanity (no massive drops)
+- [x] Verify embedding cache updates for new records
+- [x] Run golden eval against the new snapshot to re-baseline metrics
+
+**Results (2026-03-02):**
+- Snapshot: `scholarships_snapshot_20260302.parquet` — **163 records** (up from 28)
+- Delta: `changes_20260302.json` — added=135, removed=0, changed=0 ✓
+- Embedding cache: `embeddings.npz` updated to 290 KB ✓
+- Eval report: `reports/golden_eval_20260302_031321.md`
+  - NDCG@10: **0.574**, Coverage@10: **0.4375**, Eligibility precision: **0.834**
+  - Win model trained: `win_model_20260302_031250.joblib`
 
 **Command:**
 
