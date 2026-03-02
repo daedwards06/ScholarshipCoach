@@ -78,25 +78,25 @@ hybrid (keyword OR similarity threshold)
 
 no_similarity (structured + keyword only)
 
-Baseline (Embeddings, Default Weights)
+> **Note:** Metrics are offline proxies computed on snapshot data. They improve with catalog
+> diversity — results below are from a **163-record catalog** (March 2026 ingest).
+> Baseline and Relevance-Optimized rows are historical reference points from a 160-record
+> snapshot; Pareto-Selected reflects the current catalog. Run
+> `python scripts/evaluate_golden_students.py` to compute up-to-date metrics.
 
-NDCG@10: 0.29
+| Configuration | NDCG@10 | Coverage@10 | Notes |
+|---|---:|---:|---|
+| Baseline (Default Weights) | 0.29 | 0.21 | 160-record catalog, no win model |
+| Relevance-Optimized (Grid Search, 150 configs) | 0.57 | 0.45 | 160-record catalog, win model |
+| Pareto-Selected (Relevance + Coverage + EV) | **0.61** | **0.40** | 163-record catalog, win model |
 
-Coverage@10: 0.21
+Additional metrics for current Pareto-Selected config (163-record catalog):
 
-Relevance-Optimized (Grid Search, 150 configs)
+Mean p(win) in Top-10: ~0.52
 
-NDCG@10: 0.57
+Eligibility Precision: 0.83
 
-Coverage@10: 0.45
-
-Pareto-Selected (Relevance + Coverage + EV)
-
-NDCG@10: 0.56
-
-Coverage@10: 0.51
-
-Mean p(win) in Top-10: ~0.65
+Mean Expected Value in Top-10: ~$9,640
 
 All experiments are:
 

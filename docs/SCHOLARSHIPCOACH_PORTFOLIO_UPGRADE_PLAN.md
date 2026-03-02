@@ -178,10 +178,10 @@ REQUIREMENTS:
 **Why:** The README currently shows NDCG@10: 0.57, Coverage@10: 0.45 â€” but the latest actual eval shows 0.39 and 0.20 respectively (on a 28-record snapshot). Stale metrics undermine credibility. Either update to current values or clearly label them with dataset context.
 
 **Checklist:**
-- [ ] Update the Evaluation Framework section in README.md
-- [ ] Add dataset-size context (e.g., "160-record catalog" vs "28-record catalog")
-- [ ] After Task 0.1 (fresh ingest), re-run eval and update metrics to the fresh numbers
-- [ ] Add a note that metrics are snapshot-dependent and improve with catalog size
+- [x] Update the Evaluation Framework section in README.md
+- [x] Add dataset-size context (e.g., "160-record catalog" vs "28-record catalog")
+- [x] After Task 0.1 (fresh ingest), re-run eval and update metrics to the fresh numbers
+- [x] Add a note that metrics are snapshot-dependent and improve with catalog size
 
 **Prompt for Claude Sonnet 4.6:**
 
