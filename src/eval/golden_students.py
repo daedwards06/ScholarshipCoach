@@ -158,4 +158,20 @@ def get_golden_students() -> list[GoldenStudent]:
             extracurriculars=("peer counseling",),
             goals="Expand community-based mental health programs.",
         ),
+        GoldenStudent(
+            student_id="nc_cs_rising_sophomore",
+            description="NC high school student interested in CS/CE, rising sophomore, 3.25 GPA",
+            profile=StudentProfile(
+                gpa=3.25,
+                state="NC",
+                major="Computer Science",
+                education_level="high school",
+                citizenship="US",
+                today=eval_today,
+            ),
+            interests=("programming", "robotics", "game development", "cybersecurity", "math"),
+            keywords=("STEM", "computer science", "engineering", "technology", "coding", "software"),
+            extracurriculars=("robotics club", "math team", "coding bootcamp", "volunteer tutoring"),
+            goals="Pursuing a degree in Computer Science or Computer Engineering with interest in software development and cybersecurity",
+        ),
     ]

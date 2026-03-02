@@ -88,12 +88,12 @@ Do NOT add these to .gitignore (they should be committed):
 **Why:** Every script (`run_ingest.py`, `evaluate_golden_students.py`, `tune_weights.py`, `build_snapshot.py`, `app/main.py`) starts with `sys.path.insert(0, ROOT_DIR)`. This is unnecessary because `pip install -e .` is already configured via `pyproject.toml`. The hack triggers 34 of the 37 ruff lint errors (`E402 module-import-not-at-top-of-file`). Removing it cleans up the lint report and signals proper Python packaging knowledge.
 
 **Checklist:**
-- [ ] Remove `sys.path.insert(...)` blocks from all 5 files
-- [ ] Move imports to the top of each file (resolving E402 errors)
-- [ ] Fix the 2 unused imports and 1 shadowed variable flagged by ruff
-- [ ] Verify `pip install -e .` is active in the environment
-- [ ] Run `ruff check src/ scripts/ app/ tests/` â€” target 0 errors
-- [ ] Run `pytest tests/ -q` â€” all 45 tests still pass
+- [x] Remove `sys.path.insert(...)` blocks from all 5 files
+- [x] Move imports to the top of each file (resolving E402 errors)
+- [x] Fix the 2 unused imports and 1 shadowed variable flagged by ruff
+- [x] Verify `pip install -e .` is active in the environment
+- [x] Run `ruff check src/ scripts/ app/ tests/` â€” target 0 errors
+- [x] Run `pytest tests/ -q` â€” all 45 tests still pass
 
 **Prompt for Claude Sonnet 4.6:**
 
@@ -130,11 +130,11 @@ REQUIREMENTS:
 **Why:** The 8 golden profiles are synthetic test personas â€” none represent your actual student. Adding your real student's profile makes the evaluation personally meaningful and ensures the ranking pipeline is tested against the use case you actually care about.
 
 **Checklist:**
-- [ ] Add a 9th `GoldenStudent` entry to `src/eval/golden_students.py`
-- [ ] Profile: NC, Computer Science / Computer Engineering, GPA 3.0â€“3.5, 9thâ€“10th grade
-- [ ] Include realistic interests, keywords, extracurriculars, and goals
-- [ ] Run golden eval and verify the new profile produces reasonable recommendations
-- [ ] Review the top-10 scholarships returned â€” do they make sense for your student?
+- [x] Add a 9th `GoldenStudent` entry to `src/eval/golden_students.py`
+- [x] Profile: NC, Computer Science / Computer Engineering, GPA 3.0â€“3.5, 9thâ€“10th grade
+- [x] Include realistic interests, keywords, extracurriculars, and goals
+- [x] Run golden eval and verify the new profile produces reasonable recommendations
+- [x] Review the top-10 scholarships returned â€” do they make sense for your student?
 
 **Prompt for Claude Sonnet 4.6:**
 
