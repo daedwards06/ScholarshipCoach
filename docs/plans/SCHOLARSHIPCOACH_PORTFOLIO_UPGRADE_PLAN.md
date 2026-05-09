@@ -283,7 +283,35 @@ REQUIREMENTS:
 
 ### Task 1.2: Add Docstrings to All Public Functions
 
-**Why:** Across 20 source modules and ~80 public functions, only 4 files have any docstrings at all. This is the single biggest gap for portfolio presentation. Recruiters and interviewers will open a random source file â€” the first thing they look for is a docstring explaining what the function does. Missing docstrings signal "this was autocompleted, not authored."
+**Why:** Across 20 source modules and ~80 public functions, only 4 files have any docstrings at all. This is the single biggest gap for portfolio presentation. Recruiters and interviewers will open a random source file â€” the first thing they look for is a docstring explaining what the function does. Missing docstrings signal “this was autocompleted, not authored.”
+
+**Preflight Files:**
+- `src/text_utils.py`
+- `src/embeddings/cache.py`
+- `src/embeddings/model.py`
+- `src/eval/golden_students.py`
+- `src/eval/metrics.py`
+- `src/eval/relevance.py`
+- `src/ingest/base.py`
+- `src/ingest/http.py`
+- `src/ingest/registry.py`
+- `src/io/snapshotting.py`
+- `src/normalize/canonical_id.py`
+- `src/normalize/schema.py`
+- `src/rank/stage1_eligibility.py`
+- `src/rank/stage2_scoring.py`
+- `src/rank/stage3_rerank.py`
+- `src/rank/weights.py`
+- `src/win_model/features.py`
+- `src/win_model/infer.py`
+- `src/win_model/synthetic.py`
+- `src/win_model/train.py`
+
+**Validation Commands:**
+```powershell
+pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+```
 
 **Checklist:**
 - [ ] Add one-liner or multi-line docstrings to all public functions and classes in `src/`
@@ -353,6 +381,20 @@ REQUIREMENTS:
 
 **Why:** The `profile` parameter is passed through Stage 1, Stage 2, Stage 3, features, and relevance modules â€” but it's typed as `Any` everywhere. Functions use duck typing (`getattr`, `isinstance(dict)`) to extract fields. A `Protocol` or shared type alias would catch bugs at edit-time and signal type-discipline to reviewers.
 
+**Preflight Files:**
+- `src/rank/stage1_eligibility.py` (StudentProfile definition)
+- `src/rank/stage2_scoring.py` (_get_profile_value usage)
+- `src/rank/stage3_rerank.py` (rerank_stage3 signature)
+- `src/win_model/features.py` (build_pair_features signature)
+- `src/eval/relevance.py` (proxy_relevance_label signature)
+- `src/eval/golden_students.py` (as_stage2_profile dict shape)
+
+**Validation Commands:**
+```powershell
+pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+```
+
 **Checklist:**
 - [ ] Define a `ProfileLike` Protocol in `src/rank/weights.py` or a new `src/types.py`
 - [ ] Update Stage 2, Stage 3, win_model/features, and eval/relevance to use `ProfileLike`
@@ -411,6 +453,25 @@ REQUIREMENTS:
 ### Task 1.4: Consolidate Test Fixtures into `conftest.py`
 
 **Why:** `tests/conftest.py` currently only adds `sys.path`. `StudentProfile`, sample DataFrames, and `GoldenStudent` instances are constructed inline in 8+ test files with significant duplication. Centralising shared fixtures signals mature test engineering.
+
+**Preflight Files:**
+- `tests/conftest.py`
+- `tests/test_eligibility_rules.py`
+- `tests/test_stage2_scoring.py`
+- `tests/test_stage3_rerank.py`
+- `tests/test_stage3_with_win_model.py`
+- `tests/test_canonical_id.py`
+- `tests/test_explainability_helpers.py`
+- `tests/test_relevance_labeling.py`
+- `tests/test_win_features.py`
+- `tests/test_win_train_infer.py`
+- `tests/test_evaluate_golden_students.py`
+
+**Validation Commands:**
+```powershell
+pytest tests/ -v
+```
+(Count should be > 45 after new parametrized cases are added.)
 
 **Checklist:**
 - [ ] Create shared fixtures: `sample_profile`, `sample_scholarship_df`, `sample_golden_student`
@@ -477,6 +538,19 @@ REQUIREMENTS:
 
 **Why:** No CI means no green badge, no automated test runs on push, and no proof that the code actually works. A simple pytest + ruff workflow takes 5 minutes to set up and is the most visible "this person knows professional workflows" signal on a GitHub portfolio.
 
+**Preflight Files:**
+- `pyproject.toml` (dependencies, ruff config, pytest config)
+- `README.md` (where to insert the badge)
+- `.gitignore` (verify no workflow artifacts are ignored)
+
+**Validation Commands:**
+```powershell
+# After pushing to GitHub, verify the workflow appears under Actions tab.
+# Locally verify the workflow YAML is valid:
+ruff check src/ scripts/ app/ tests/
+pytest tests/ -q --tb=short
+```
+
 **Checklist:**
 - [ ] Create `.github/workflows/ci.yml` with pytest + ruff on push/PR
 - [ ] Pin Python 3.11 or 3.12 to match local dev
@@ -538,6 +612,16 @@ REQUIREMENTS:
 
 **Why:** You can't improve what you don't measure. Adding coverage reporting identifies untested code paths and the badge gives instant credibility on the README. Combined with CI, it shows continuous quality monitoring.
 
+**Preflight Files:**
+- `pyproject.toml` (current dev deps and pytest config)
+- `README.md` (where to add the coverage note)
+
+**Validation Commands:**
+```powershell
+pytest tests/ --cov=src --cov-report=term-missing
+```
+(Report the baseline % and the 3 lowest-covered modules.)
+
 **Checklist:**
 - [ ] Add `pytest-cov` to dev dependencies in `pyproject.toml`
 - [ ] Configure coverage in `pyproject.toml` (`[tool.coverage.run]` and `[tool.coverage.report]`)
@@ -590,6 +674,19 @@ REQUIREMENTS:
 
 **Why:** Scholarships with `amount_max = 0` or `None` are ranking #1 in some profiles because the win model assigns them high `p_win` (0.72) while `expected_value = 0`. The ranking over-weights non-monetary signals. For your student's actual use, recommending $0 scholarships is worse than useless â€” it wastes time.
 
+**Preflight Files:**
+- `src/rank/stage1_eligibility.py` (current filter rules and reason codes)
+- `src/rank/stage2_scoring.py` (amount_utility computation)
+- `src/rank/stage3_rerank.py` (final_score formula, EV computation)
+- `src/win_model/features.py` (how amount affects p_win features)
+
+**Validation Commands:**
+```powershell
+pytest tests/ -q
+python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings --label-mode hybrid --use-win-model
+```
+(Verify no $0 scholarships appear in the top-10 for any profile.)
+
 **Checklist:**
 - [ ] Add an `amount_min_filter` to Stage 1 or Stage 3 that penalizes `amount = 0/None`
 - [ ] Option A: Filter them out in Stage 1 as `AMOUNT_MISSING_OR_ZERO` reason code
@@ -639,6 +736,19 @@ REQUIREMENTS:
 ### Task 2.2: Fix Dead `keyword_overlap` Feature
 
 **Why:** `keyword_overlap` is 0.0 across nearly all 80 profile-scholarship pairs in the latest eval. This means your student's interests and keywords have zero influence on ranking. The feature is dead weight. The root cause is likely that scholarship records don't populate `keywords` or the keyword extraction logic doesn't tokenize properly.
+
+**Preflight Files:**
+- `src/rank/stage2_scoring.py` (_compute_keyword_overlap and _profile_keyword_tokens)
+- `src/eval/golden_students.py` (what keywords the profiles define)
+- `src/ingest/sources/scholarship_america_live.py` (how scholarship keywords field is populated)
+- `src/normalize/schema.py` (NormalizedScholarshipRecord field definitions)
+
+**Validation Commands:**
+```powershell
+pytest tests/ -q
+python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings --label-mode hybrid --use-win-model
+```
+(Look for non-zero keyword_overlap values in the eval output — target: >30% of eligible pairs.)
 
 **Checklist:**
 - [ ] Diagnose why keyword_overlap is zero (schema field `keywords`, extraction logic)
@@ -693,6 +803,22 @@ Run: pytest tests/ -q â†’ all pass
 ### Task 2.3: Add a Second Scholarship Data Source
 
 **Why:** With only one data source (Scholarship America), the system can't demonstrate real aggregation value. Adding a second connector proves the `BaseSource` abstraction works, increases the candidate universe (critical for your student), and showcases data engineering skills. A good portfolio project has at least 2-3 sources showing the pipeline handles heterogeneous data.
+
+**Preflight Files:**
+- `src/ingest/base.py` (BaseSource ABC — fetch/parse interface)
+- `src/ingest/http.py` (PoliteHttpClient — rate limiting, caching)
+- `src/ingest/registry.py` (how sources are registered)
+- `src/ingest/sources/__init__.py` (current exports)
+- `src/normalize/schema.py` (NormalizedScholarshipRecord fields)
+- `src/normalize/canonical_id.py` (how canonical_id is computed)
+- `src/ingest/sources/scholarship_america_live.py` (first 100 lines — class structure to replicate)
+
+**Validation Commands:**
+```powershell
+pytest tests/ -q
+python scripts\run_ingest.py --max-listing-pages 5 --max-detail-pages 50
+```
+(Snapshot record count should grow beyond the current 163.)
 
 **Checklist:**
 - [ ] Research available scholarship APIs/sites with scrapable listing pages
@@ -753,6 +879,18 @@ REQUIREMENTS:
 
 **Why:** The current Pareto weights were tuned on the 160-record snapshot (Feb 22). After fixing the data issues (fresh ingest, keyword overlap fix, $0 amount handling, second source), the catalog will be significantly different. Stale weights on new data leads to suboptimal rankings.
 
+**Preflight Files:**
+- `data/processed/best_weights_pareto.json` (current Pareto weights — baseline to compare against)
+- `data/processed/best_weights_relevance.json` (current relevance weights)
+- Latest eval report in `reports/` (current NDCG/Coverage baseline)
+
+**Validation Commands:**
+```powershell
+python scripts\tune_weights.py --k 10 --similarity-mode embeddings --label-mode hybrid --use-win-model --max_configs 200 --selection-objective pareto
+python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings --label-mode hybrid --use-win-model --use-best-weights
+```
+(Compare NDCG@10 and Coverage@10 before/after — new weights should improve or match.)
+
 **Checklist:**
 - [ ] Run fresh ingest (Task 0.1) + second source (Task 2.3) first
 - [ ] Train a new win model on the expanded catalog
@@ -774,6 +912,22 @@ python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings -
 ### Task 2.5: Rename `Stage2Weights.tfidf` to `text_sim`
 
 **Why:** The `Stage2Weights.tfidf` field is used for both TF-IDF and embedding similarity, making the field name misleading. A portfolio reviewer reading `weights.tfidf` will think it's only TF-IDF. This was already noted in the `weights.py` docstring but never fixed. Small rename, big clarity.
+
+**Preflight Files:**
+- `src/rank/weights.py` (Stage2Weights dataclass, from_mapping, to_dict)
+- `src/rank/stage2_scoring.py` (all uses of active_weights.tfidf)
+- `scripts/tune_weights.py` (grid generation and config display)
+- `scripts/evaluate_golden_students.py` (weight display)
+- `app/main.py` (UI display of weight names)
+- `data/processed/best_weights_pareto.json`
+- `data/processed/best_weights_relevance.json`
+- `data/processed/best_weights_blended.json` (if it exists)
+
+**Validation Commands:**
+```powershell
+pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+```
 
 **Checklist:**
 - [ ] Rename `Stage2Weights.tfidf` â†’ `Stage2Weights.text_sim`
@@ -835,6 +989,19 @@ REQUIREMENTS:
 ### Task 3.1: Create Pipeline Walkthrough Notebook
 
 **Why:** No notebooks exist in this project. A "pipeline walkthrough" notebook that loads the snapshot, runs each stage step-by-step, visualises score distributions, and explains design decisions is the highest-impact portfolio artifact after the README. Interviewers will open it.
+
+**Preflight Files:**
+- `src/rank/stage1_eligibility.py` (apply_eligibility_filter signature and return shape)
+- `src/rank/stage2_scoring.py` (score_stage2 signature, output column names)
+- `src/rank/stage3_rerank.py` (rerank_stage3 signature, output column names)
+- `src/rank/weights.py` (Stage2Weights, Stage3Weights baseline values)
+- `src/eval/golden_students.py` (nc_cs_rising_sophomore profile — the one used in the notebook)
+- `src/win_model/infer.py` (how to load and run the win model)
+- `data/processed/best_weights_pareto.json` (confirm it exists and is valid)
+
+**Validation Commands:**
+- Run all notebook cells top-to-bottom in Jupyter — must complete without errors in < 30 seconds.
+- `pytest tests/ -q` — existing tests must still pass after any refactors needed for the notebook.
 
 **Checklist:**
 - [ ] Create `notebooks/01_pipeline_walkthrough.ipynb`
@@ -931,6 +1098,18 @@ REQUIREMENTS:
 
 **Why:** The Streamlit app is the most visual asset in the project, but it's invisible in the README. Recruiters browse GitHub â€” they won't clone and run the app. 2-3 screenshots show the app exists, works, and looks professional.
 
+**Preflight Files:**
+- `README.md` (find the right insertion point between sections)
+- `app/main.py` (understand what UI sections exist to describe in screenshot captions)
+
+**Validation Commands:**
+```powershell
+# Launch the app to take screenshots:
+streamlit run app/main.py
+```
+(Screenshots must be saved manually to `docs/images/` as `ranking_view.png`,
+`profile_sidebar.png`, and `explainability.png`.)
+
 **Checklist:**
 - [ ] Take 3 screenshots of the running Streamlit app:
   1. Main ranking view with top-10 scholarship cards
@@ -988,6 +1167,16 @@ the user will save screenshots to docs/images/ with the specified filenames.
 ### Task 3.3: Refactor `tune_weights.py` into Submodules
 
 **Why:** At 1,353 lines, `scripts/tune_weights.py` is the longest file in the project and the most complex. It contains grid generation, evaluation, Pareto front computation, blended scoring, and Markdown report generation â€” all in one file. Splitting it into focused modules proves you can manage complexity in a real system.
+
+**Preflight Files:**
+- `scripts/tune_weights.py` (full file — read the entire thing to understand all functions before splitting)
+
+**Validation Commands:**
+```powershell
+pytest tests/ -q
+python scripts\tune_weights.py --k 10 --similarity-mode tfidf --label-mode hybrid --max_configs 10 --selection-objective pareto
+```
+(The tuning script must produce output identical in structure to before the refactor.)
 
 **Checklist:**
 - [ ] Create `src/tuning/` package
@@ -1060,6 +1249,17 @@ REQUIREMENTS:
 ### Task 3.4: Create `.streamlit/config.toml` for Deployment Readiness
 
 **Why:** Streamlit Community Cloud (or any deployment) uses `.streamlit/config.toml` for theme and server configuration. Having it pre-configured shows deployment awareness and ensures the app looks consistent regardless of where it runs.
+
+**Preflight Files:**
+- `app/main.py` (find the CSS injection block to extract the current theme colors)
+- `.gitignore` (verify `.streamlit/secrets.toml` is already ignored or needs adding)
+- `README.md` (find the "Running the Project" section for badge insertion)
+
+**Validation Commands:**
+```powershell
+streamlit run app/main.py
+```
+(Verify the app loads with the correct dark theme from config.toml, not hardcoded CSS.)
 
 **Checklist:**
 - [ ] Create `.streamlit/config.toml` with theme matching the app's dark design
