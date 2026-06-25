@@ -1,3 +1,9 @@
+"""Feature extraction for the win-probability model.
+
+Builds numerical feature vectors from (student profile, scholarship row, Stage 2
+scores) triples.  The feature set is fixed by ``FEATURE_COLUMNS`` so the trained
+model and inference code share an identical column order.
+"""
 from __future__ import annotations
 
 import math
@@ -60,6 +66,18 @@ def build_pair_features(
     stage2_row: pd.Series | dict[str, Any] | None = None,
     today: date | None = None,
 ) -> dict[str, float]:
+    """Build a fixed-length feature dict for a (student, scholarship) pair.
+
+    Args:
+        profile: Student profile object or dict with GPA, state, major, etc.
+        scholarship_row: A single scholarship row from the snapshot DataFrame.
+        stage2_row: Optional Stage 2 output row providing ``keyword_overlap``
+            and ``text_sim`` scores.  If ``None``, those features default to 0.
+        today: Reference date for deadline computation; defaults to ``date.today()``.
+
+    Returns:
+        Dict with keys matching ``FEATURE_COLUMNS`` and float values.
+    """
     row = scholarship_row if isinstance(scholarship_row, pd.Series) else pd.Series(scholarship_row)
     stage2 = stage2_row if isinstance(stage2_row, pd.Series) else pd.Series(stage2_row or {})
 

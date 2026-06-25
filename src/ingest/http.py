@@ -1,3 +1,8 @@
+"""Polite rate-limiting HTTP client for scholarship data ingestion.
+
+Wraps ``requests`` with configurable rate limiting, automatic retries, and a
+slow-request warning so all source connectors share consistent fetch behaviour.
+"""
 from __future__ import annotations
 
 import logging
@@ -18,6 +23,17 @@ _SLOW_REQUEST_SECONDS = 5.0
 
 @dataclass(slots=True)
 class PoliteHttpClient:
+    """Thread-safe HTTP client with rate limiting, retries, and a custom User-Agent.
+
+    Attributes:
+        requests_per_second: Maximum outbound request rate.  Use ``0`` or a
+            negative value to disable rate limiting.
+        timeout_seconds: Total request timeout; connect timeout is capped at 5 s.
+        user_agent: ``User-Agent`` header sent with every request.
+        max_retries: Number of automatic retries on transient errors (5xx, 429).
+        backoff_factor: Exponential back-off multiplier between retry attempts.
+    """
+
     requests_per_second: float = 1.0
     timeout_seconds: float = 20.0
     user_agent: str = DEFAULT_USER_AGENT
@@ -48,19 +64,24 @@ class PoliteHttpClient:
         self._rate_limit_lock = threading.Lock()
 
     def close(self) -> None:
+        """Close the underlying ``requests.Session`` and release connections."""
         self._session.close()
 
     def get_bytes(self, url: str, *, params: dict[str, Any] | None = None) -> bytes:
+        """GET ``url`` and return the raw response bytes."""
         return self._request("GET", url, params=params).content
 
     def get_text(self, url: str, *, params: dict[str, Any] | None = None) -> str:
+        """GET ``url`` and return the decoded response text."""
         return self._request("GET", url, params=params).text
 
     def get_json(self, url: str, *, params: dict[str, Any] | None = None) -> Any:
+        """GET ``url`` and return the parsed JSON response."""
         return self._request("GET", url, params=params).json()
 
     @property
     def timeout_tuple(self) -> tuple[float, float]:
+        """Return ``(connect_timeout, read_timeout)`` derived from ``timeout_seconds``."""
         connect_timeout = max(1.0, min(self.timeout_seconds, 5.0))
         read_timeout = max(connect_timeout, self.timeout_seconds)
         return connect_timeout, read_timeout

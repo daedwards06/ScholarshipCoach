@@ -1,3 +1,9 @@
+"""Atomic snapshot and delta artifact management.
+
+Provides functions to write parquet snapshots and JSON delta reports to disk
+atomically (write-to-temp, then rename), list and load existing snapshots, and
+build change deltas between consecutive ingest runs.
+"""
 from __future__ import annotations
 
 import json
@@ -101,6 +107,7 @@ def _tracked_value(record: dict[str, Any], field: str) -> Any:
 
 
 def list_snapshot_files(processed_dir: Path) -> list[Path]:
+    """Return all snapshot parquet files in ``processed_dir``, sorted by date ascending."""
     snapshots: list[tuple[datetime, Path]] = []
     for candidate in processed_dir.glob("scholarships_snapshot_*.parquet"):
         match = SNAPSHOT_PATTERN.match(candidate.name)
@@ -114,6 +121,7 @@ def list_snapshot_files(processed_dir: Path) -> list[Path]:
 
 
 def get_latest_snapshot_path(processed_dir: Path) -> Path | None:
+    """Return the most recent snapshot parquet path, or ``None`` if none exist."""
     snapshots = list_snapshot_files(processed_dir)
     if not snapshots:
         return None
@@ -121,6 +129,11 @@ def get_latest_snapshot_path(processed_dir: Path) -> Path | None:
 
 
 def load_latest_snapshot_df(processed_dir: Path) -> pd.DataFrame:
+    """Load the most recent snapshot parquet file as a DataFrame.
+
+    Raises:
+        FileNotFoundError: If no snapshot parquet exists in ``processed_dir``.
+    """
     latest_path = get_latest_snapshot_path(processed_dir)
     if latest_path is None:
         raise FileNotFoundError(
@@ -131,12 +144,18 @@ def load_latest_snapshot_df(processed_dir: Path) -> pd.DataFrame:
 
 
 def find_prior_snapshot(processed_dir: Path, target_date: date) -> Path | None:
+    """Return the most recent snapshot before ``target_date``, or ``None``."""
     target_name = _snapshot_filename(target_date)
     candidates = [path for path in list_snapshot_files(processed_dir) if path.name != target_name]
     return candidates[-1] if candidates else None
 
 
 def prepare_snapshot_df(records: pd.DataFrame) -> pd.DataFrame:
+    """Ensure ``records`` has all required columns, then sort by ``scholarship_id``.
+
+    Missing columns are filled with ``None``.  Returns a clean copy with a
+    stable row order suitable for deterministic delta computation.
+    """
     snapshot_df = records.copy()
     for column in REQUIRED_COLUMNS:
         if column not in snapshot_df.columns:
@@ -147,6 +166,7 @@ def prepare_snapshot_df(records: pd.DataFrame) -> pd.DataFrame:
 
 
 def write_parquet_atomic(df: pd.DataFrame, output_path: Path) -> None:
+    """Write ``df`` to ``output_path`` atomically using a temp-file rename."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = output_path.parent / f"{output_path.name}.{uuid4().hex}.tmp"
     try:
@@ -165,6 +185,16 @@ def _records_by_id(df: pd.DataFrame) -> dict[str, dict[str, Any]]:
 
 
 def build_delta(current_df: pd.DataFrame, prior_df: pd.DataFrame | None) -> dict[str, Any]:
+    """Compute added, removed, and changed scholarships between two snapshots.
+
+    Args:
+        current_df: The freshly ingested snapshot.
+        prior_df: The previous snapshot (``None`` treats every record as added).
+
+    Returns:
+        Dict with ``added`` (list), ``removed`` (list), and ``changed`` (list of
+        ``{scholarship_id, fields_changed}`` dicts).
+    """
     prior = prior_df if prior_df is not None else pd.DataFrame(columns=current_df.columns)
     current_records = _records_by_id(current_df)
     prior_records = _records_by_id(prior)
@@ -199,6 +229,7 @@ def build_delta(current_df: pd.DataFrame, prior_df: pd.DataFrame | None) -> dict
 
 
 def write_json_atomic(payload: dict[str, Any], output_path: Path) -> None:
+    """Write ``payload`` to ``output_path`` as pretty-printed JSON atomically."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = output_path.parent / f"{output_path.name}.{uuid4().hex}.tmp"
     try:
@@ -216,6 +247,20 @@ def build_and_write_snapshot(
     run_date: date | str | None = None,
     embedding_model_name: str = DEFAULT_MODEL_NAME,
 ) -> tuple[Path, Path, dict[str, Any]]:
+    """Build and atomically write the snapshot parquet and changes JSON.
+
+    Ensures all records have embedding vectors, computes a delta against the
+    prior snapshot, then writes both artifacts atomically.
+
+    Args:
+        records: Normalized scholarship records from the current ingest run.
+        processed_dir: Directory where snapshots and deltas are stored.
+        run_date: Date stamp for the output files; defaults to UTC today.
+        embedding_model_name: Sentence-transformer model for embedding caching.
+
+    Returns:
+        Tuple of (snapshot_path, changes_path, delta_dict).
+    """
     snapshot_date = _coerce_output_date(run_date)
     snapshot_df = prepare_snapshot_df(records)
     snapshot_df = ensure_embedding_store_for_df(

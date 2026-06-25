@@ -1,3 +1,11 @@
+"""Synthetic training-data generation for the win-probability model.
+
+Randomly pairs golden student profiles with snapshot scholarships and assigns
+binary win labels using a logistic model over human-interpretable features.
+The synthetic labels encode intuitive domain rules (major match boosts win
+probability, essay requirement reduces it, etc.) so the trained model learns
+a sensible inductive bias even without real award outcome data.
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -74,6 +82,27 @@ def generate_synthetic_training_data(
     n_samples: int = 8000,
     seed: int = 0,
 ) -> tuple[pd.DataFrame, np.ndarray, pd.DataFrame]:
+    """Generate synthetic (features, labels) pairs for win-model training.
+
+    Randomly samples ``n_samples`` (student, scholarship) pairs and assigns
+    binary win labels via a hand-tuned logistic model that rewards major match,
+    keyword overlap, and text similarity while penalising essay requirements.
+
+    Args:
+        snapshot_df: Scholarship snapshot DataFrame used as the candidate pool.
+        golden_profiles: List of ``GoldenStudent`` (or equivalent) objects.
+        n_samples: Number of training samples to generate.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        Tuple of ``(X_df, y, meta_df)`` where ``X_df`` has ``FEATURE_COLUMNS``,
+        ``y`` is a binary label array, and ``meta_df`` contains profile/
+        scholarship IDs and the true latent probability.
+
+    Raises:
+        ValueError: If ``snapshot_df`` is empty, ``golden_profiles`` is empty,
+            or ``n_samples < 1``.
+    """
     if snapshot_df.empty:
         raise ValueError("Synthetic training requires at least one scholarship row.")
     if not golden_profiles:

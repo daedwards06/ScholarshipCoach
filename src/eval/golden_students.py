@@ -1,3 +1,9 @@
+"""Golden student profiles used as evaluation fixtures.
+
+Each ``GoldenStudent`` instance represents a student persona with a realistic
+profile, interests, and goals.  The ``get_golden_students()`` function returns
+the full set used in offline evaluation runs.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,6 +15,12 @@ from src.rank.stage1_eligibility import StudentProfile
 
 @dataclass(frozen=True, slots=True)
 class GoldenStudent:
+    """Immutable evaluation fixture representing a student persona.
+
+    Combines a ``StudentProfile`` (used for Stage 1 eligibility checks) with
+    richer interest/keyword/goal fields consumed by Stage 2 scoring.
+    """
+
     student_id: str
     description: str
     profile: StudentProfile
@@ -18,6 +30,7 @@ class GoldenStudent:
     goals: str
 
     def as_stage2_profile(self) -> dict[str, Any]:
+        """Return a dict representation suitable for Stage 2 scoring functions."""
         return {
             "major": self.profile.major,
             "interests": list(self.interests),
@@ -28,6 +41,12 @@ class GoldenStudent:
 
 
 def get_golden_students() -> list[GoldenStudent]:
+    """Return the full list of golden student evaluation fixtures.
+
+    Each entry covers a different combination of major, state, GPA, education
+    level, and citizenship so the evaluation harness exercises a broad set of
+    eligibility and scoring scenarios.
+    """
     eval_today = date(2026, 2, 22)
     return [
         GoldenStudent(

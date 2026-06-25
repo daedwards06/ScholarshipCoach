@@ -1,3 +1,9 @@
+"""Deterministic scholarship ID generation via content-based hashing.
+
+``generate_scholarship_id`` produces a stable SHA-1 hex digest from the
+canonical identity fields (title, sponsor, amounts, deadline, source domain)
+so the same scholarship is assigned the same ID across ingest runs.
+"""
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,10 @@
+"""Proxy relevance labelling for offline NDCG evaluation.
+
+Assigns integer relevance labels (0/1/2) to scholarship rows based on
+keyword overlap, text-similarity thresholds, and hard profile-match signals.
+The labels are used as a proxy for human judgement in the absence of ground-
+truth click or award data.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,6 +22,16 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class RelevanceConfig:
+    """Configuration for the proxy relevance labelling heuristic.
+
+    Attributes:
+        label_mode: ``"hybrid"`` uses text similarity as a tiebreaker;
+            ``"no_similarity"`` relies on keyword overlap only.
+        tfidf_threshold: Minimum TF-IDF cosine similarity to assign label ≥ 1.
+        embed_threshold: Minimum embedding cosine similarity to assign label ≥ 1.
+        strict_requires_all_of: Profile fields that must all match for label 2.
+    """
+
     label_mode: Literal["hybrid", "no_similarity"] = "hybrid"
     tfidf_threshold: float = 0.12
     embed_threshold: float = 0.30
@@ -50,6 +67,15 @@ def _strict_profile_match(
 
 
 def get_similarity_threshold(similarity_mode: str, cfg: RelevanceConfig) -> float:
+    """Return the text-similarity threshold for the given mode from ``cfg``.
+
+    Args:
+        similarity_mode: Either ``"tfidf"`` or ``"embeddings"``.
+        cfg: Relevance configuration holding the per-mode thresholds.
+
+    Raises:
+        ValueError: For unsupported similarity modes.
+    """
     if similarity_mode == "tfidf":
         return cfg.tfidf_threshold
     if similarity_mode == "embeddings":
@@ -75,6 +101,22 @@ def proxy_relevance_label(
     similarity_mode: str,
     cfg: RelevanceConfig = DEFAULT_RELEVANCE_CONFIG,
 ) -> int:
+    """Assign a proxy relevance label (0, 1, or 2) to a single scholarship row.
+
+    Label 2 (highly relevant): keyword overlap AND strict profile match.
+    Label 1 (relevant): keyword overlap OR text similarity above threshold.
+    Label 0 (not relevant): neither condition met.
+
+    Args:
+        row: A scored scholarship row from the Stage 2 output DataFrame.
+        student: The golden student being evaluated.
+        similarity_mode: Determines which threshold to apply (``"tfidf"`` or
+            ``"embeddings"``).
+        cfg: Labelling configuration.
+
+    Returns:
+        Integer label in {0, 1, 2}.
+    """
     keyword_overlap_positive = _keyword_overlap_positive(row)
     strict_match = _strict_profile_match(row, student, cfg)
 
@@ -97,6 +139,11 @@ def proxy_relevance_labels(
     similarity_mode: str,
     cfg: RelevanceConfig = DEFAULT_RELEVANCE_CONFIG,
 ) -> list[int]:
+    """Return a list of proxy relevance labels for every row in ``frame``.
+
+    Wraps :func:`proxy_relevance_label` for bulk application to a scored
+    scholarship DataFrame.
+    """
     return [
         proxy_relevance_label(row, student, similarity_mode=similarity_mode, cfg=cfg)
         for _, row in frame.iterrows()
@@ -108,6 +155,18 @@ def calibrate_similarity_threshold(
     *,
     target_share: float = 0.25,
 ) -> float | None:
+    """Estimate a similarity threshold that marks approximately ``target_share`` of rows as relevant.
+
+    Computes the (1 − target_share) quantile of ``text_sim`` values from rows
+    with zero keyword overlap, then returns the median across profiles.
+
+    Args:
+        eligible_frames: List of eligible-scholarship DataFrames, one per profile.
+        target_share: Desired fraction of rows to label as relevant via similarity.
+
+    Returns:
+        Calibrated threshold float, or ``None`` if no usable frames are provided.
+    """
     if not eligible_frames:
         return None
 

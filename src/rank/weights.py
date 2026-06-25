@@ -1,3 +1,4 @@
+"""Immutable weight configuration for Stage 2 and Stage 3 scoring."""
 from __future__ import annotations
 
 import math
@@ -9,6 +10,12 @@ WEIGHT_TOLERANCE = 1e-6
 
 @dataclass(frozen=True, slots=True)
 class Stage2Weights:
+    """Immutable weight configuration for Stage 2 scoring components.
+
+    All weights must be in [0, 1].  The ``tfidf`` field controls the active
+    text-similarity signal regardless of whether TF-IDF or embeddings mode is used.
+    """
+
     tfidf: float
     amount: float
     keyword: float
@@ -24,10 +31,12 @@ class Stage2Weights:
 
     @classmethod
     def baseline(cls) -> Stage2Weights:
+        """Return the default Stage 2 weight configuration."""
         return cls(tfidf=0.70, amount=0.20, keyword=0.10, effort=0.10)
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any] | None) -> Stage2Weights:
+        """Construct weights from a dict, falling back to baseline values for missing keys."""
         values = payload or {}
         baseline = cls.baseline()
         return cls(
@@ -38,6 +47,7 @@ class Stage2Weights:
         )
 
     def to_dict(self) -> dict[str, float]:
+        """Serialize weights to a plain dict for JSON persistence."""
         return {
             "tfidf": self.tfidf,
             "amount": self.amount,
@@ -71,10 +81,12 @@ class Stage3Weights:
 
     @classmethod
     def baseline(cls) -> Stage3Weights:
+        """Return the default Stage 3 weight configuration."""
         return cls(stage2=0.80, urgency=0.15, ev=0.05)
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any] | None) -> Stage3Weights:
+        """Construct weights from a dict, falling back to baseline values for missing keys."""
         values = payload or {}
         baseline = cls.baseline()
         return cls(
@@ -84,6 +96,7 @@ class Stage3Weights:
         )
 
     def to_dict(self) -> dict[str, float]:
+        """Serialize weights to a plain dict for JSON persistence."""
         return {
             "stage2": self.stage2,
             "urgency": self.urgency,

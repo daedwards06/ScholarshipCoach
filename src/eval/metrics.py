@@ -1,3 +1,9 @@
+"""Offline evaluation metrics for ranking quality.
+
+Provides NDCG@k, Coverage@k, eligibility precision, amount distribution
+statistics, and ranking stability checks used by the golden-student evaluation
+harness.
+"""
 from __future__ import annotations
 
 import math
@@ -10,6 +16,16 @@ import pandas as pd
 def eligibility_precision(
     per_profile_results: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    """Compute the fraction of scholarships that pass Stage 1 eligibility across all profiles.
+
+    Args:
+        per_profile_results: Each dict must contain ``eligible_df`` and
+            ``ineligible_df`` DataFrames as produced by the evaluation harness.
+
+    Returns:
+        Dict with ``eligible_count``, ``total_count``, ``eligibility_precision``
+        (float in [0, 1]), and ``ineligible_reason_breakdown`` (reason → count).
+    """
     total_count = 0
     eligible_count = 0
     reason_counter: Counter[str] = Counter()
@@ -42,6 +58,19 @@ def coverage_at_k(
     per_profile_topk: dict[str, list[dict[str, Any]]],
     k: int,
 ) -> dict[str, Any]:
+    """Compute catalog coverage across top-k recommendations for all profiles.
+
+    Coverage@k measures the diversity of recommendations: what fraction of
+    all recommended slots are filled by unique scholarships.
+
+    Args:
+        per_profile_topk: Maps profile ID → list of ranked scholarship dicts.
+        k: Cutoff rank.
+
+    Returns:
+        Dict with ``unique_recommended_count``, ``total_recommended``, and
+        ``coverage_at_k`` (float in [0, 1]).
+    """
     unique_ids: set[str] = set()
     total_recommended = 0
     for recs in per_profile_topk.values():
@@ -63,6 +92,15 @@ def amount_distribution_stats(
     per_profile_topk: dict[str, list[dict[str, Any]]],
     k: int,
 ) -> dict[str, Any]:
+    """Compute descriptive statistics for award amounts in the top-k recommendations.
+
+    Args:
+        per_profile_topk: Maps profile ID → list of ranked scholarship dicts.
+        k: Cutoff rank.
+
+    Returns:
+        Dict with ``count``, ``mean``, ``median``, and ``max`` dollar amounts.
+    """
     values: list[float] = []
     for recs in per_profile_topk.values():
         for rec in recs[:k]:
@@ -87,6 +125,18 @@ def ranking_stability(
     run_one: dict[str, list[str]],
     run_two: dict[str, list[str]],
 ) -> dict[str, Any]:
+    """Assert that two ranking runs produce identical ordered lists.
+
+    Args:
+        run_one: Maps profile ID → ordered list of scholarship IDs.
+        run_two: Second run to compare against ``run_one``.
+
+    Returns:
+        Dict with ``is_stable`` (bool) and ``mismatches`` (empty list when stable).
+
+    Raises:
+        AssertionError: If any profile produces a different ordering between runs.
+    """
     mismatches: list[dict[str, Any]] = []
     for profile_id in sorted(set(run_one) | set(run_two)):
         ids_one = run_one.get(profile_id, [])
@@ -111,6 +161,16 @@ def compute_ndcg_at_k(
     relevance_labels: dict[str, list[int]] | None,
     k: int,
 ) -> float | str:
+    """Compute mean NDCG@k across all profiles.
+
+    Args:
+        relevance_labels: Maps profile ID → ordered list of integer relevance
+            labels (0, 1, or 2) for the recommended scholarships.
+        k: Cutoff rank.
+
+    Returns:
+        Mean NDCG@k as a float, or ``"N/A"`` if no labels are provided.
+    """
     if not relevance_labels:
         return "N/A"
 

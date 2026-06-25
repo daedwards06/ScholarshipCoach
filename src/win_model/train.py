@@ -1,3 +1,9 @@
+"""Win-probability model training pipeline.
+
+Generates synthetic training data from golden profiles and a snapshot,
+trains a calibrated logistic regression, writes the ``WinModelArtifact``
+to disk, and returns a structured training report.
+"""
 from __future__ import annotations
 
 import json
@@ -59,6 +65,21 @@ def train_win_model(
     out_dir: Path,
     seed: int = 0,
 ) -> dict[str, Any]:
+    """Train, calibrate, evaluate, and persist a win-probability model.
+
+    Uses 80/20 train–test split with an additional 25% held out from train
+    for Platt scaling calibration.
+
+    Args:
+        snapshot_df: Scholarship snapshot used to generate synthetic training pairs.
+        golden_profiles: List of student profiles for pair generation.
+        out_dir: Directory where the model artifact and training report are written.
+        seed: Random seed passed to data generation and sklearn for reproducibility.
+
+    Returns:
+        Dict with ``model_path``, ``latest_model_pointer``, ``train_report_path``,
+        and ``metrics`` (ROC-AUC, Brier score, log loss, positive rate).
+    """
     out_dir = out_dir if out_dir.is_absolute() else out_dir.resolve()
     model_dir = out_dir / "models"
     model_dir.mkdir(parents=True, exist_ok=True)

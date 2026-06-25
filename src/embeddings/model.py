@@ -1,3 +1,9 @@
+"""Sentence-transformer model loading and text embedding utilities.
+
+Wraps ``sentence-transformers`` with a module-level LRU cache so the model
+is loaded at most once per process.  All returned vectors are L2-normalised
+float32 arrays suitable for cosine-similarity comparisons.
+"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Final
@@ -18,6 +24,10 @@ _MODEL_CACHE: dict[str, SentenceTransformer] = {}
 
 
 def resolve_model_name(model_name: str) -> str:
+    """Resolve a short model alias to its full Hugging Face model identifier.
+
+    Falls back to ``DEFAULT_MODEL_NAME`` for empty or whitespace-only inputs.
+    """
     normalized = str(model_name or DEFAULT_MODEL_NAME).strip()
     if not normalized:
         normalized = DEFAULT_MODEL_NAME
@@ -25,6 +35,14 @@ def resolve_model_name(model_name: str) -> str:
 
 
 def get_model(model_name: str) -> SentenceTransformer:
+    """Return the SentenceTransformer instance for the given model, loading it once.
+
+    The model is cached in ``_MODEL_CACHE`` after first load and returned in
+    eval mode on subsequent calls.
+
+    Raises:
+        ModuleNotFoundError: If ``sentence-transformers`` is not installed.
+    """
     try:
         from sentence_transformers import SentenceTransformer as SentenceTransformerImpl
     except ModuleNotFoundError as exc:
@@ -46,6 +64,16 @@ def get_model(model_name: str) -> SentenceTransformer:
 
 
 def embed_texts(texts: list[str], model_name: str, batch_size: int = 32) -> np.ndarray:
+    """Embed a list of strings and return L2-normalised float32 vectors.
+
+    Args:
+        texts: Input strings to embed.  An empty list returns a (0, 0) array.
+        model_name: Model identifier passed to :func:`get_model`.
+        batch_size: Number of texts sent to the model per forward pass.
+
+    Returns:
+        Float32 array of shape ``(len(texts), embedding_dim)`` with unit norms.
+    """
     if not texts:
         return np.empty((0, 0), dtype=np.float32)
 

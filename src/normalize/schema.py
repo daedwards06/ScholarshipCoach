@@ -1,3 +1,4 @@
+"""Canonical normalized scholarship record schema used across the pipeline."""
 from __future__ import annotations
 
 from dataclasses import dataclass

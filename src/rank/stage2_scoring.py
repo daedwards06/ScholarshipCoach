@@ -1,3 +1,9 @@
+"""Composite scoring with text similarity, amount utility, and keyword overlap.
+
+Stage 2 computes four component scores for each eligible scholarship, combines
+them using configurable weights, and returns a ``stage2_score`` column that
+drives Stage 3 reranking.
+"""
 from __future__ import annotations
 
 import re
@@ -44,6 +50,11 @@ def _tokenize(value: Any) -> set[str]:
 
 
 def build_student_profile_text(profile: Any) -> str:
+    """Concatenate profile fields into a single text string for similarity scoring.
+
+    Combines major, interests, keywords, extracurriculars, and goals into a
+    single space-joined string consumed by TF-IDF or embedding models.
+    """
     major = _normalize_text(_get_profile_value(profile, "major"))
     interests = _as_list(_get_profile_value(profile, "interests"))
     keywords = _as_list(_get_profile_value(profile, "keywords"))
@@ -61,6 +72,7 @@ def build_student_profile_text(profile: Any) -> str:
 
 
 def build_scholarship_text(row: pd.Series) -> str:
+    """Concatenate scholarship text fields (title, sponsor, description, etc.) into one string."""
     fields = [
         _normalize_text(row.get("title")),
         _normalize_text(row.get("sponsor")),
@@ -72,6 +84,15 @@ def build_scholarship_text(row: pd.Series) -> str:
 
 
 def compute_tfidf_similarity(student_text: str, scholarship_texts: list[str]) -> np.ndarray:
+    """Compute cosine similarity between the student text and each scholarship text using TF-IDF.
+
+    Args:
+        student_text: Pre-built student profile text string.
+        scholarship_texts: Pre-built text strings for each scholarship row.
+
+    Returns:
+        Float64 array of cosine similarities clipped to [0, 1].
+    """
     if not scholarship_texts:
         return np.array([], dtype=float)
 
@@ -159,6 +180,23 @@ def score_stage2(
     model_name: str = embedding_model.DEFAULT_MODEL_NAME,
     processed_dir: Path | None = None,
 ) -> pd.DataFrame:
+    """Score eligible scholarships on text similarity, amount utility, keyword overlap, and effort.
+
+    Adds ``text_sim``, ``amount_utility``, ``keyword_overlap``, ``effort_penalty``,
+    and ``stage2_score`` columns to a copy of ``eligible_df``.
+
+    Args:
+        eligible_df: Scholarships that passed Stage 1.
+        profile: Student profile object or dict with interest/keyword fields.
+        weights: Scoring weights; uses ``Stage2Weights.baseline()`` if ``None``.
+        amount_utility_mode: ``"log"`` (default) or ``"linear"`` amount scaling.
+        similarity_mode: ``"tfidf"`` or ``"embeddings"`` text similarity backend.
+        model_name: Sentence-transformer model name for embeddings mode.
+        processed_dir: Override for the embeddings cache directory.
+
+    Returns:
+        Copy of ``eligible_df`` with scoring columns appended.
+    """
     scored_df = eligible_df.copy()
     transient_columns = [
         "tfidf_sim",

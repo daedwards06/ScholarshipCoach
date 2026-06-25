@@ -1,3 +1,9 @@
+"""Hard eligibility filtering with reason codes.
+
+Applies deadline, GPA, state, major, education level, and citizenship checks
+to a scholarship DataFrame and splits it into eligible and ineligible sets.
+Each ineligible row is annotated with the list of reason codes that disqualified it.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,6 +17,13 @@ from src.text_utils import normalize_text as _normalize_text
 
 @dataclass(slots=True)
 class StudentProfile:
+    """Mutable student profile used for Stage 1 eligibility checks.
+
+    All fields are optional so callers can supply only the attributes they know.
+    ``today`` is used as the reference date for deadline comparisons; it
+    defaults to ``date.today()`` if not set.
+    """
+
     gpa: float | None = None
     state: str | None = None
     major: str | None = None
@@ -59,6 +72,20 @@ def _row_reasons(row: pd.Series, profile: StudentProfile, today: date) -> list[s
 def apply_eligibility_filter(
     df: pd.DataFrame, profile: StudentProfile
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split scholarships into eligible and ineligible sets based on hard filters.
+
+    Applies deadline, GPA, state, major, education level, and citizenship checks.
+    Each ineligible scholarship is tagged with all applicable reason codes.
+
+    Args:
+        df: Scholarship DataFrame with normalized columns.
+        profile: Student profile with eligibility attributes.
+
+    Returns:
+        Tuple of ``(eligible_df, ineligible_df)``.  The ineligible frame includes
+        a ``reasons`` column with lists of reason codes such as
+        ``"GPA_BELOW_MIN"`` and ``"STATE_NOT_ALLOWED"``.
+    """
     effective_today = profile.today or date.today()
 
     with_reasons_df = df.copy()

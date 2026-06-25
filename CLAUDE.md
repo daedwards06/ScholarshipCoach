@@ -57,7 +57,18 @@ this protocol exactly:
 
 ## Environment
 
-- Python 3.12, conda environment, Windows 11 / PowerShell.
+- Python 3.12, Windows 11 / PowerShell.
+- Active virtualenv is `.venv/` in the project root — `conda` is **not** on PATH in this shell.
 - Package is editable-installed: `from src.rank.stage1_eligibility import ...` works.
 - Large artifacts (`.parquet`, win model `.joblib`, embeddings `.npz`) are git-ignored —
   do not commit them.
+
+### Exact validation commands
+
+```powershell
+# Tests — use python -m pytest, not bare pytest (bare pytest may not resolve in this shell)
+python -m pytest tests/ -q
+
+# Lint — ruff is a standalone binary, not a Python module; do NOT use python -m ruff
+ruff check src/ scripts/ app/ tests/
+```

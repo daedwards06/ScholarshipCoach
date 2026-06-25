@@ -1,3 +1,9 @@
+"""Decision-aware reranking with urgency and expected value signals.
+
+Stage 3 adjusts Stage 2 scores by adding an urgency boost (exponential decay
+over days to deadline) and an expected-value signal (optionally from the win
+probability model) before producing the final ranked order.
+"""
 from __future__ import annotations
 
 from datetime import date
@@ -84,6 +90,29 @@ def rerank_stage3(
     win_model_path: Path | None = None,
     win_model: object | None = None,
 ) -> pd.DataFrame:
+    """Rerank Stage 2 results using urgency, expected value, and optional win-probability signals.
+
+    Adds ``days_to_deadline``, ``urgency_boost``, ``effort_cost``,
+    ``ev_proxy``, ``ev_proxy_norm``, ``final_score``, and (when win model is
+    active) ``p_win``, ``expected_value``, and ``expected_value_norm`` columns.
+
+    Args:
+        scored_df: DataFrame with a ``stage2_score`` column from Stage 2.
+        today: Reference date for urgency computation; defaults to ``date.today()``.
+        profile: Student profile required when ``use_win_model=True``.
+        weights: Stage 3 scoring weights; uses ``Stage3Weights.baseline()`` if ``None``.
+        use_win_model: Whether to load and run the win probability model.
+        win_model_path: Explicit path to a ``.joblib`` model artifact.
+        win_model: Pre-loaded model object (skips disk load when provided).
+
+    Returns:
+        Copy of ``scored_df`` with reranking columns added and rows sorted by
+        ``final_score`` descending (ties broken by deadline then scholarship ID).
+
+    Raises:
+        ValueError: If ``stage2_score`` column is missing or ``profile`` is
+            absent when ``use_win_model=True``.
+    """
     effective_today = today or date.today()
     reranked_df = scored_df.copy()
     active_weights = weights or Stage3Weights.baseline()

@@ -314,12 +314,12 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Add one-liner or multi-line docstrings to all public functions and classes in `src/`
-- [ ] Add module-level docstrings to key modules (`stage1_eligibility.py`, `stage2_scoring.py`, etc.)
-- [ ] Add class-level docstrings to all dataclasses
-- [ ] Follow Google-style docstring format (Args/Returns/Raises sections where appropriate)
-- [ ] Do NOT add docstrings to private helper functions (prefixed with `_`) unless complex
-- [ ] Run tests to ensure nothing broke (docstrings are code too)
+- [x] Add one-liner or multi-line docstrings to all public functions and classes in `src/`
+- [x] Add module-level docstrings to key modules (`stage1_eligibility.py`, `stage2_scoring.py`, etc.)
+- [x] Add class-level docstrings to all dataclasses
+- [x] Follow Google-style docstring format (Args/Returns/Raises sections where appropriate)
+- [x] Do NOT add docstrings to private helper functions (prefixed with `_`) unless complex
+- [x] Run tests to ensure nothing broke (docstrings are code too)
 
 **Prompt for Claude Sonnet 4.6:**
 
