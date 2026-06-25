@@ -10,6 +10,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from src.types import ProfileLike
+
 import numpy as np
 import pandas as pd
 
@@ -84,7 +86,7 @@ def rerank_stage3(
     scored_df: pd.DataFrame,
     today: date | None = None,
     *,
-    profile: Any | None = None,
+    profile: ProfileLike | dict[str, Any] | None = None,
     weights: Stage3Weights | None = None,
     use_win_model: bool = False,
     win_model_path: Path | None = None,

@@ -10,6 +10,8 @@ import math
 from datetime import date
 from typing import Any
 
+from src.types import ProfileLike
+
 import pandas as pd
 
 from src.text_utils import normalize_list as _normalize_list
@@ -61,7 +63,7 @@ def _resolve_amount_value(row: pd.Series) -> float:
 
 
 def build_pair_features(
-    profile: Any,
+    profile: ProfileLike | dict[str, Any],
     scholarship_row: pd.Series | dict[str, Any],
     stage2_row: pd.Series | dict[str, Any] | None = None,
     today: date | None = None,

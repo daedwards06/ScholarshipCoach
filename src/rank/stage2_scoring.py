@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 from typing import Literal
 
+from src.types import ProfileLike
+
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -49,7 +51,7 @@ def _tokenize(value: Any) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", normalized))
 
 
-def build_student_profile_text(profile: Any) -> str:
+def build_student_profile_text(profile: ProfileLike | dict[str, Any]) -> str:
     """Concatenate profile fields into a single text string for similarity scoring.
 
     Combines major, interests, keywords, extracurriculars, and goals into a
@@ -172,7 +174,7 @@ def _compute_effort_penalty(df: pd.DataFrame) -> np.ndarray:
 
 def score_stage2(
     eligible_df: pd.DataFrame,
-    profile: Any,
+    profile: ProfileLike | dict[str, Any],
     *,
     weights: Stage2Weights | None = None,
     amount_utility_mode: Literal["linear", "log"] = "log",

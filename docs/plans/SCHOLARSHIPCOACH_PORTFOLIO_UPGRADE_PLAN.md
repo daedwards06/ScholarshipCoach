@@ -396,11 +396,11 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Define a `ProfileLike` Protocol in `src/rank/weights.py` or a new `src/types.py`
-- [ ] Update Stage 2, Stage 3, win_model/features, and eval/relevance to use `ProfileLike`
-- [ ] Ensure both `StudentProfile` (dataclass) and `dict` satisfy the Protocol
-- [ ] Run mypy or pyright on the rank modules to verify type consistency
-- [ ] All tests pass
+- [x] Define a `ProfileLike` Protocol in `src/rank/weights.py` or a new `src/types.py`
+- [x] Update Stage 2, Stage 3, win_model/features, and eval/relevance to use `ProfileLike`
+- [x] Ensure both `StudentProfile` (dataclass) and `dict` satisfy the Protocol
+- [x] Run mypy or pyright on the rank modules to verify type consistency
+- [x] All tests pass
 
 **Prompt for Claude Sonnet 4.6:**
 
