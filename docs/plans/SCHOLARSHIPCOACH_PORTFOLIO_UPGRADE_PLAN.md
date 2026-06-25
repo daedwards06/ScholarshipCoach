@@ -474,11 +474,11 @@ pytest tests/ -v
 (Count should be > 45 after new parametrized cases are added.)
 
 **Checklist:**
-- [ ] Create shared fixtures: `sample_profile`, `sample_scholarship_df`, `sample_golden_student`
-- [ ] Create a `scholarship_row_factory` fixture for building custom rows
-- [ ] Refactor 8+ test files to use conftest fixtures instead of inline setup
-- [ ] Add `@pytest.mark.parametrize` to at least 5 test functions that currently test single cases
-- [ ] All 45+ tests still pass
+- [x] Create shared fixtures: `sample_profile`, `sample_scholarship_df`, `sample_golden_student`
+- [x] Create a `scholarship_row_factory` fixture for building custom rows
+- [x] Refactor 8+ test files to use conftest fixtures instead of inline setup
+- [x] Add `@pytest.mark.parametrize` to at least 5 test functions that currently test single cases
+- [x] All 45+ tests still pass
 
 **Prompt for Claude Sonnet 4.6:**
 

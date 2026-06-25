@@ -19,7 +19,9 @@ class _FixedProbabilityModel:
         return np.column_stack([1.0 - p, p])
 
 
-def test_rerank_stage3_uses_expected_value_when_win_model_enabled() -> None:
+def test_rerank_stage3_uses_expected_value_when_win_model_enabled(
+    sample_profile: StudentProfile,
+) -> None:
     df = pd.DataFrame(
         [
             {
@@ -52,20 +54,13 @@ def test_rerank_stage3_uses_expected_value_when_win_model_enabled() -> None:
             },
         ]
     )
-    profile = StudentProfile(
-        gpa=3.5,
-        state="CA",
-        major="Computer Science",
-        education_level="Undergraduate",
-        today=date(2026, 2, 22),
-    )
     weights = Stage3Weights(stage2=0.0, urgency=0.0, ev=1.0)
 
-    baseline = rerank_stage3(df, today=profile.today, weights=weights)
+    baseline = rerank_stage3(df, today=sample_profile.today, weights=weights)
     with_win_model = rerank_stage3(
         df,
-        today=profile.today,
-        profile=profile,
+        today=sample_profile.today,
+        profile=sample_profile,
         weights=weights,
         use_win_model=True,
         win_model=_FixedProbabilityModel([0.1, 0.9]),

@@ -5,14 +5,7 @@ import pandas as pd
 from src.rank.stage2_scoring import score_stage2
 
 
-def test_score_stage2_ranks_most_relevant_text_higher() -> None:
-    profile = {
-        "major": "Computer Science",
-        "interests": ["machine learning", "ai"],
-        "keywords": ["data science", "python"],
-        "extracurriculars": ["robotics club"],
-        "goals": "build ethical AI systems",
-    }
+def test_score_stage2_ranks_most_relevant_text_higher(sample_stage2_profile: dict) -> None:
     df = pd.DataFrame(
         [
             {
@@ -54,7 +47,7 @@ def test_score_stage2_ranks_most_relevant_text_higher() -> None:
         ]
     )
 
-    scored_df = score_stage2(df, profile).sort_values("stage2_score", ascending=False)
+    scored_df = score_stage2(df, sample_stage2_profile).sort_values("stage2_score", ascending=False)
 
     assert scored_df["scholarship_id"].tolist()[0] == "ml-top"
     assert scored_df["stage2_score"].iloc[0] > scored_df["stage2_score"].iloc[1]

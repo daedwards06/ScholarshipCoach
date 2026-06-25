@@ -3,8 +3,44 @@ from __future__ import annotations
 from datetime import date
 
 import pandas as pd
+import pytest
 
 from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
+
+
+def _row(**kwargs) -> dict:
+    base = {
+        "scholarship_id": "test",
+        "deadline": date(2026, 3, 1),
+        "min_gpa": None,
+        "states_allowed": [],
+        "majors_allowed": [],
+        "education_level": None,
+        "citizenship": None,
+    }
+    base.update(kwargs)
+    return base
+
+
+@pytest.mark.parametrize(
+    "override,expected_reason",
+    [
+        ({"deadline": date(2026, 2, 1)}, "DEADLINE_PASSED"),
+        ({"min_gpa": 3.8}, "GPA_BELOW_MIN"),
+        ({"states_allowed": ["NV", "AZ"]}, "STATE_NOT_ALLOWED"),
+        ({"majors_allowed": ["History"]}, "MAJOR_NOT_ALLOWED"),
+        ({"education_level": "Graduate"}, "EDUCATION_LEVEL_MISMATCH"),
+        ({"citizenship": "Canada"}, "CITIZENSHIP_MISMATCH"),
+    ],
+)
+def test_each_reason_code_is_emitted_individually(
+    sample_profile: StudentProfile,
+    override: dict,
+    expected_reason: str,
+) -> None:
+    df = pd.DataFrame([_row(**override)])
+    _, ineligible_df = apply_eligibility_filter(df=df, profile=sample_profile)
+    assert ineligible_df.iloc[0]["reasons"] == [expected_reason]
 
 
 def test_apply_eligibility_filter_emits_reason_codes_for_each_rule() -> None:
