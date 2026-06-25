@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/daedwards06/ScholarshipCoach/actions/workflows/ci.yml/badge.svg)](https://github.com/daedwards06/ScholarshipCoach/actions/workflows/ci.yml)
 
+Coverage: 73% (run `pytest --cov` for details)
+
 A Decision-Aware Scholarship Recommendation & Optimization System
 
 🚀 Overview

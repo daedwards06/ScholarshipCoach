@@ -21,13 +21,23 @@ dependencies = [
 dev = [
   "pytest",
   "ruff",
+  "pytest-cov",
 ]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-q"
+addopts = "-q --cov=src --cov-report=term-missing:skip-covered"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/scholarshipcoach.egg-info/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+fail_under = 50
 
 [tool.ruff]
 line-length = 100

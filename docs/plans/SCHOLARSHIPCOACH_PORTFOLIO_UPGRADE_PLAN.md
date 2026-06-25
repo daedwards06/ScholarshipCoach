@@ -556,7 +556,7 @@ pytest tests/ -q --tb=short
 - [x] Pin Python 3.11 or 3.12 to match local dev
 - [x] Cache pip dependencies for speed
 - [x] Add status badge to README.md
-- [ ] Verify workflow runs green after push
+- [x] Verify workflow runs green after push
 
 **Prompt for Claude Sonnet 4.6:**
 
@@ -623,11 +623,11 @@ pytest tests/ --cov=src --cov-report=term-missing
 (Report the baseline % and the 3 lowest-covered modules.)
 
 **Checklist:**
-- [ ] Add `pytest-cov` to dev dependencies in `pyproject.toml`
-- [ ] Configure coverage in `pyproject.toml` (`[tool.coverage.run]` and `[tool.coverage.report]`)
-- [ ] Run `pytest --cov=src --cov-report=term-missing` to establish baseline
-- [ ] Add coverage badge to README (via codecov.io or local generation)
-- [ ] Identify top 3 modules with lowest coverage for future improvement
+- [x] Add `pytest-cov` to dev dependencies in `pyproject.toml`
+- [x] Configure coverage in `pyproject.toml` (`[tool.coverage.run]` and `[tool.coverage.report]`)
+- [x] Run `pytest --cov=src --cov-report=term-missing` to establish baseline
+- [x] Add coverage badge to README (via codecov.io or local generation)
+- [x] Identify top 3 modules with lowest coverage for future improvement
 
 **Prompt for Claude Sonnet 4.6:**
 
