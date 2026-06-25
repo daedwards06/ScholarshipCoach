@@ -552,10 +552,10 @@ pytest tests/ -q --tb=short
 ```
 
 **Checklist:**
-- [ ] Create `.github/workflows/ci.yml` with pytest + ruff on push/PR
-- [ ] Pin Python 3.11 or 3.12 to match local dev
-- [ ] Cache pip dependencies for speed
-- [ ] Add status badge to README.md
+- [x] Create `.github/workflows/ci.yml` with pytest + ruff on push/PR
+- [x] Pin Python 3.11 or 3.12 to match local dev
+- [x] Cache pip dependencies for speed
+- [x] Add status badge to README.md
 - [ ] Verify workflow runs green after push
 
 **Prompt for Claude Sonnet 4.6:**
