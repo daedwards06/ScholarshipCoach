@@ -14,226 +14,250 @@ Requires-Dist: requests
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: ruff; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
 Dynamic: license-file
 
-﻿📚 Scholarship Coach
+<div align="center">
 
-A Decision-Aware Scholarship Recommendation & Optimization System
+# ScholarshipCoach
 
-🚀 Overview
+### A Decision-Aware Scholarship Recommendation & Optimization System
 
-Scholarship Coach is a multi-stage, decision-aware recommendation system that ranks scholarships for a student profile using:
+[![CI](https://github.com/daedwards06/ScholarshipCoach/actions/workflows/ci.yml/badge.svg)](https://github.com/daedwards06/ScholarshipCoach/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-73%25-brightgreen)](https://github.com/daedwards06/ScholarshipCoach)
+[![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-Deterministic ingestion + snapshot versioning
+</div>
 
-Semantic ranking (TF-IDF + transformer embeddings)
+---
 
-Calibrated synthetic win probability modeling
+**ScholarshipCoach** is a multi-stage, end-to-end recommendation pipeline that ranks scholarships for a student profile using semantic similarity, calibrated win probability modeling, and multi-objective weight tuning. Built as a portfolio-grade applied ML project demonstrating recommender systems, ranking optimization, and probabilistic decision-making in a fully reproducible, snapshot-driven pipeline.
 
-Multi-objective weight tuning (Relevance, Blended, Pareto)
+---
 
-Expected value optimization (p(win) × award)
+## Table of Contents
 
-Snapshot-based offline evaluation harness
+- [System Architecture](#-system-architecture)
+- [Evaluation Results](#-evaluation-results)
+- [Multi-Objective Tuning](#-multi-objective-tuning)
+- [Win Probability Model](#-win-probability-model)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [Design Principles](#-design-principles)
+- [Future Work](#-future-work)
+- [Author](#-author)
 
-This project demonstrates applied recommender systems, ranking optimization, probabilistic modeling, and multi-objective selection in a fully reproducible pipeline.
+---
 
-🧠 System Architecture
+## System Architecture
 
-Stage 0 — Candidate Retrieval
+The pipeline consists of four sequential stages:
 
-Source ingestion with runtime caps + caching
+```
+Raw Sources
+    │
+    ▼
+┌──────────────────────────────────────────────────────────┐
+│  Stage 0 — Candidate Retrieval                           │
+│  Source ingestion · Canonical ID generation              │
+│  Snapshot versioning (Parquet) · Change tracking (JSON)  │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  Stage 1 — Eligibility Filtering                         │
+│  Major · State · Education level · Deadline enforcement  │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  Stage 2 — Semantic Scoring                              │
+│  TF-IDF or SentenceTransformer (all-MiniLM-L6-v2)       │
+│  Keyword overlap · Effort penalty · Award utility        │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  Stage 3 — Decision Reranking                            │
+│  Weighted composite score · Deadline urgency boost       │
+│  Optional win model: p(win) · Expected value = p × award │
+└──────────────────────────────────────────────────────────┘
+```
 
-Canonical ID generation
+---
 
-Snapshot versioning (parquet)
+## Evaluation Results
 
-Change tracking (json deltas)
+Evaluation is fully **offline and snapshot-based**. Proxy relevance labels are heuristic and configurable (`hybrid` = keyword OR similarity threshold; `no_similarity` = structured + keyword only).
 
-Stage 1 — Eligibility Filtering
-
-Major match
-
-State match
-
-Education level match
-
-Deadline enforcement
-
-Stage 2 — Semantic Scoring
-
-TF-IDF similarity OR
-
-SentenceTransformer embeddings (all-MiniLM-L6-v2)
-
-Keyword overlap
-
-Effort penalty
-
-Log-normalized amount utility
-
-Stage 3 — Decision Reranking
-
-Weighted Stage 2 score
-
-Deadline urgency boost
-
-Optional win model:
-
-p(win) (calibrated logistic regression)
-
-Expected value = p(win) × award
-
-Deterministic tie-breaking
-
-📊 Evaluation Framework
-
-Evaluation is fully offline and snapshot-based.
-
-Proxy relevance labels are heuristic and configurable:
-
-hybrid (keyword OR similarity threshold)
-
-no_similarity (structured + keyword only)
-
-> **Note:** Metrics are offline proxies computed on snapshot data. They improve with catalog
-> diversity — results below are from a **163-record catalog** (March 2026 ingest).
-> Baseline and Relevance-Optimized rows are historical reference points from a 160-record
-> snapshot; Pareto-Selected reflects the current catalog. Run
-> `python scripts/evaluate_golden_students.py` to compute up-to-date metrics.
+> **Note:** Metrics are computed on snapshot data and improve with catalog diversity. Results below are from a **163-record catalog** (March 2026 ingest). Baseline and Relevance-Optimized rows are historical reference points from a 160-record snapshot. Run `python scripts/evaluate_golden_students.py` to compute up-to-date metrics.
 
 | Configuration | NDCG@10 | Coverage@10 | Notes |
-|---|---:|---:|---|
+|:---|---:|---:|:---|
 | Baseline (Default Weights) | 0.29 | 0.21 | 160-record catalog, no win model |
 | Relevance-Optimized (Grid Search, 150 configs) | 0.57 | 0.45 | 160-record catalog, win model |
-| Pareto-Selected (Relevance + Coverage + EV) | **0.61** | **0.40** | 163-record catalog, win model |
+| **Pareto-Selected (Relevance + Coverage + EV)** | **0.61** | **0.40** | 163-record catalog, win model |
 
-Additional metrics for current Pareto-Selected config (163-record catalog):
+**Additional metrics — Pareto-Selected config (163-record catalog):**
 
-Mean p(win) in Top-10: ~0.52
+| Metric | Value |
+|:---|---:|
+| Mean p(win) in Top-10 | ~0.52 |
+| Eligibility Precision | 0.83 |
+| Mean Expected Value in Top-10 | ~$9,640 |
 
-Eligibility Precision: 0.83
+All experiments are deterministic, snapshot-driven, versioned per objective, and reproducible via CLI flags.
 
-Mean Expected Value in Top-10: ~$9,640
+---
 
-All experiments are:
+## Multi-Objective Tuning
 
-Deterministic
+Supports three optimization modes selectable at runtime:
 
-Snapshot-driven
+| Objective | Description |
+|:---|:---|
+| `relevance` | Maximizes NDCG + Coverage |
+| `blended` | Weighted sum of NDCG, Coverage, and Expected Value |
+| `pareto` | Non-dominated front selection with knee-point picker |
 
-Versioned per objective
+Weight profiles are versioned and stored in `data/processed/`:
 
-Reproducible via CLI flags
-
-🏗 Multi-Objective Tuning
-
-Supports three optimization modes:
-
-Objective	Description
-relevance	Maximizes NDCG + Coverage
-blended	Weighted sum of NDCG, Coverage, EV
-pareto	Non-dominated front + knee selection
-
-Weight profiles are versioned:
-
+```
 data/processed/
-  best_weights_relevance.json
-  best_weights_blended.json
-  best_weights_pareto.json
-  best_weights_latest.json
+├── best_weights_relevance.json
+├── best_weights_blended.json
+├── best_weights_pareto.json
+└── best_weights_latest.json
+```
 
-The Streamlit UI allows switching between weight profiles.
+The Streamlit UI allows live switching between weight profiles.
 
-🎯 Win Probability Model
+---
 
-A calibrated logistic regression model trained on synthetic labels:
+## Win Probability Model
 
-Features include:
+A **calibrated logistic regression** model trained on synthetic labels with Platt scaling.
 
-Major / state / education match
+**Input features:**
 
-GPA above minimum
+| Feature | Type |
+|:---|:---|
+| Major / state / education level match | Binary |
+| GPA above minimum threshold | Binary |
+| Keyword overlap | Continuous |
+| Semantic similarity score | Continuous |
+| Days to deadline | Continuous |
+| Award size (competition proxy) | Continuous |
+| Essay requirement | Binary |
 
-Keyword overlap
+**Outputs per scholarship candidate:**
 
-Semantic similarity
+- `p_win` — calibrated win probability
+- `expected_value` — p(win) × award amount
+- `expected_value_norm` — normalized for cross-cohort comparison
 
-Days to deadline
+The win model is **optional** and fully surfaced in the UI, so users can inspect and override it.
 
-Award size (competition proxy)
+---
 
-Essay requirement
+## Quick Start
 
-Outputs:
+### 1 — Set up environment
 
-p_win
-
-expected_value
-
-expected_value_norm
-
-The win model is optional and fully transparent in UI.
-
-💻 Running the Project
-1️⃣ Create virtual environment
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
-2️⃣ Ingest scholarships
-python scripts\run_ingest.py --max-listing-pages 10 --max-detail-pages 300 --max-runtime-seconds 1800
-3️⃣ Evaluate ranking
-python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings --label-mode hybrid
-4️⃣ Tune weights
-python scripts\tune_weights.py --k 10 --similarity-mode embeddings --use-win-model --selection-objective pareto
-5️⃣ Launch UI
+```
+
+### 2 — Ingest scholarships
+
+```powershell
+python scripts\run_ingest.py \
+  --max-listing-pages 10 \
+  --max-detail-pages 300 \
+  --max-runtime-seconds 1800
+```
+
+### 3 — Evaluate ranking quality
+
+```powershell
+python scripts\evaluate_golden_students.py \
+  --k 10 \
+  --similarity-mode embeddings \
+  --label-mode hybrid
+```
+
+### 4 — Tune weights
+
+```powershell
+python scripts\tune_weights.py \
+  --k 10 \
+  --similarity-mode embeddings \
+  --use-win-model \
+  --selection-objective pareto
+```
+
+### 5 — Launch the UI
+
+```powershell
 streamlit run app/main.py
-🔬 Design Principles
+```
 
-Deterministic ranking
+---
 
-Snapshot-only evaluation (no live API calls during scoring)
+## Project Structure
 
-Versioned artifacts
+```
+ScholarshipCoach/
+├── src/
+│   ├── ingest/          # Scrapers, canonical ID gen, snapshot versioning
+│   ├── rank/            # Stages 1–3: eligibility, scoring, reranking
+│   ├── eval/            # Offline evaluation harness (NDCG, coverage)
+│   ├── embeddings/      # SentenceTransformer wrapper + caching
+│   └── win_model/       # Logistic regression win probability model
+├── scripts/
+│   ├── run_ingest.py
+│   ├── evaluate_golden_students.py
+│   └── tune_weights.py
+├── app/
+│   └── main.py          # Streamlit dashboard
+├── data/
+│   ├── raw/             # Snapshot parquet files (git-ignored)
+│   └── processed/       # Weight profiles, evaluation reports
+├── tests/               # pytest suite
+├── docs/plans/          # Implementation plans
+└── pyproject.toml
+```
 
-Configurable objectives
+---
 
-Transparent modeling
+## Design Principles
 
-Modular pipeline design
+- **Deterministic ranking** — same inputs always produce the same output
+- **Snapshot-only evaluation** — no live API calls during scoring; results are always reproducible
+- **Versioned artifacts** — weight profiles and evaluation snapshots are tracked per experiment
+- **Configurable objectives** — switch between relevance, blended, and Pareto modes via CLI flag or UI
+- **Transparent modeling** — win model features and probabilities are fully exposed, not black-boxed
+- **Modular pipeline** — each stage can be tested and swapped independently
 
-📂 Project Structure (High-Level)
-src/
-  ingest/
-  rank/
-  eval/
-  embeddings/
-  win_model/
-scripts/
-  run_ingest.py
-  evaluate_golden_students.py
-  tune_weights.py
-app/
-  main.py
-data/
-  raw/
-  processed/
-reports/
-  weight_tuning/
-  golden_eval/
-📌 Future Improvements
+---
 
-Additional scholarship connectors (increase diversity)
+## Future Work
 
-Constrained portfolio optimization (knapsack-style selection)
+- Additional scholarship connectors to increase catalog diversity
+- Constrained portfolio optimization (knapsack-style multi-scholarship selection)
+- Real-world outcome data integration to replace synthetic win labels
+- Fairness analysis across demographic and geographic slices
+- Production deployment (Docker + cloud hosting)
 
-Real-world outcome data integration
+---
 
-Fairness analysis across demographic slices
+## Author
 
-Production deployment (Docker + cloud)
+**Dominique Edwards**
+Data Scientist · Decision Systems · Applied ML
 
-👤 Author
-
-Dominique Edwards
-Data Scientist | Decision Systems | Applied ML
+[![GitHub](https://img.shields.io/badge/GitHub-daedwards06-181717?logo=github&logoColor=white)](https://github.com/daedwards06)

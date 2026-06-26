@@ -147,3 +147,54 @@ def test_score_stage2_is_deterministic_across_runs() -> None:
 
     pd.testing.assert_frame_equal(run_one, run_two)
     assert run_one.loc[0, "amount_utility"] == 0.0
+
+
+def test_keyword_overlap_uses_description_and_eligibility_text() -> None:
+    """keyword_overlap must be non-zero when profile terms appear in description/eligibility_text.
+
+    The scholarships' `keywords` field in real snapshot data contains only URL slugs
+    (e.g. ["stem-award"]), not subject terms.  The fix falls back to tokenizing
+    description + eligibility_text so profile terms like "STEM" can still match.
+    """
+    profile = {
+        "major": "Computer Science",
+        "keywords": ["STEM", "computer science"],
+        "interests": ["coding", "engineering"],
+        "extracurriculars": [],
+        "goals": "",
+    }
+    df = pd.DataFrame(
+        [
+            {
+                "scholarship_id": "stem-match",
+                "title": "Merit Award",
+                "description": "This scholarship supports students pursuing STEM fields including computer science and engineering.",
+                "eligibility_text": "Applicants must be enrolled in a STEM program such as coding or software engineering.",
+                "essay_prompt": None,
+                "sponsor": "Tech Foundation",
+                "amount_min": 1000.0,
+                "amount_max": 5000.0,
+                "essay_required": False,
+                "keywords": ["merit-award-slug"],
+            },
+            {
+                "scholarship_id": "arts-no-match",
+                "title": "Fine Arts Award",
+                "description": "This scholarship supports students in fine arts, music, and theater.",
+                "eligibility_text": "Applicants must be enrolled in a visual or performing arts program.",
+                "essay_prompt": None,
+                "sponsor": "Arts Foundation",
+                "amount_min": 1000.0,
+                "amount_max": 5000.0,
+                "essay_required": False,
+                "keywords": ["arts-award-slug"],
+            },
+        ]
+    )
+
+    from src.rank.stage2_scoring import _compute_keyword_overlap
+
+    overlaps = _compute_keyword_overlap(df, profile)
+
+    assert overlaps[0] > 0.0, "STEM scholarship should have non-zero keyword_overlap"
+    assert overlaps[0] > overlaps[1], "STEM scholarship should score higher than arts scholarship"

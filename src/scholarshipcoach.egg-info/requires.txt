@@ -8,3 +8,4 @@ requests
 [dev]
 pytest
 ruff
+pytest-cov

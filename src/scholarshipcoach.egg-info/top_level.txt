@@ -6,4 +6,5 @@ io
 normalize
 rank
 text_utils
+types
 win_model

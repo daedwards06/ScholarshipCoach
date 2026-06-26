@@ -1,0 +1,156 @@
+{
+  "active_text_similarity_threshold": 0.3,
+  "calibration": null,
+  "embed_threshold": 0.3,
+  "generated_at": "2026-06-26T02:28:52Z",
+  "golden_profiles_count": 9,
+  "label_mode": "hybrid",
+  "metrics": {
+    "amount_distribution_topk": {
+      "count": 0,
+      "max": 0.0,
+      "mean": 0.0,
+      "median": 0.0
+    },
+    "coverage_at_k": {
+      "coverage_at_k": 0.0,
+      "k": 0,
+      "total_recommended": 0,
+      "unique_recommended_count": 0
+    },
+    "eligibility": {
+      "eligibility_precision": 0.0,
+      "eligible_count": 0,
+      "ineligible_reason_breakdown": {
+        "AMOUNT_MISSING_OR_ZERO": 333,
+        "DEADLINE_PASSED": 234,
+        "EDUCATION_LEVEL_MISMATCH": 18,
+        "STATE_NOT_ALLOWED": 1458
+      },
+      "total_count": 1467
+    },
+    "ndcg_at_k": {
+      "k": 0,
+      "value": "N/A"
+    },
+    "proxy_relevance": {
+      "active_text_similarity_threshold": 0.3,
+      "calibration": null,
+      "label_mode": "hybrid",
+      "labels": {
+        "0": "otherwise",
+        "1": "keyword overlap > 0 OR text similarity >= mode threshold",
+        "2": "major/state/education match and keyword overlap > 0"
+      },
+      "similarity_mode": "embeddings",
+      "strict_requires_all_of": [
+        "major",
+        "state",
+        "education_level"
+      ],
+      "text_similarity_thresholds": {
+        "embeddings": 0.3,
+        "tfidf": 0.12
+      }
+    },
+    "ranking_stability": {
+      "is_stable": true,
+      "mismatches": []
+    },
+    "win_model_topk": null
+  },
+  "model_name": "all-MiniLM-L6-v2",
+  "per_profile": [
+    {
+      "description": "California undergraduate in computer science, US citizen, ML-focused.",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_ca_cs_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "Texas nursing undergraduate, first-generation goals, US citizen.",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_tx_nursing_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "New York graduate business student with entrepreneurship focus.",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_ny_business_grad_us",
+      "top_k": []
+    },
+    {
+      "description": "Illinois mechanical engineering undergraduate, hands-on STEM profile.",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_il_mech_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "Florida education major preparing for K-12 teaching roles.",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_fl_education_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "Washington graduate environmental science student with climate focus.",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_wa_env_grad_us",
+      "top_k": []
+    },
+    {
+      "description": "Arizona mathematics undergraduate, permanent resident profile.",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_az_math_ug_pr",
+      "top_k": []
+    },
+    {
+      "description": "North Carolina psychology undergraduate interested in mental health access.",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_nc_psych_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "NC high school student interested in CS/CE, rising sophomore, 3.25 GPA",
+      "eligible_count": 0,
+      "ineligible_count": 163,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "nc_cs_rising_sophomore",
+      "top_k": []
+    }
+  ],
+  "similarity_mode": "embeddings",
+  "snapshot_count": 163,
+  "snapshot_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260302.parquet",
+  "tfidf_threshold": 0.12,
+  "use_win_model": true,
+  "used_baseline_weights": false,
+  "used_best_weights": true,
+  "weights_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\best_weights.json",
+  "win_model_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\win_model\\models\\win_model_20260302_035118.joblib",
+  "win_model_training": null
+}

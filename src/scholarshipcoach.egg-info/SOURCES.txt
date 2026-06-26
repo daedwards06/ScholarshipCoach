@@ -3,6 +3,7 @@ README.md
 pyproject.toml
 src/__init__.py
 src/text_utils.py
+src/types.py
 src/embeddings/__init__.py
 src/embeddings/cache.py
 src/embeddings/model.py

@@ -751,14 +751,14 @@ python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings -
 (Look for non-zero keyword_overlap values in the eval output — target: >30% of eligible pairs.)
 
 **Checklist:**
-- [ ] Diagnose why keyword_overlap is zero (schema field `keywords`, extraction logic)
-- [ ] Fix the root cause:
+- [x] Diagnose why keyword_overlap is zero (schema field `keywords`, extraction logic)
+- [x] Fix the root cause:
   - If scholarships have empty `keywords`: improve ingest parser to extract meaningful keywords
   - If tokenization is the issue: fix the matching logic in `_compute_keyword_overlap`
   - If fields are named differently: fix the field mapping
-- [ ] Verify keyword_overlap is non-zero for at least 30% of eligible pairs after fix
-- [ ] Add a test that validates keyword_overlap > 0 for a known-matching pair
-- [ ] Run golden eval to measure NDCG impact
+- [x] Verify keyword_overlap is non-zero for at least 30% of eligible pairs after fix *(partial: 15% non-zero on all 166 records for NC CS profile; 30% target on eligible pairs requires Task 2.3 — ScholarshipAmerica restricts 165/166 records to MN, leaving 0 eligible pairs for out-of-state profiles)*
+- [x] Add a test that validates keyword_overlap > 0 for a known-matching pair
+- [ ] Run golden eval to measure NDCG impact *(blocked: 0 eligible pairs due to MN state restrictions; unblocked by Task 2.3 adding a national source)*
 
 **Prompt for Claude Sonnet 4.6:**
 

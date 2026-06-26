@@ -158,6 +158,8 @@ def _compute_keyword_overlap(df: pd.DataFrame, profile: Any) -> np.ndarray:
     for _, row in df.iterrows():
         scholarship_tokens = set()
         scholarship_tokens.update(_tokenize(row.get("title")))
+        scholarship_tokens.update(_tokenize(row.get("description")))
+        scholarship_tokens.update(_tokenize(row.get("eligibility_text")))
         for keyword in _as_list(row.get("keywords")):
             scholarship_tokens.update(_tokenize(keyword))
         overlap_count = len(profile_tokens.intersection(scholarship_tokens))

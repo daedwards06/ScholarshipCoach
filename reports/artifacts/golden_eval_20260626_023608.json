@@ -1,0 +1,249 @@
+{
+  "active_text_similarity_threshold": 0.3,
+  "calibration": null,
+  "embed_threshold": 0.3,
+  "generated_at": "2026-06-26T02:36:08Z",
+  "golden_profiles_count": 9,
+  "label_mode": "hybrid",
+  "metrics": {
+    "amount_distribution_topk": {
+      "count": 0,
+      "max": 0.0,
+      "mean": 0.0,
+      "median": 0.0
+    },
+    "coverage_at_k": {
+      "coverage_at_k": 0.0,
+      "k": 0,
+      "total_recommended": 0,
+      "unique_recommended_count": 0
+    },
+    "eligibility": {
+      "eligibility_precision": 0.0,
+      "eligible_count": 0,
+      "ineligible_reason_breakdown": {
+        "AMOUNT_MISSING_OR_ZERO": 324,
+        "DEADLINE_PASSED": 207,
+        "EDUCATION_LEVEL_MISMATCH": 27,
+        "STATE_NOT_ALLOWED": 1485
+      },
+      "total_count": 1494
+    },
+    "ndcg_at_k": {
+      "k": 0,
+      "value": "N/A"
+    },
+    "proxy_relevance": {
+      "active_text_similarity_threshold": 0.3,
+      "calibration": null,
+      "label_mode": "hybrid",
+      "labels": {
+        "0": "otherwise",
+        "1": "keyword overlap > 0 OR text similarity >= mode threshold",
+        "2": "major/state/education match and keyword overlap > 0"
+      },
+      "similarity_mode": "embeddings",
+      "strict_requires_all_of": [
+        "major",
+        "state",
+        "education_level"
+      ],
+      "text_similarity_thresholds": {
+        "embeddings": 0.3,
+        "tfidf": 0.12
+      }
+    },
+    "ranking_stability": {
+      "is_stable": true,
+      "mismatches": []
+    },
+    "win_model_topk": null
+  },
+  "model_name": "all-MiniLM-L6-v2",
+  "per_profile": [
+    {
+      "description": "California undergraduate in computer science, US citizen, ML-focused.",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_ca_cs_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "Texas nursing undergraduate, first-generation goals, US citizen.",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_tx_nursing_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "New York graduate business student with entrepreneurship focus.",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_ny_business_grad_us",
+      "top_k": []
+    },
+    {
+      "description": "Illinois mechanical engineering undergraduate, hands-on STEM profile.",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_il_mech_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "Florida education major preparing for K-12 teaching roles.",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_fl_education_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "Washington graduate environmental science student with climate focus.",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_wa_env_grad_us",
+      "top_k": []
+    },
+    {
+      "description": "Arizona mathematics undergraduate, permanent resident profile.",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_az_math_ug_pr",
+      "top_k": []
+    },
+    {
+      "description": "North Carolina psychology undergraduate interested in mental health access.",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "golden_nc_psych_ug_us",
+      "top_k": []
+    },
+    {
+      "description": "NC high school student interested in CS/CE, rising sophomore, 3.25 GPA",
+      "eligible_count": 0,
+      "ineligible_count": 166,
+      "k": 0,
+      "proxy_labels_top_k": [],
+      "student_id": "nc_cs_rising_sophomore",
+      "top_k": []
+    }
+  ],
+  "similarity_mode": "embeddings",
+  "snapshot_count": 166,
+  "snapshot_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260626.parquet",
+  "tfidf_threshold": 0.12,
+  "use_win_model": true,
+  "used_baseline_weights": false,
+  "used_best_weights": true,
+  "weights_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\best_weights.json",
+  "win_model_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\win_model\\models\\win_model_20260626_023608.joblib",
+  "win_model_training": {
+    "latest_model_pointer": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\win_model\\latest_model.txt",
+    "metrics": {
+      "brier_score": 0.22845124158894653,
+      "calibration_bins": [
+        {
+          "bin": 0,
+          "count": 0,
+          "lower": 0.0,
+          "observed_rate": null,
+          "predicted_prob_mean": null,
+          "upper": 0.1
+        },
+        {
+          "bin": 1,
+          "count": 0,
+          "lower": 0.1,
+          "observed_rate": null,
+          "predicted_prob_mean": null,
+          "upper": 0.2
+        },
+        {
+          "bin": 2,
+          "count": 22,
+          "lower": 0.2,
+          "observed_rate": 0.2727272727272727,
+          "predicted_prob_mean": 0.2919794370145017,
+          "upper": 0.3
+        },
+        {
+          "bin": 3,
+          "count": 1458,
+          "lower": 0.3,
+          "observed_rate": 0.3559670781893004,
+          "predicted_prob_mean": 0.35469542019684164,
+          "upper": 0.4
+        },
+        {
+          "bin": 4,
+          "count": 120,
+          "lower": 0.4,
+          "observed_rate": 0.425,
+          "predicted_prob_mean": 0.42228107743186527,
+          "upper": 0.5
+        },
+        {
+          "bin": 5,
+          "count": 0,
+          "lower": 0.5,
+          "observed_rate": null,
+          "predicted_prob_mean": null,
+          "upper": 0.6
+        },
+        {
+          "bin": 6,
+          "count": 0,
+          "lower": 0.6,
+          "observed_rate": null,
+          "predicted_prob_mean": null,
+          "upper": 0.7
+        },
+        {
+          "bin": 7,
+          "count": 0,
+          "lower": 0.7,
+          "observed_rate": null,
+          "predicted_prob_mean": null,
+          "upper": 0.8
+        },
+        {
+          "bin": 8,
+          "count": 0,
+          "lower": 0.8,
+          "observed_rate": null,
+          "predicted_prob_mean": null,
+          "upper": 0.9
+        },
+        {
+          "bin": 9,
+          "count": 0,
+          "lower": 0.9,
+          "observed_rate": null,
+          "predicted_prob_mean": null,
+          "upper": 1.0
+        }
+      ],
+      "log_loss": 0.6491543053307032,
+      "n_samples": 8000,
+      "positive_rate": 0.360125,
+      "roc_auc": 0.556719462076823
+    },
+    "model_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\win_model\\models\\win_model_20260626_023608.joblib",
+    "train_report_path": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\win_model\\train_report_20260626_023608.json"
+  }
+}
