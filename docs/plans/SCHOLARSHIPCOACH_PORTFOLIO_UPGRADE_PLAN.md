@@ -756,9 +756,11 @@ python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings -
   - If scholarships have empty `keywords`: improve ingest parser to extract meaningful keywords
   - If tokenization is the issue: fix the matching logic in `_compute_keyword_overlap`
   - If fields are named differently: fix the field mapping
-- [x] Verify keyword_overlap is non-zero for at least 30% of eligible pairs after fix *(partial: 15% non-zero on all 166 records for NC CS profile; 30% target on eligible pairs requires Task 2.3 — ScholarshipAmerica restricts 165/166 records to MN, leaving 0 eligible pairs for out-of-state profiles)*
+- [ ] Verify keyword_overlap is non-zero for at least 30% of eligible pairs after fix — **deferred to Task 2.3a** (see Status)
 - [x] Add a test that validates keyword_overlap > 0 for a known-matching pair
-- [ ] Run golden eval to measure NDCG impact *(blocked: 0 eligible pairs due to MN state restrictions; unblocked by Task 2.3 adding a national source)*
+- [ ] Run golden eval to measure NDCG impact — **deferred to Task 2.3a** (see Status)
+
+**Status (2026-06-26):** The code fix (tokenize `description` + `eligibility_text` in `_compute_keyword_overlap`) is complete and unit-tested. Direct measurement on the fresh `20260626` snapshot shows 15% of all 166 records score non-zero for the NC CS profile (max 0.385), confirming the feature is live. The two remaining items cannot be verified yet because golden eval returns **0 eligible pairs for every profile**: `_extract_states` (scholarship_america_live.py:802) substring-matches "Minnesota" from ScholarshipAmerica's HQ boilerplate into all 166 records, falsely restricting the entire catalog to MN. Both items are deferred to **Task 2.3a**, which fixes that bug and unblocks eligibility.
 
 **Prompt for Claude Sonnet 4.6:**
 
@@ -800,9 +802,9 @@ Run: pytest tests/ -q â†’ all pass
 
 ---
 
-### Task 2.3: Add a Second Scholarship Data Source
+### Task 2.3: Expand & Harden Scholarship Data Sources
 
-**Why:** With only one data source (Scholarship America), the system can't demonstrate real aggregation value. Adding a second connector proves the `BaseSource` abstraction works, increases the candidate universe (critical for your student), and showcases data engineering skills. A good portfolio project has at least 2-3 sources showing the pipeline handles heterogeneous data.
+**Why:** The single source (Scholarship America) is both too narrow and partly broken. It is one platform's worldview; its `keywords` field holds only a URL slug (the Task 2.2 root cause); 125/166 records have null deadlines; many have $0/None amounts; and `_extract_states` substring-matches "Minnesota" from the site's HQ boilerplate into every record — silently restricting the whole catalog to MN and producing **0 eligible pairs** in golden eval. This task hardens the existing source first (2.3a), then adds two new sources of *different types* — one national HTML scraper (2.3b) plus one non-scraper, i.e. an official API or curated static feed (2.3c) — to prove the `BaseSource` abstraction generalizes beyond scraping and to give CI deterministic, drift-proof test data. Target 2-3 sources total; past three, each live scraper is maintenance/CI risk rather than portfolio value.
 
 **Preflight Files:**
 - `src/ingest/base.py` (BaseSource ABC — fetch/parse interface)
@@ -811,24 +813,41 @@ Run: pytest tests/ -q â†’ all pass
 - `src/ingest/sources/__init__.py` (current exports)
 - `src/normalize/schema.py` (NormalizedScholarshipRecord fields)
 - `src/normalize/canonical_id.py` (how canonical_id is computed)
-- `src/ingest/sources/scholarship_america_live.py` (first 100 lines — class structure to replicate)
+- `src/ingest/sources/scholarship_america_live.py` — read the class structure (first ~100 lines) to replicate, AND for 2.3a read `_US_STATES_AND_TERRITORIES` (line ~53) and `_extract_states` (line ~802), the function with the boilerplate-injection bug
+- `src/rank/stage1_eligibility.py` (for 2.3a — how `states_allowed` is normalized and matched against the profile)
 
 **Validation Commands:**
 ```powershell
-pytest tests/ -q
+# Tests + lint (CLAUDE.md: use python -m pytest, not bare pytest)
+python -m pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+
+# 2.3a acceptance: re-ingest, then confirm eligible pairs > 0 in golden eval
 python scripts\run_ingest.py --max-listing-pages 5 --max-detail-pages 50
+python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings --label-mode hybrid --use-win-model
 ```
-(Snapshot record count should grow beyond the current 163.)
+(After 2.3a, golden eval must report "Eligible count" > 0 — currently 0. After 2.3b/2.3c, the snapshot record count should grow beyond the current 166.)
 
 **Checklist:**
-- [ ] Research available scholarship APIs/sites with scrapable listing pages
-- [ ] Implement a new source extending `BaseSource` in `src/ingest/sources/`
-- [ ] Register the new source in `src/ingest/registry.py`
-- [ ] Ensure the new source produces records conforming to `NormalizedScholarshipRecord`
-- [ ] Add polite rate limiting, retry, and caching consistent with `PoliteHttpClient`
-- [ ] Add at least one parse test with mock data
-- [ ] Run full ingest and verify deduplication across sources
-- [ ] Snapshot should grow significantly (> 200 records ideal)
+
+*2.3a — Harden the existing source (unblocks Task 2.2):*
+- [ ] Fix `_extract_states` (scholarship_america_live.py:802) so HQ/footer boilerplate no longer injects "Minnesota" (and other incidental state mentions) into every record — scope matching to the eligibility section and/or require word boundaries
+- [ ] Add a parse test asserting a known national scholarship is NOT tagged MN-only
+- [ ] Re-run full ingest, then golden eval — confirm eligible pairs > 0, then complete the two deferred Task 2.2 items (>=30% non-zero keyword_overlap on eligible pairs; record NDCG impact)
+
+*2.3b — Add a national HTML source:*
+- [ ] Research public listings (Bold.org / Scholarships.com favored; avoid heavy anti-scraping) and pick one with national eligibility and populated amounts/deadlines/keywords
+- [ ] Implement a source extending `BaseSource` in `src/ingest/sources/`, registered in `src/ingest/registry.py`
+- [ ] Conform to `NormalizedScholarshipRecord`; reuse `PoliteHttpClient` rate limiting, retry, and caching; handle missing fields gracefully
+- [ ] Add a parse test against a saved sample response in `tests/resources/`
+
+*2.3c — Add a non-scraper source (type diversity):*
+- [ ] Add a second new source backed by an official API or a curated static JSON feed (no live HTML scraping) to prove the abstraction generalizes and give CI deterministic data
+- [ ] Add a parse/round-trip test for it
+
+*Across sources:*
+- [ ] Run full ingest and verify deduplication by canonical `scholarship_id` across all sources
+- [ ] Snapshot grows meaningfully and includes national records eligible for the NC CS profile
 
 **Prompt for Claude Sonnet 4.6:**
 
@@ -843,7 +862,15 @@ CONTEXT:
 - Deduplication: by canonical scholarship_id (SHA-1 of title + sponsor + amounts + deadline + domain)
 
 REQUIREMENTS:
-1. Choose an appropriate second source. Good candidates:
+0. FIRST fix the existing source (2.3a): `_extract_states` in scholarship_america_live.py:802
+   does a naive substring match, so "Minnesota" from the site's HQ boilerplate lands in
+   every record's states_allowed. Scope the match to the eligibility text / require word
+   boundaries, add a regression test, and re-run golden eval to confirm eligible pairs > 0.
+   This unblocks the two deferred Task 2.2 items.
+
+1. Add TWO new sources of DIFFERENT types (2-3 sources total, no more): (b) one national
+   HTML source, and (c) one non-scraper (official API or curated static JSON feed) for type
+   diversity and CI-safe deterministic data. For the HTML source, good candidates:
    a. Scholarships.com â€” has a browsable directory by category
    b. Bold.org â€” has a public scholarship listing at bold.org/scholarships/
    c. GoingMerry â€” has a browseable listing
@@ -1324,8 +1351,8 @@ Phase 1 (Code Quality â€” Tier 2) â€” After Phase 0:
 
 Phase 2 (Data & Ranking â€” Tier 3) â€” After Phase 0, can overlap Phase 1:
   2.1 Fix $0-amount ranking    (independent)
-  2.2 Fix keyword_overlap      (independent)
-  2.3 Add second data source   (independent, but biggest effort)
+  2.2 Fix keyword_overlap      (code done; eval verification deferred to 2.3a)
+  2.3 Harden + expand sources  (2.3a state-bug fix unblocks 2.2; +2 sources, biggest effort)
   2.4 Re-tune weights          (depends on 0.1, 2.1, 2.2, ideally 2.3)
   2.5 Rename tfidf â†’ text_sim  (independent, do before 2.4 so new weights use new name)
 
@@ -1348,7 +1375,7 @@ Phase 3 (Portfolio Showpieces â€” Tier 3) â€” After Phases 1 & 2:
 | Session 4 | 1.2 (Docstrings) | 60-90 min | High |
 | Session 5 | 1.4 (Conftest) + 1.5 (CI) + 1.6 (Coverage) | 60-90 min | High |
 | Session 6 | 2.1 ($0-amount fix) + 2.2 (keyword_overlap fix) + 2.5 (rename tfidf) | 60-90 min | High |
-| Session 7 | 2.3 (Second data source) | 90-120 min | High |
+| Session 7 | 2.3 (Harden existing source + add 2 new sources) | 120-150 min | High |
 | Session 8 | 2.4 (Re-tune weights) | 30-45 min | High |
 | Session 9 | 3.1 (Pipeline notebook) | 90-120 min | High |
 | Session 10 | 3.2 (Screenshots) + 3.3 (Refactor tune_weights) | 60-90 min | Medium |
@@ -1360,7 +1387,7 @@ Phase 3 (Portfolio Showpieces â€” Tier 3) â€” After Phases 1 & 2:
 
 After all phases, the project should:
 
-1. **Data:** Snapshot with 150+ scholarships from 2+ sources; no $0-amount junk in top-10
+1. **Data:** Snapshot with 150+ scholarships from 2-3 sources of mixed type (scraper + API/curated); accurate per-record eligibility (no boilerplate-injected states); no $0-amount junk in top-10
 2. **Metrics:** NDCG@10 and Coverage@10 computed on a healthy catalog with honest README values
 3. **Code Quality:** 0 ruff errors; docstrings on all public functions; no `_normalize_text` duplication
 4. **Type Safety:** `ProfileLike` Protocol replaces `Any` for profile parameters
