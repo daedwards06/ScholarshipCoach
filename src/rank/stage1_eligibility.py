@@ -66,6 +66,16 @@ def _row_reasons(row: pd.Series, profile: StudentProfile, today: date) -> list[s
     if scholarship_citizenship and scholarship_citizenship != profile_citizenship:
         reasons.append("CITIZENSHIP_MISMATCH")
 
+    amount_max = row.get("amount_max")
+    amount_min = row.get("amount_min")
+    resolved_amount = 0.0
+    if amount_max is not None and not pd.isna(amount_max):
+        resolved_amount = float(amount_max)
+    elif amount_min is not None and not pd.isna(amount_min):
+        resolved_amount = float(amount_min)
+    if resolved_amount <= 0.0:
+        reasons.append("AMOUNT_MISSING_OR_ZERO")
+
     return reasons
 
 

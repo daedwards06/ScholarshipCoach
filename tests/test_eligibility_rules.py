@@ -17,6 +17,8 @@ def _row(**kwargs) -> dict:
         "majors_allowed": [],
         "education_level": None,
         "citizenship": None,
+        "amount_max": 5000.0,
+        "amount_min": None,
     }
     base.update(kwargs)
     return base
@@ -31,6 +33,8 @@ def _row(**kwargs) -> dict:
         ({"majors_allowed": ["History"]}, "MAJOR_NOT_ALLOWED"),
         ({"education_level": "Graduate"}, "EDUCATION_LEVEL_MISMATCH"),
         ({"citizenship": "Canada"}, "CITIZENSHIP_MISMATCH"),
+        ({"amount_max": 0.0}, "AMOUNT_MISSING_OR_ZERO"),
+        ({"amount_max": None}, "AMOUNT_MISSING_OR_ZERO"),
     ],
 )
 def test_each_reason_code_is_emitted_individually(
@@ -64,6 +68,7 @@ def test_apply_eligibility_filter_emits_reason_codes_for_each_rule() -> None:
                 "majors_allowed": [],
                 "education_level": None,
                 "citizenship": None,
+                "amount_max": 5000.0,
             },
             {
                 "scholarship_id": "gpa",
@@ -73,6 +78,7 @@ def test_apply_eligibility_filter_emits_reason_codes_for_each_rule() -> None:
                 "majors_allowed": [],
                 "education_level": None,
                 "citizenship": None,
+                "amount_max": 5000.0,
             },
             {
                 "scholarship_id": "state",
@@ -82,6 +88,7 @@ def test_apply_eligibility_filter_emits_reason_codes_for_each_rule() -> None:
                 "majors_allowed": [],
                 "education_level": None,
                 "citizenship": None,
+                "amount_max": 5000.0,
             },
             {
                 "scholarship_id": "major",
@@ -91,6 +98,7 @@ def test_apply_eligibility_filter_emits_reason_codes_for_each_rule() -> None:
                 "majors_allowed": ["History"],
                 "education_level": None,
                 "citizenship": None,
+                "amount_max": 5000.0,
             },
             {
                 "scholarship_id": "education",
@@ -100,6 +108,7 @@ def test_apply_eligibility_filter_emits_reason_codes_for_each_rule() -> None:
                 "majors_allowed": [],
                 "education_level": "Graduate",
                 "citizenship": None,
+                "amount_max": 5000.0,
             },
             {
                 "scholarship_id": "citizenship",
@@ -109,6 +118,7 @@ def test_apply_eligibility_filter_emits_reason_codes_for_each_rule() -> None:
                 "majors_allowed": [],
                 "education_level": None,
                 "citizenship": "Canada",
+                "amount_max": 5000.0,
             },
             {
                 "scholarship_id": "eligible",
@@ -118,6 +128,7 @@ def test_apply_eligibility_filter_emits_reason_codes_for_each_rule() -> None:
                 "majors_allowed": ["Computer Science", "Math"],
                 "education_level": "Undergraduate",
                 "citizenship": "US",
+                "amount_max": 5000.0,
             },
         ]
     )
@@ -156,6 +167,7 @@ def test_case_insensitive_matching_does_not_reject() -> None:
                 "majors_allowed": ["Computer Science"],
                 "education_level": "UNDERGRADUATE",
                 "citizenship": "US",
+                "amount_max": 5000.0,
             }
         ]
     )
@@ -185,6 +197,7 @@ def test_apply_eligibility_filter_collects_multiple_reasons() -> None:
                 "majors_allowed": ["History"],
                 "education_level": "Graduate",
                 "citizenship": "Canada",
+                "amount_max": 5000.0,
             }
         ]
     )
@@ -201,3 +214,21 @@ def test_apply_eligibility_filter_collects_multiple_reasons() -> None:
         "EDUCATION_LEVEL_MISMATCH",
         "CITIZENSHIP_MISMATCH",
     ]
+
+
+def test_zero_amount_filtered_below_positive_amount(sample_profile: StudentProfile) -> None:
+    """A $0-amount scholarship is filtered in Stage 1; a $5000 one passes through."""
+    df = pd.DataFrame(
+        [
+            _row(scholarship_id="zero-amount", amount_max=0.0, amount_min=None),
+            _row(scholarship_id="missing-amount", amount_max=None, amount_min=None),
+            _row(scholarship_id="positive-amount", amount_max=5000.0),
+        ]
+    )
+    eligible_df, ineligible_df = apply_eligibility_filter(df=df, profile=sample_profile)
+
+    assert eligible_df["scholarship_id"].tolist() == ["positive-amount"]
+    ineligible_ids = set(ineligible_df["scholarship_id"])
+    assert ineligible_ids == {"zero-amount", "missing-amount"}
+    for _, row in ineligible_df.iterrows():
+        assert "AMOUNT_MISSING_OR_ZERO" in row["reasons"]

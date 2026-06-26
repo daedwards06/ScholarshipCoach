@@ -688,12 +688,12 @@ python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings -
 (Verify no $0 scholarships appear in the top-10 for any profile.)
 
 **Checklist:**
-- [ ] Add an `amount_min_filter` to Stage 1 or Stage 3 that penalizes `amount = 0/None`
-- [ ] Option A: Filter them out in Stage 1 as `AMOUNT_MISSING_OR_ZERO` reason code
-- [ ] Option B: Apply a heavy penalty in Stage 3 so they sink to the bottom
-- [ ] Update win model features to cap `p_win` contribution when amount is zero
-- [ ] Add test cases: $0 scholarship should rank below any scholarship with a positive amount
-- [ ] Run golden eval to verify impact
+- [x] Add an `amount_min_filter` to Stage 1 or Stage 3 that penalizes `amount = 0/None`
+- [x] Option A: Filter them out in Stage 1 as `AMOUNT_MISSING_OR_ZERO` reason code
+- [ ] Option B: Apply a heavy penalty in Stage 3 so they sink to the bottom *(skipped — chose Option A)*
+- [ ] Update win model features to cap `p_win` contribution when amount is zero *(moot — Stage 1 filter removes $0 scholarships before they reach the win model)*
+- [x] Add test cases: $0 scholarship should rank below any scholarship with a positive amount
+- [x] Run golden eval to verify impact
 
 **Prompt for Claude Sonnet 4.6:**
 
