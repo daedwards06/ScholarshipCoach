@@ -562,7 +562,7 @@ class ScholarshipAmericaLiveSource(BaseSource):
         amount_min, amount_max = _extract_amount_range(text)
         education_level = _extract_field_value(text, ["education", "institution", "school"]) or None
 
-        states_allowed = _extract_states(text)
+        states_allowed = _extract_states(text, eligibility_text)
         essay_required, essay_prompt = _extract_essay_fields(text)
         source_id = _slug_from_url(normalized_url)
         resolved_title = title or source_id.replace("-", " ").strip().title() or normalized_url
@@ -799,12 +799,19 @@ def _extract_amount_range(text: str) -> tuple[float | None, float | None]:
     return min(matches), max(matches)
 
 
-def _extract_states(text: str) -> list[str] | None:
-    lowered = text.lower()
-    found = [name for name in _US_STATES_AND_TERRITORIES if name.lower() in lowered]
-    if not found:
+def _extract_states(text: str, eligibility_text: str = "") -> list[str] | None:
+    # Prefer an explicit "State/Territory:" or "State:" labeled field over full-page scan,
+    # which would pick up the site's HQ address (e.g. "Minnesota") for every record.
+    labeled = _extract_field_value(text, ["state/territory", "state", "territory"])
+    search_text = labeled or eligibility_text
+    if not search_text:
         return None
-    return sorted(set(found))
+    lowered = search_text.lower()
+    found = [
+        name for name in _US_STATES_AND_TERRITORIES
+        if re.search(r"\b" + re.escape(name.lower()) + r"\b", lowered)
+    ]
+    return sorted(set(found)) if found else None
 
 
 def _extract_essay_fields(text: str) -> tuple[bool | None, str | None]:

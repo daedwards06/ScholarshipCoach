@@ -182,3 +182,23 @@ def test_scholarship_america_live_fetch_records_preserves_sorted_order_with_conc
     expected_urls = sorted(detail_urls)
     assert [record["source_url"] for record in first_records] == expected_urls
     assert [record["source_url"] for record in second_records] == expected_urls
+
+
+def test_scholarship_america_live_national_scholarship_not_tagged_mn_only() -> None:
+    """Regression: 'Minnesota' in footer/address boilerplate must not pollute states_allowed."""
+    fixture_path = Path(__file__).resolve().parent / "resources" / "scholarship_america_national_sample.html"
+    detail_html = fixture_path.read_text(encoding="utf-8")
+
+    source = ScholarshipAmericaLiveSource()
+    fetched_at = datetime(2026, 2, 22, 12, 0, tzinfo=UTC)
+    record = source.parse_detail_html(
+        detail_html,
+        detail_url="https://scholarshipamerica.org/scholarships/national-excellence-scholarship/",
+        fetched_at=fetched_at,
+    )
+
+    assert record is not None
+    assert record["states_allowed"] is None, (
+        "National scholarship with 'Minnesota' only in footer boilerplate "
+        "must not be tagged as MN-only"
+    )
