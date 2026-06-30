@@ -919,12 +919,12 @@ python scripts\evaluate_golden_students.py --k 10 --similarity-mode embeddings -
 (Compare NDCG@10 and Coverage@10 before/after — new weights should improve or match.)
 
 **Checklist:**
-- [ ] Run fresh ingest (Task 0.1) + second source (Task 2.3) first
-- [ ] Train a new win model on the expanded catalog
-- [ ] Tune weights with all three objectives: relevance, blended, pareto
-- [ ] Compare metrics before/after tuning (include in weight tuning report)
-- [ ] Update `best_weights.json` and `best_weights_latest.json`
-- [ ] Run final golden eval with the new weights and save the report
+- [x] Run fresh ingest (Task 0.1) + second source (Task 2.3) first
+- [x] Train a new win model on the expanded catalog
+- [x] Tune weights with all three objectives: relevance, blended, pareto
+- [x] Compare metrics before/after tuning (include in weight tuning report)
+- [x] Update `best_weights.json` and `best_weights_latest.json`
+- [x] Run final golden eval with the new weights and save the report
 
 **Command sequence:**
 

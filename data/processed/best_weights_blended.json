@@ -1,148 +1,160 @@
 {
   "amount_utility_mode": "log",
   "calibration_enabled": false,
-  "config_id": "s2_t0.70_a0.05_k0.15_e0.05__s3_s0.95_u0.05_v0.00__log",
+  "config_id": "s2_t0.70_a0.05_k0.15_e0.05__s3_s0.85_u0.15_v0.00__log",
   "label_mode": "hybrid",
   "metrics": {
-    "avg_expected_value_norm_topk": 0.02073634229782458,
-    "avg_expected_value_topk": 11527.7875544336,
-    "avg_p_win_topk": 0.6551104078103425,
-    "coverage_at_k": 0.5125,
+    "avg_expected_value_norm_topk": 0.10301606613899802,
+    "avg_expected_value_topk": 10245.593687926064,
+    "avg_p_win_topk": 0.41235293899473907,
+    "coverage_at_k": 0.23333333333333334,
     "details": {
       "amount_distribution": {
-        "count": 74,
+        "count": 90,
         "max": 200000.0,
-        "mean": 18815.87837837838,
-        "median": 8750.0
+        "mean": 23722.222222222223,
+        "median": 10000.0
       },
       "coverage": {
-        "coverage_at_k": 0.5125,
+        "coverage_at_k": 0.23333333333333334,
         "k": 10,
-        "total_recommended": 80,
-        "unique_recommended_count": 41
+        "total_recommended": 90,
+        "unique_recommended_count": 21
       },
       "eligibility": {
-        "eligibility_precision": 0.85,
-        "eligible_count": 1088,
+        "eligibility_precision": 0.43137254901960786,
+        "eligible_count": 198,
         "ineligible_reason_breakdown": {
-          "DEADLINE_PASSED": 184,
-          "EDUCATION_LEVEL_MISMATCH": 16
+          "AMOUNT_MISSING_OR_ZERO": 63,
+          "DEADLINE_PASSED": 99,
+          "EDUCATION_LEVEL_MISMATCH": 9,
+          "STATE_NOT_ALLOWED": 189
         },
-        "total_count": 1280
+        "total_count": 459
       },
       "k": 10,
       "per_profile_metrics": {
         "golden_az_math_ug_pr": {
-          "avg_expected_value_norm_topk": 0.018037509451913954,
-          "avg_expected_value_topk": 9972.62100639314,
-          "avg_p_win_topk": 0.6449354123192141,
-          "eligible_count": 136,
-          "median_expected_value_topk": 6290.176260566341,
-          "median_p_win_topk": 0.6462629192818702,
+          "avg_expected_value_norm_topk": 0.03311894045861653,
+          "avg_expected_value_topk": 4064.8960044949663,
+          "avg_p_win_topk": 0.3831635451991525,
+          "eligible_count": 22,
+          "median_expected_value_topk": 3611.0199426714585,
+          "median_p_win_topk": 0.4052076931219085,
           "student_id": "golden_az_math_ug_pr",
           "topk_count": 10
         },
         "golden_ca_cs_ug_us": {
-          "avg_expected_value_norm_topk": 0.006603447586686399,
-          "avg_expected_value_topk": 3562.664598813648,
-          "avg_p_win_topk": 0.6051642244065687,
-          "eligible_count": 136,
-          "median_expected_value_topk": 3023.685556969752,
-          "median_p_win_topk": 0.6064444722333326,
+          "avg_expected_value_norm_topk": 0.13524140619663808,
+          "avg_expected_value_topk": 13203.575688658742,
+          "avg_p_win_topk": 0.4253207890354441,
+          "eligible_count": 22,
+          "median_expected_value_topk": 4336.8743167327575,
+          "median_p_win_topk": 0.4184292394921892,
           "student_id": "golden_ca_cs_ug_us",
           "topk_count": 10
         },
         "golden_fl_education_ug_us": {
-          "avg_expected_value_norm_topk": 0.011882458337293123,
-          "avg_expected_value_topk": 6702.1373125524915,
-          "avg_p_win_topk": 0.685023702439021,
-          "eligible_count": 136,
-          "median_expected_value_topk": 5008.486296430956,
-          "median_p_win_topk": 0.6787907806580032,
+          "avg_expected_value_norm_topk": 0.14707027416147603,
+          "avg_expected_value_topk": 13724.620572996737,
+          "avg_p_win_topk": 0.40222783510814547,
+          "eligible_count": 22,
+          "median_expected_value_topk": 4412.420849034834,
+          "median_p_win_topk": 0.389706208487952,
           "student_id": "golden_fl_education_ug_us",
           "topk_count": 10
         },
         "golden_il_mech_ug_us": {
-          "avg_expected_value_norm_topk": 0.013481809404147097,
-          "avg_expected_value_topk": 7219.657941322219,
-          "avg_p_win_topk": 0.6230362979075037,
-          "eligible_count": 136,
-          "median_expected_value_topk": 3380.557675556175,
-          "median_p_win_topk": 0.6221537486879873,
+          "avg_expected_value_norm_topk": 0.032145121850217624,
+          "avg_expected_value_topk": 4112.82598487441,
+          "avg_p_win_topk": 0.4398132800960613,
+          "eligible_count": 22,
+          "median_expected_value_topk": 3481.175756391565,
+          "median_p_win_topk": 0.43633441053210764,
           "student_id": "golden_il_mech_ug_us",
           "topk_count": 10
         },
         "golden_nc_psych_ug_us": {
-          "avg_expected_value_norm_topk": 0.031048031830321,
-          "avg_expected_value_topk": 17402.375136519066,
-          "avg_p_win_topk": 0.687978691449924,
-          "eligible_count": 136,
-          "median_expected_value_topk": 3493.0625190404544,
-          "median_p_win_topk": 0.6839175493931402,
+          "avg_expected_value_norm_topk": 0.14210275633859762,
+          "avg_expected_value_topk": 14156.273793327002,
+          "avg_p_win_topk": 0.4074456318793908,
+          "eligible_count": 22,
+          "median_expected_value_topk": 4156.464226704766,
+          "median_p_win_topk": 0.40802820989359334,
           "student_id": "golden_nc_psych_ug_us",
           "topk_count": 10
         },
         "golden_ny_business_grad_us": {
-          "avg_expected_value_norm_topk": 0.019581564802082237,
-          "avg_expected_value_topk": 10785.644958496408,
-          "avg_p_win_topk": 0.6240860981495405,
-          "eligible_count": 136,
-          "median_expected_value_topk": 6335.354762337503,
-          "median_p_win_topk": 0.6289642742073493,
+          "avg_expected_value_norm_topk": 0.13678146828406343,
+          "avg_expected_value_topk": 12872.776941045764,
+          "avg_p_win_topk": 0.4067141840053227,
+          "eligible_count": 22,
+          "median_expected_value_topk": 3765.7093378848895,
+          "median_p_win_topk": 0.4173438550255246,
           "student_id": "golden_ny_business_grad_us",
           "topk_count": 10
         },
         "golden_tx_nursing_ug_us": {
-          "avg_expected_value_norm_topk": 0.028685673107066944,
-          "avg_expected_value_topk": 15781.564394214638,
-          "avg_p_win_topk": 0.6887847297400185,
-          "eligible_count": 136,
-          "median_expected_value_topk": 1909.5093690834967,
-          "median_p_win_topk": 0.6819160880479476,
+          "avg_expected_value_norm_topk": 0.13162198053768095,
+          "avg_expected_value_topk": 13133.003436965708,
+          "avg_p_win_topk": 0.43134405423349803,
+          "eligible_count": 22,
+          "median_expected_value_topk": 4501.811317739322,
+          "median_p_win_topk": 0.43480657086740226,
           "student_id": "golden_tx_nursing_ug_us",
           "topk_count": 10
         },
         "golden_wa_env_grad_us": {
-          "avg_expected_value_norm_topk": 0.03657024386308587,
-          "avg_expected_value_topk": 20795.635087157192,
-          "avg_p_win_topk": 0.6818741060709497,
-          "eligible_count": 136,
-          "median_expected_value_topk": 6580.071555754856,
-          "median_p_win_topk": 0.6808720544701199,
+          "avg_expected_value_norm_topk": 0.13077065434216623,
+          "avg_expected_value_topk": 12586.034609473563,
+          "avg_p_win_topk": 0.3975946972687753,
+          "eligible_count": 22,
+          "median_expected_value_topk": 3858.8181738789463,
+          "median_p_win_topk": 0.3895263109323861,
           "student_id": "golden_wa_env_grad_us",
+          "topk_count": 10
+        },
+        "nc_cs_rising_sophomore": {
+          "avg_expected_value_norm_topk": 0.03829199308152573,
+          "avg_expected_value_topk": 4356.336159497694,
+          "avg_p_win_topk": 0.41755243412686155,
+          "eligible_count": 22,
+          "median_expected_value_topk": 4027.0515627053073,
+          "median_p_win_topk": 0.4115397515499969,
+          "student_id": "nc_cs_rising_sophomore",
           "topk_count": 10
         }
       },
       "source_diversity": {
-        "diversity_at_k": 0.0125,
+        "diversity_at_k": 0.022222222222222223,
         "field": "source",
         "k": 10,
-        "labeled_count": 80,
-        "unique_count": 1
+        "labeled_count": 90,
+        "unique_count": 2
       },
       "sponsor_diversity": {
-        "diversity_at_k": 0.0125,
+        "diversity_at_k": 0.06666666666666667,
         "field": "sponsor",
         "k": 10,
-        "labeled_count": 80,
-        "unique_count": 1
+        "labeled_count": 90,
+        "unique_count": 6
       }
     },
-    "eligibility_rate": 0.85,
-    "median_amount_max_topk": 8750.0,
-    "median_expected_value_topk": 4502.612999467442,
-    "median_p_win_topk": 0.6536652358724688,
-    "ndcg_at_k": 0.5636704363983964,
+    "eligibility_rate": 0.43137254901960786,
+    "median_amount_max_topk": 10000.0,
+    "median_expected_value_topk": 4016.8161648604273,
+    "median_p_win_topk": 0.41232469443367337,
+    "ndcg_at_k": 0.7376245168060237,
     "ranking_stability": true,
-    "source_diversity_at_k": 0.0125,
-    "sponsor_diversity_at_k": 0.0125
+    "source_diversity_at_k": 0.022222222222222223,
+    "sponsor_diversity_at_k": 0.06666666666666667
   },
   "model_name": "all-MiniLM-L6-v2",
   "objective": "blended",
-  "objective_score": 0.4991429397086599,
-  "pareto_knee_score": 1.3489560538660936,
+  "objective_score": 0.573305435044783,
+  "pareto_knee_score": 1.4142135623730951,
   "similarity_mode": "embeddings",
-  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet",
+  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260627.parquet",
   "stage2_weights": {
     "amount": 0.05,
     "effort": 0.05,
@@ -151,14 +163,14 @@
   },
   "stage3_weights": {
     "ev": 0.0,
-    "stage2": 0.95,
-    "urgency": 0.05
+    "stage2": 0.85,
+    "urgency": 0.15
   },
   "thresholds": {
     "active_threshold": 0.3,
     "embed_threshold": 0.3,
     "tfidf_threshold": 0.12
   },
-  "timestamp": "2026-03-01T04:31:52.393971+00:00",
+  "timestamp": "2026-06-27T12:49:27.483062+00:00",
   "use_win_model": true
 }

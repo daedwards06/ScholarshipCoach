@@ -4,16 +4,16 @@
   "label_mode": "hybrid",
   "model_name": "all-MiniLM-L6-v2",
   "similarity_mode": "embeddings",
-  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260222.parquet",
+  "snapshot_used": "C:\\Users\\dedwa\\OneDrive\\Desktop\\Dromund_Kass\\ScholarshipCoach\\data\\processed\\scholarships_snapshot_20260627.parquet",
   "stage2_weights": {
-    "amount": 0.05,
-    "effort": 0.1,
+    "amount": 0.1,
+    "effort": 0.05,
     "keyword": 0.15,
     "tfidf": 0.7
   },
   "stage3_weights": {
-    "ev": 0.0,
-    "stage2": 0.95,
+    "ev": 0.05,
+    "stage2": 0.9,
     "urgency": 0.05
   },
   "thresholds": {
@@ -21,6 +21,6 @@
     "embed_threshold": 0.3,
     "tfidf_threshold": 0.12
   },
-  "timestamp": "2026-03-01T03:54:39.500990+00:00",
+  "timestamp": "2026-06-29T23:54:50.973686+00:00",
   "use_win_model": true
 }

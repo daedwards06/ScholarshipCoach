@@ -63,11 +63,13 @@ def _simple_keyword_overlap(student: Any, scholarship_row: pd.Series) -> float:
             ]
         )
     )
+    _kw = scholarship_row.get("keywords")
+    _kw_iter: Any = _kw if hasattr(_kw, "__iter__") and not isinstance(_kw, str) else []
     scholarship_tokens = _token_set(
         " ".join(
             [
                 str(scholarship_row.get("title") or ""),
-                " ".join(str(value) for value in (scholarship_row.get("keywords") or [])),
+                " ".join(str(value) for value in _kw_iter),
             ]
         )
     )
