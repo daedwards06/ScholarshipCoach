@@ -22,7 +22,7 @@ Both modes use the same deterministic text inputs:
 - Student text: major, interests, keywords, extracurriculars, goals
 - Scholarship text: title, sponsor, description, eligibility text, essay prompt
 
-The `Stage2Weights.tfidf` field name is retained for backward compatibility, but it now weights the active Stage 2 text similarity signal (`text_sim`) regardless of mode.
+The `Stage2Weights.text_sim` field weights the active Stage 2 text similarity signal regardless of mode. JSON files written with the old `tfidf` key are still accepted by `from_mapping()` for backward compatibility.
 
 ## Embedding Cache Artifact
 

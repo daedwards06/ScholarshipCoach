@@ -957,12 +957,12 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Rename `Stage2Weights.tfidf` â†’ `Stage2Weights.text_sim`
-- [ ] Update all references in `stage2_scoring.py`, `tune_weights.py`, `evaluate_golden_students.py`
-- [ ] Update JSON serialization/deserialization in weights files
-- [ ] Add backward-compatible loading (accept both `tfidf` and `text_sim` keys in JSON)
-- [ ] Update existing `best_weights*.json` files
-- [ ] All tests pass
+- [x] Rename `Stage2Weights.tfidf` â†’ `Stage2Weights.text_sim`
+- [x] Update all references in `stage2_scoring.py`, `tune_weights.py`, `evaluate_golden_students.py`
+- [x] Update JSON serialization/deserialization in weights files
+- [x] Add backward-compatible loading (accept both `tfidf` and `text_sim` keys in JSON)
+- [x] Update existing `best_weights*.json` files
+- [x] All tests pass
 
 **Prompt for Claude Sonnet 4.6:**
 

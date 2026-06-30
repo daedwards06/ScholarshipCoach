@@ -260,7 +260,7 @@ def score_stage2(
     amount_utility = _compute_amount_utility(scored_df, mode=amount_utility_mode)
     keyword_overlap = _compute_keyword_overlap(scored_df, profile)
     effort_penalty = _compute_effort_penalty(scored_df)
-    w_text = active_weights.tfidf
+    w_text = active_weights.text_sim
 
     stage2_score = (
         (w_text * text_sim)

@@ -159,7 +159,7 @@
     "amount": 0.05,
     "effort": 0.05,
     "keyword": 0.15,
-    "tfidf": 0.7
+    "text_sim": 0.7
   },
   "stage3_weights": {
     "ev": 0.0,

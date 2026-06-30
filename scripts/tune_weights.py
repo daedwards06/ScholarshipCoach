@@ -198,7 +198,7 @@ def _format_config_id(
     amount_utility_mode: str,
 ) -> str:
     return (
-        f"s2_t{stage2_weights.tfidf:.2f}_a{stage2_weights.amount:.2f}"
+        f"s2_t{stage2_weights.text_sim:.2f}_a{stage2_weights.amount:.2f}"
         f"_k{stage2_weights.keyword:.2f}_e{stage2_weights.effort:.2f}"
         f"__s3_s{stage3_weights.stage2:.2f}_u{stage3_weights.urgency:.2f}_v{stage3_weights.ev:.2f}"
         f"__{amount_utility_mode}"
@@ -244,7 +244,7 @@ def generate_candidate_configs(max_configs: int = DEFAULT_MAX_CONFIGS) -> list[W
             for keyword in stage2_keyword_values:
                 for effort in stage2_effort_values:
                     stage2_weights = Stage2Weights(
-                        tfidf=tfidf,
+                        text_sim=tfidf,
                         amount=amount,
                         keyword=keyword,
                         effort=effort,
@@ -428,7 +428,7 @@ def _rerank_profile_cache(
         errors="coerce",
     ).fillna(0.0)
     stage2_score = (
-        (config.stage2_weights.tfidf * similarity_series)
+        (config.stage2_weights.text_sim * similarity_series)
         + (
             config.stage2_weights.amount
             * pd.to_numeric(reranked_df["amount_utility"], errors="coerce").fillna(0.0)

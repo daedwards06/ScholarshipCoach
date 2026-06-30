@@ -12,17 +12,17 @@ WEIGHT_TOLERANCE = 1e-6
 class Stage2Weights:
     """Immutable weight configuration for Stage 2 scoring components.
 
-    All weights must be in [0, 1].  The ``tfidf`` field controls the active
+    All weights must be in [0, 1].  The ``text_sim`` field controls the active
     text-similarity signal regardless of whether TF-IDF or embeddings mode is used.
     """
 
-    tfidf: float
+    text_sim: float
     amount: float
     keyword: float
     effort: float
 
     def __post_init__(self) -> None:
-        for field_name in ("tfidf", "amount", "keyword", "effort"):
+        for field_name in ("text_sim", "amount", "keyword", "effort"):
             value = float(getattr(self, field_name))
             if not math.isfinite(value):
                 raise ValueError(f"Stage2 weight '{field_name}' must be finite.")
@@ -32,7 +32,7 @@ class Stage2Weights:
     @classmethod
     def baseline(cls) -> Stage2Weights:
         """Return the default Stage 2 weight configuration."""
-        return cls(tfidf=0.70, amount=0.20, keyword=0.10, effort=0.10)
+        return cls(text_sim=0.70, amount=0.20, keyword=0.10, effort=0.10)
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any] | None) -> Stage2Weights:
@@ -40,7 +40,7 @@ class Stage2Weights:
         values = payload or {}
         baseline = cls.baseline()
         return cls(
-            tfidf=float(values.get("tfidf", baseline.tfidf)),
+            text_sim=float(values.get("text_sim", values.get("tfidf", baseline.text_sim))),
             amount=float(values.get("amount", baseline.amount)),
             keyword=float(values.get("keyword", baseline.keyword)),
             effort=float(values.get("effort", baseline.effort)),
@@ -49,7 +49,7 @@ class Stage2Weights:
     def to_dict(self) -> dict[str, float]:
         """Serialize weights to a plain dict for JSON persistence."""
         return {
-            "tfidf": self.tfidf,
+            "text_sim": self.text_sim,
             "amount": self.amount,
             "keyword": self.keyword,
             "effort": self.effort,

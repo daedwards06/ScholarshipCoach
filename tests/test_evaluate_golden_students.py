@@ -36,7 +36,7 @@ def test_load_weight_overrides_reads_best_weights_payload(tmp_path: Path) -> Non
     assert resolved_path == weights_path
     assert stage2_weights is not None
     assert stage2_weights.to_dict() == {
-        "tfidf": 0.7,
+        "text_sim": 0.7,
         "amount": 0.05,
         "keyword": 0.15,
         "effort": 0.1,
