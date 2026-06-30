@@ -1331,6 +1331,119 @@ REQUIREMENTS:
 
 ---
 
+---
+
+## Phase 4: Operational Pipeline (Tier 3)
+
+**Goal:** Make the retrain-tune-eval chain runnable end-to-end with a single command, so new scholarship data automatically produces updated weights and a fresh eval report. Demonstrates operational thinking beyond the one-shot notebook.
+
+**Prerequisite:** Catalog should be meaningfully larger than 51 records before this pays off — retuning on a tiny catalog is fast but uninteresting. Target at least 300–500 records from Phase 2 source expansion before implementing.
+
+---
+
+### Task 4.1: Automated Retrain-Tune-Eval on New Data
+
+**Why:** Right now, updating the model after new data requires running four commands manually in the right order. A `--retune` flag on `run_ingest.py` (or a dedicated `scripts/pipeline.py`) that chains ingest → win model training → weight tuning → golden eval behind a single command proves the system is operationally sound and makes the portfolio story cleaner: "run one command, get updated recommendations."
+
+**Preflight Files:**
+- `scripts/run_ingest.py` (current CLI surface — understand args before adding to it)
+- `scripts/tune_weights.py` (understand entry point and required args)
+- `scripts/evaluate_golden_students.py` (understand `--train-win-model` flag)
+- `src/win_model/train.py` (`train_win_model` signature)
+- `src/io/snapshotting.py` (how snapshot paths are resolved)
+
+**Validation Commands:**
+```powershell
+# Full pipeline in one command:
+python scripts\run_ingest.py --retune
+
+# Or via standalone pipeline script:
+python scripts\pipeline.py --k 10 --similarity-mode embeddings --label-mode hybrid --use-win-model --max_configs 200 --selection-objective pareto
+
+# Tests must still pass:
+python -m pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+```
+
+**Checklist:**
+- [ ] Catalog is 300+ records (prerequisite — do not start until met)
+- [ ] Decide on implementation approach: `--retune` flag on `run_ingest.py` vs standalone `scripts/pipeline.py`
+- [ ] Implement: after successful ingest, check if catalog changed by >10% since last tuning run
+- [ ] If changed: train new win model → tune weights (pareto) → run golden eval → save report
+- [ ] Skip retune and log a message if catalog is unchanged or below growth threshold
+- [ ] Add `--force-retune` flag to bypass the growth-threshold check
+- [ ] Print a summary at the end: new win model path, best config ID, NDCG before/after
+- [ ] All existing tests pass; add at least one integration test for the pipeline entrypoint
+- [ ] Update README "Running the Project" section with the one-command usage
+
+**Design notes:**
+
+The growth-threshold check compares the current snapshot record count to the `snapshot_count` stored in `best_weights_pareto.json`. If the catalog has grown by more than `--retune-threshold` (default 10%), retune; otherwise skip. This avoids retuning on trivial ingests.
+
+The win model training and all three tuning objectives (relevance, blended, pareto) should run sequentially. The pareto result updates `best_weights.json` and `best_weights_latest.json`. Final eval always runs and saves a report.
+
+For a future CI enhancement: a GitHub Actions workflow that calls `python scripts/pipeline.py` on a schedule (e.g. weekly) and commits the updated weight files back to the repo gives a visible, reproducible retrain history — a strong portfolio signal.
+
+**Prompt for Claude Sonnet 4.6:**
+
+```
+Add a --retune flag to run_ingest.py (or create scripts/pipeline.py) that chains
+win model training, weight tuning, and golden eval after a successful ingest.
+
+CONTEXT:
+- Ingest: scripts/run_ingest.py (already exists; adds to parquet snapshot)
+- Win model training: src/win_model/train.py::train_win_model()
+  * Also callable via: python scripts/evaluate_golden_students.py --train-win-model
+- Weight tuning: scripts/tune_weights.py (standalone script with --selection-objective)
+  * Must be run 3x: relevance, blended, pareto
+  * Each run writes best_weights_{objective}.json
+- Final eval: scripts/evaluate_golden_students.py --use-best-weights --use-win-model
+- Growth check: compare snapshot record count to best_weights_pareto.json["metrics"]["details"]["eligibility"]["total_count"] / 9 (per-profile row count / profile count = snapshot size)
+  * Actually: read snapshot_used from best_weights_pareto.json, load it, compare record counts
+
+REQUIREMENTS:
+1. Implement the chain in a new scripts/pipeline.py:
+   def main():
+       args = parse_args()  # --k, --similarity-mode, --label-mode, --max-configs,
+                            # --selection-objective, --retune-threshold (default 0.10),
+                            # --force-retune (bool flag)
+       snapshot_df = load_latest_snapshot()
+       if not _should_retune(snapshot_df, args):
+           print("Catalog unchanged beyond threshold — skipping retune.")
+           return 0
+       win_model = _train_win_model(snapshot_df)
+       for objective in ("relevance", "blended", "pareto"):
+           _run_tune(objective, win_model_path=win_model.model_path, args=args)
+       _update_best_weights()   # copy pareto result to best_weights.json
+       _run_final_eval(args)
+       _print_summary()
+       return 0
+
+2. _should_retune():
+   - Load best_weights_pareto.json["snapshot_used"]
+   - Compare record count of that snapshot vs current snapshot
+   - Return True if growth > args.retune_threshold OR args.force_retune
+
+3. _update_best_weights():
+   - Read best_weights_pareto.json
+   - Write the core fields (stage2_weights, stage3_weights, thresholds,
+     similarity_mode, model_name, snapshot_used, timestamp, use_win_model,
+     amount_utility_mode, calibration_enabled, label_mode) to best_weights.json
+
+4. Print a summary table at the end:
+   Win model:  data/processed/win_model/models/win_model_YYYYMMDD_HHMMSS.joblib
+   Best config: s2_t0.70_a0.10_k0.15_e0.05__s3_s0.90_u0.05_v0.05__log  (pareto)
+   NDCG@10:    0.693  (was 0.702 before retune)
+   Coverage@10: 0.233  (was 0.167 before retune)
+   Reports:    reports/weight_tuning/weight_tuning_TIMESTAMP.md
+               reports/golden_eval_TIMESTAMP.md
+
+5. Run: python -m pytest tests/ -q -> all pass
+6. Run: ruff check src/ scripts/ app/ tests/ -> 0 errors
+```
+
+---
+
 ## Execution Order & Dependencies
 
 ```
@@ -1361,6 +1474,9 @@ Phase 3 (Portfolio Showpieces â€” Tier 3) â€” After Phases 1 & 2:
   3.2 README screenshots             (best after all code changes)
   3.3 Refactor tune_weights.py       (independent)
   3.4 Streamlit config + deployment   (best last â€” final polish before deploying)
+
+Phase 4 (Operational Pipeline â€” Tier 3) â€” After catalog is 300+ records:
+  4.1 Automated retrain-tune-eval    (depends on catalog size; do after Phase 2 source expansion)
 ```
 
 ---
@@ -1380,6 +1496,7 @@ Phase 3 (Portfolio Showpieces â€” Tier 3) â€” After Phases 1 & 2:
 | Session 9 | 3.1 (Pipeline notebook) | 90-120 min | High |
 | Session 10 | 3.2 (Screenshots) + 3.3 (Refactor tune_weights) | 60-90 min | Medium |
 | Session 11 | 3.4 (Deployment config) + Final review | 30-45 min | Medium |
+| Session 12 | 4.1 (Automated pipeline) — after catalog is 300+ records | 60-90 min | Medium |
 
 ---
 
