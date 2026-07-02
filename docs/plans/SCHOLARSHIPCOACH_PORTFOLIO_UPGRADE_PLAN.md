@@ -1031,16 +1031,16 @@ REQUIREMENTS:
 - `pytest tests/ -q` — existing tests must still pass after any refactors needed for the notebook.
 
 **Checklist:**
-- [ ] Create `notebooks/01_pipeline_walkthrough.ipynb`
-- [ ] Section 1: Load snapshot, show dataset summary stats and schema
-- [ ] Section 2: Stage 1 â€” demonstrate eligibility filtering for a sample profile, show reason codes
-- [ ] Section 3: Stage 2 â€” show scoring breakdown, visualise component contributions
-- [ ] Section 4: Stage 3 â€” show reranking, urgency boost curves, EV computation
-- [ ] Section 5: Win model â€” show p_win distribution, expected value scatter
-- [ ] Section 6: Weight tuning â€” show Pareto front visualisation
-- [ ] Section 7: Full pipeline end-to-end for your student's profile
-- [ ] Add markdown narrative cells explaining each design decision
-- [ ] Notebook runs end-to-end in < 30 seconds
+- [x] Create `notebooks/01_pipeline_walkthrough.ipynb`
+- [x] Section 1: Load snapshot, show dataset summary stats and schema
+- [x] Section 2: Stage 1 â€” demonstrate eligibility filtering for a sample profile, show reason codes
+- [x] Section 3: Stage 2 â€” show scoring breakdown, visualise component contributions
+- [x] Section 4: Stage 3 â€” show reranking, urgency boost curves, EV computation
+- [x] Section 5: Win model â€” show p_win distribution, expected value scatter
+- [x] Section 6: Weight tuning â€” show Pareto front visualisation
+- [x] Section 7: Full pipeline end-to-end for your student's profile
+- [x] Add markdown narrative cells explaining each design decision
+- [x] Notebook runs end-to-end in < 30 seconds
 
 **Prompt for Claude Sonnet 4.6:**
 
