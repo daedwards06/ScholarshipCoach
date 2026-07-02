@@ -1123,6 +1123,10 @@ REQUIREMENTS:
 
 ### Task 3.2: Add Streamlit Screenshots to README
 
+> **MOVED → `SCHOLARSHIPCOACH_UI_REDESIGN_PLAN.md` Task 6.** Screenshots now follow the
+> card-UI redesign so they reflect the finished app, not the old dataframe view. Do not
+> execute this copy; it is retained for history.
+
 **Why:** The Streamlit app is the most visual asset in the project, but it's invisible in the README. Recruiters browse GitHub â€” they won't clone and run the app. 2-3 screenshots show the app exists, works, and looks professional.
 
 **Preflight Files:**
@@ -1274,6 +1278,10 @@ REQUIREMENTS:
 ---
 
 ### Task 3.4: Create `.streamlit/config.toml` for Deployment Readiness
+
+> **ABSORBED → `SCHOLARSHIPCOACH_UI_REDESIGN_PLAN.md` Task 1.** The theme/config work is
+> now the first step of the UI redesign (the current app has no CSS/theme to extract, so it
+> is created there). Do not execute this copy.
 
 **Why:** Streamlit Community Cloud (or any deployment) uses `.streamlit/config.toml` for theme and server configuration. Having it pre-configured shows deployment awareness and ensures the app looks consistent regardless of where it runs.
 

@@ -39,7 +39,8 @@ this protocol exactly:
 
 | File | Description |
 |------|-------------|
-| `docs/plans/SCHOLARSHIPCOACH_PORTFOLIO_UPGRADE_PLAN.md` | B+ → A portfolio upgrade (Phases 0–3) |
+| `docs/plans/SCHOLARSHIPCOACH_PORTFOLIO_UPGRADE_PLAN.md` | B+ → A portfolio upgrade (Phases 0–4) |
+| `docs/plans/SCHOLARSHIPCOACH_UI_REDESIGN_PLAN.md` | Streamlit card-UI redesign (owns the app/UI track; absorbs Portfolio Tasks 3.2 & 3.4) |
 
 *(Add new plan files to this table as they are created.)*
 
