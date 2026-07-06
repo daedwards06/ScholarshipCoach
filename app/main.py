@@ -780,16 +780,27 @@ def main() -> None:
                 excluded_filtered["reasons"].apply(lambda reasons: reason_filter in (reasons or []))
             ]
 
-        excluded_filtered["amount"] = excluded_filtered.apply(
-            lambda row: format_amount_range(row.get("amount_min"), row.get("amount_max")),
-            axis=1,
-        )
-        excluded_filtered["reasons_text"] = excluded_filtered["reasons"].apply(reasons_to_text)
-        excluded_columns = ["title", "deadline", "amount", "reasons_text"]
-        available_excluded = [
-            column for column in excluded_columns if column in excluded_filtered.columns
-        ]
-        st.dataframe(excluded_filtered[available_excluded], use_container_width=True)
+        st.write(f"**{len(excluded_filtered)} scholarship{'s' if len(excluded_filtered) != 1 else ''} excluded** by eligibility filter")
+
+        for _, row in excluded_filtered.iterrows():
+            title = str(row.get("title") or row.get("scholarship_id") or "Untitled")
+            deadline = str(row.get("deadline") or "Unknown")
+            amount_str = format_amount_range(row.get("amount_min"), row.get("amount_max"))
+            reasons = row.get("reasons") or []
+            reasons_text = reasons_to_text(reasons)
+
+            with st.container(border=True):
+                col1, col2 = st.columns([0.7, 0.3])
+                with col1:
+                    st.markdown(f"**{title}**")
+                with col2:
+                    st.text(f"Deadline: {deadline}")
+
+                col_amt, col_reason = st.columns(2)
+                with col_amt:
+                    st.text(f"Award: {amount_str}")
+                with col_reason:
+                    st.text(f"Reason: {reasons_text}")
 
 
 if __name__ == "__main__":

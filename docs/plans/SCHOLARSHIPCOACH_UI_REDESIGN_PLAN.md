@@ -184,11 +184,11 @@ streamlit run app/main.py   # visual: signal details behind a per-card expander
 ```
 
 **Checklist:**
-- [ ] Put the raw component-score JSON behind a per-card "Signal details" expander
-- [ ] Keep the "Why ranked" sentences visible on the card; raw numbers only in the expander
-- [ ] Restyle the "Excluded Scholarships (Stage 1 Reasons)" section for readability; keep the
+- [x] Put the raw component-score JSON behind a per-card "Signal details" expander
+- [x] Keep the "Why ranked" sentences visible on the card; raw numbers only in the expander
+- [x] Restyle the "Excluded Scholarships (Stage 1 Reasons)" section for readability; keep the
       reason-code filter
-- [ ] Nothing debuggable is lost vs. the old view; tests + ruff green
+- [x] Nothing debuggable is lost vs. the old view; tests + ruff green
 
 ---
 
