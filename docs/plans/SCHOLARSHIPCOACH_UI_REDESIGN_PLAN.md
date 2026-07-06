@@ -122,14 +122,14 @@ streamlit run app/main.py   # visual: operator controls collapsed, pipeline stil
 ```
 
 **Checklist:**
-- [ ] Move Similarity mode, Ranking Weights profile, and Win Model controls into a collapsed
+- [x] Move Similarity mode, Ranking Weights profile, and Win Model controls into a collapsed
       `st.expander("Advanced / Operator")` (sidebar or a clearly separated section)
-- [ ] Move the "Run Update (Ingest)" / "Use Latest Snapshot" controls and ingest/delta
+- [x] Move the "Run Update (Ingest)" / "Use Latest Snapshot" controls and ingest/delta
       reports into the same operator area
-- [ ] Remove the raw `st.write(status_payload)` / `st.json(weights)` dumps from the default
+- [x] Remove the raw `st.write(status_payload)` / `st.json(weights)` dumps from the default
       view; relocate them under the operator expander
-- [ ] Default (collapsed) view shows: profile → "Run Scholarship Coach" → results
-- [ ] All controls still function; session-state keys unchanged; tests + ruff green
+- [x] Default (collapsed) view shows: profile → "Run Scholarship Coach" → results
+- [x] All controls still function; session-state keys unchanged; tests + ruff green
 
 ---
 

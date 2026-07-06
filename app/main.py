@@ -435,89 +435,123 @@ def main() -> None:
         tuned_weights_payload: dict[str, Any] | None = None
         tuned_weights_error: str | None = None
 
-        st.divider()
-        st.header("Similarity")
-        similarity_label = st.selectbox(
-            "Similarity mode",
-            options=("TF-IDF", "Embeddings"),
-            index=0 if st.session_state.get("similarity_mode", "tfidf") == "tfidf" else 1,
-        )
-        st.session_state.similarity_mode = "tfidf" if similarity_label == "TF-IDF" else "embeddings"
-        st.session_state.embedding_model_name = st.selectbox(
-            "Model",
-            options=(DEFAULT_MODEL_NAME,),
-            index=0,
-        )
-
-        st.divider()
-        st.header("Ranking Weights")
-        selected_weights_profile = st.selectbox(
-            "Weights profile",
-            options=WEIGHTS_PROFILE_OPTIONS,
-            index=WEIGHTS_PROFILE_OPTIONS.index(st.session_state.get("weights_profile", "Latest")),
-            key="weights_profile",
-        )
-        custom_weights_path = ""
-        if selected_weights_profile == "Custom file path":
-            custom_weights_path = st.text_input(
-                "Custom weights JSON path",
-                key="custom_weights_path",
-                placeholder="data/processed/best_weights_relevance.json",
+        with st.expander("Advanced / Operator", expanded=False):
+            st.subheader("Similarity")
+            similarity_label = st.selectbox(
+                "Similarity mode",
+                options=("TF-IDF", "Embeddings"),
+                index=0 if st.session_state.get("similarity_mode", "tfidf") == "tfidf" else 1,
             )
-        try:
-            tuned_weights_payload = _load_weights_profile(selected_weights_profile, custom_weights_path)
-        except Exception as exc:
-            tuned_weights_error = str(exc)
-
-        if tuned_weights_error:
-            st.warning(f"Could not load selected weights profile: {tuned_weights_error}")
-        elif tuned_weights_payload is None:
-            st.caption("Selected weights profile is unavailable. Baseline weights will be used.")
-        else:
-            objective_label = tuned_weights_payload.get("objective") or "unspecified"
-            st.caption(
-                f"Loaded `{selected_weights_profile}` weights from {tuned_weights_payload['source_name']} "
-                f"(objective: {objective_label})."
+            st.session_state.similarity_mode = "tfidf" if similarity_label == "TF-IDF" else "embeddings"
+            st.session_state.embedding_model_name = st.selectbox(
+                "Model",
+                options=(DEFAULT_MODEL_NAME,),
+                index=0,
             )
-            if tuned_weights_payload.get("use_win_model"):
-                st.caption("This tuned weights file was generated with the win model enabled.")
 
-        st.divider()
-        st.header("Win Probability Model")
-        latest_win_model_info = _load_latest_win_model_info()
-        if st.button("Train/Refresh Win Model", use_container_width=True):
+            st.subheader("Ranking Weights")
+            selected_weights_profile = st.selectbox(
+                "Weights profile",
+                options=WEIGHTS_PROFILE_OPTIONS,
+                index=WEIGHTS_PROFILE_OPTIONS.index(st.session_state.get("weights_profile", "Latest")),
+                key="weights_profile",
+            )
+            custom_weights_path = ""
+            if selected_weights_profile == "Custom file path":
+                custom_weights_path = st.text_input(
+                    "Custom weights JSON path",
+                    key="custom_weights_path",
+                    placeholder="data/processed/best_weights_relevance.json",
+                )
             try:
-                latest_snapshot = get_latest_snapshot_path()
-                snapshot_df = pd.read_parquet(latest_snapshot)
-                training_info = train_win_model(
-                    snapshot_df,
-                    get_golden_students(),
-                    PROCESSED_DIR / "win_model",
-                    seed=0,
-                )
-                latest_win_model_info = _load_latest_win_model_info()
-                metrics = training_info["metrics"]
-                st.success(
-                    f"Win model trained. AUC={metrics['roc_auc']:.4f} Brier={metrics['brier_score']:.4f}"
-                )
-            except FileNotFoundError:
-                st.warning("No saved snapshot found. Load or ingest a snapshot before training the win model.")
+                tuned_weights_payload = _load_weights_profile(selected_weights_profile, custom_weights_path)
             except Exception as exc:
-                st.error(f"Win model training failed: {exc}")
-        st.checkbox("Use Win Model in Ranking", key="use_win_model")
-        if latest_win_model_info is None:
-            st.caption("No trained win model found yet.")
-        else:
-            st.caption(f"Latest model: {latest_win_model_info['timestamp']}")
-            if latest_win_model_info.get("error"):
-                st.warning(f"Could not load win model details: {latest_win_model_info['error']}")
-            st.write(
-                {
-                    "roc_auc": latest_win_model_info.get("roc_auc"),
-                    "brier_score": latest_win_model_info.get("brier_score"),
-                    "log_loss": latest_win_model_info.get("log_loss"),
-                }
-            )
+                tuned_weights_error = str(exc)
+
+            if tuned_weights_error:
+                st.warning(f"Could not load selected weights profile: {tuned_weights_error}")
+            elif tuned_weights_payload is None:
+                st.caption("Selected weights profile is unavailable. Baseline weights will be used.")
+            else:
+                objective_label = tuned_weights_payload.get("objective") or "unspecified"
+                st.caption(
+                    f"Loaded `{selected_weights_profile}` weights from {tuned_weights_payload['source_name']} "
+                    f"(objective: {objective_label})."
+                )
+                if tuned_weights_payload.get("use_win_model"):
+                    st.caption("This tuned weights file was generated with the win model enabled.")
+
+            st.subheader("Win Probability Model")
+            latest_win_model_info = _load_latest_win_model_info()
+            if st.button("Train/Refresh Win Model", use_container_width=True):
+                try:
+                    latest_snapshot = get_latest_snapshot_path()
+                    snapshot_df = pd.read_parquet(latest_snapshot)
+                    training_info = train_win_model(
+                        snapshot_df,
+                        get_golden_students(),
+                        PROCESSED_DIR / "win_model",
+                        seed=0,
+                    )
+                    latest_win_model_info = _load_latest_win_model_info()
+                    metrics = training_info["metrics"]
+                    st.success(
+                        f"Win model trained. AUC={metrics['roc_auc']:.4f} Brier={metrics['brier_score']:.4f}"
+                    )
+                except FileNotFoundError:
+                    st.warning("No saved snapshot found. Load or ingest a snapshot before training the win model.")
+                except Exception as exc:
+                    st.error(f"Win model training failed: {exc}")
+            st.checkbox("Use Win Model in Ranking", key="use_win_model")
+            if latest_win_model_info is None:
+                st.caption("No trained win model found yet.")
+            else:
+                st.caption(f"Latest model: {latest_win_model_info['timestamp']}")
+                if latest_win_model_info.get("error"):
+                    st.warning(f"Could not load win model details: {latest_win_model_info['error']}")
+                st.write(
+                    {
+                        "roc_auc": latest_win_model_info.get("roc_auc"),
+                        "brier_score": latest_win_model_info.get("brier_score"),
+                        "log_loss": latest_win_model_info.get("log_loss"),
+                    }
+                )
+
+            st.subheader("Data Update")
+            update_col, latest_col = st.columns(2)
+            if update_col.button("Run Update (Ingest)", use_container_width=True):
+                try:
+                    report = run_ingest(date=None)
+                    st.session_state.ingest_report = report
+                    st.session_state.latest_snapshot_path = report["artifact_paths"]["snapshot"]
+                    st.session_state.latest_delta_summary = report["delta_counts"]
+                    st.success("Ingest completed.")
+                except Exception as exc:
+                    st.error(f"Ingest failed: {exc}")
+
+            if latest_col.button("Use Latest Snapshot", use_container_width=True):
+                try:
+                    latest = get_latest_snapshot_path()
+                except FileNotFoundError:
+                    st.warning("No snapshot found. Click 'Run Update (Ingest)' first.")
+                    st.session_state.latest_snapshot_path = None
+                else:
+                    st.session_state.latest_snapshot_path = str(latest.resolve())
+                    delta_path = _changes_path_for_snapshot(latest)
+                    if delta_path is not None:
+                        delta_payload = _load_delta_cached(str(delta_path.resolve()))
+                        st.session_state.latest_delta_summary = {
+                            "added": len(delta_payload.get("added", [])),
+                            "removed": len(delta_payload.get("removed", [])),
+                            "changed": len(delta_payload.get("changed", [])),
+                        }
+                    st.success(f"Loaded latest snapshot: {latest.name}")
+
+            if st.session_state.ingest_report:
+                _display_ingest_summary(st.session_state.ingest_report)
+            if st.session_state.latest_delta_summary:
+                st.subheader("Delta Summary")
+                st.write(st.session_state.latest_delta_summary)
 
     st.session_state.profile = _profile_from_widgets()
 
@@ -540,42 +574,6 @@ def main() -> None:
         active_stage3_weights = Stage3Weights.baseline()
         active_amount_utility_mode = "log"
         active_weights_label = "baseline"
-
-    st.header("Data Update + Status")
-    update_col, latest_col = st.columns(2)
-    if update_col.button("Run Update (Ingest)", type="primary", use_container_width=True):
-        try:
-            report = run_ingest(date=None)
-            st.session_state.ingest_report = report
-            st.session_state.latest_snapshot_path = report["artifact_paths"]["snapshot"]
-            st.session_state.latest_delta_summary = report["delta_counts"]
-            st.success("Ingest completed.")
-        except Exception as exc:
-            st.error(f"Ingest failed: {exc}")
-
-    if latest_col.button("Use Latest Snapshot", use_container_width=True):
-        try:
-            latest = get_latest_snapshot_path()
-        except FileNotFoundError:
-            st.warning("No snapshot found. Click 'Run Update (Ingest)' first.")
-            st.session_state.latest_snapshot_path = None
-        else:
-            st.session_state.latest_snapshot_path = str(latest.resolve())
-            delta_path = _changes_path_for_snapshot(latest)
-            if delta_path is not None:
-                delta_payload = _load_delta_cached(str(delta_path.resolve()))
-                st.session_state.latest_delta_summary = {
-                    "added": len(delta_payload.get("added", [])),
-                    "removed": len(delta_payload.get("removed", [])),
-                    "changed": len(delta_payload.get("changed", [])),
-                }
-            st.success(f"Loaded latest snapshot: {latest.name}")
-
-    if st.session_state.ingest_report:
-        _display_ingest_summary(st.session_state.ingest_report)
-    if st.session_state.latest_delta_summary:
-        st.subheader("Delta Summary")
-        st.write(st.session_state.latest_delta_summary)
 
     snapshot_path_text = st.session_state.latest_snapshot_path
     if snapshot_path_text is None:
@@ -601,28 +599,10 @@ def main() -> None:
     similarity_mode = str(st.session_state.get("similarity_mode") or "tfidf")
     model_name = str(st.session_state.get("embedding_model_name") or DEFAULT_MODEL_NAME)
     use_win_model = bool(st.session_state.get("use_win_model"))
-    status_payload: dict[str, Any] = {"similarity_mode": similarity_mode, "weights_profile": active_weights_label}
-    if similarity_mode == "embeddings":
-        status_payload["model_name"] = model_name
-    status_payload["use_win_model"] = use_win_model
-    if tuned_weights_payload is not None:
-        status_payload["weights_objective"] = tuned_weights_payload.get("objective")
-        status_payload["weights_file"] = tuned_weights_payload.get("source_name")
-        status_payload["weights_timestamp"] = tuned_weights_payload.get("timestamp")
-        if tuned_weights_payload.get("config_id"):
-            status_payload["weights_config_id"] = tuned_weights_payload.get("config_id")
-    st.write(status_payload)
     if tuned_weights_payload is not None and tuned_weights_payload.get("use_win_model") and not use_win_model:
         st.warning(
             "The selected weights profile was tuned with the win model enabled, but 'Use Win Model in Ranking' is off."
         )
-    st.json(
-        _weights_display_payload(
-            active_stage2_weights,
-            active_stage3_weights,
-            active_amount_utility_mode,
-        )
-    )
     top_n = st.slider("Top-N results", min_value=10, max_value=100, value=25, step=5)
     search_term = st.text_input("Search title/sponsor/description")
     deadline_within_days = st.slider("Deadline within X days (0 = no filter)", 0, 365, 0, 5)
