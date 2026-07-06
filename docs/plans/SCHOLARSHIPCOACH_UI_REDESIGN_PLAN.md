@@ -67,12 +67,12 @@ streamlit run app/main.py   # visual: dark theme + accent applied app-wide
 ```
 
 **Checklist:**
-- [ ] Create `.streamlit/config.toml` with a dark theme (accent `#4ECDC4`, bg `#0E1117`,
+- [x] Create `.streamlit/config.toml` with a dark theme (accent `#4ECDC4`, bg `#0E1117`,
       secondary bg `#1A1A2E`, text `#FAFAFA`) and `[server] headless = true`
-- [ ] Add `.streamlit/secrets.toml` to `.gitignore` if not already ignored
-- [ ] Confirm `st.set_page_config` still sets a sensible `page_title` / `layout`
-- [ ] Add a one-line deployment note to README pointing at the config
-- [ ] App loads with the theme; tests + ruff green
+- [x] Add `.streamlit/secrets.toml` to `.gitignore` if not already ignored
+- [x] Confirm `st.set_page_config` still sets a sensible `page_title` / `layout`
+- [x] Add a one-line deployment note to README pointing at the config
+- [x] App loads with the theme; tests + ruff green
 
 ---
 

@@ -187,6 +187,8 @@ python scripts\tune_weights.py \
 streamlit run app/main.py
 ```
 
+**Deployment note:** The app theme is configured in `.streamlit/config.toml` with a dark palette optimized for readability. No additional setup is required — Streamlit will automatically apply the theme on launch.
+
 ---
 
 ## Project Structure
