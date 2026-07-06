@@ -94,13 +94,13 @@ streamlit run app/main.py   # visual: friendly labels, no raw field names
 ```
 
 **Checklist:**
-- [ ] Replace the page title/caption with user-facing copy (e.g. "Scholarship Coach —
+- [x] Replace the page title/caption with user-facing copy (e.g. "Scholarship Coach —
       scholarships matched to your profile"), drop the pipeline-stage subtitle
-- [ ] Relabel every profile input to plain English: GPA, State, Intended Major, Grade Level,
+- [x] Relabel every profile input to plain English: GPA, State, Intended Major, Grade Level,
       Interests / Keywords, Goals — with helpful placeholders/help text
-- [ ] Keep all `key=` session-state bindings identical (labels change, keys do not)
-- [ ] Group related inputs (e.g. academic vs. interests) for scannability
-- [ ] Tests + ruff green; Save/Load Profile still works
+- [x] Keep all `key=` session-state bindings identical (labels change, keys do not)
+- [x] Group related inputs (e.g. academic vs. interests) for scannability
+- [x] Tests + ruff green; Save/Load Profile still works
 
 ---
 

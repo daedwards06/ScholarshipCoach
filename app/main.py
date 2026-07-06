@@ -382,25 +382,39 @@ def _topk_win_model_summary(df: pd.DataFrame) -> dict[str, float] | None:
 def main() -> None:
     st.set_page_config(page_title="Scholarship Coach", layout="wide")
     st.title("Scholarship Coach")
-    st.caption("Ingest -> Snapshot/Delta -> Stage 1 -> Stage 2 -> Stage 3")
+    st.caption("Find scholarships matched to your profile")
 
     _ensure_session_state()
 
     with st.sidebar:
-        st.header("Student Profile")
-        st.text_input("name (optional)", key="profile_name")
-        st.number_input("gpa", min_value=0.0, max_value=4.0, step=0.01, key="profile_gpa")
-        st.text_input("state", key="profile_state")
-        st.text_input("major", key="profile_major")
-        st.text_input("education_level", key="profile_education_level")
-        st.text_input("citizenship", key="profile_citizenship")
+        st.header("Your Profile")
+
+        st.subheader("Academic", divider=False)
+        st.text_input("Full Name", key="profile_name", placeholder="Your name (optional)")
+        st.number_input("GPA", min_value=0.0, max_value=4.0, step=0.01, key="profile_gpa",
+                       help="Your current GPA (0.0-4.0)")
+        st.text_input("State", key="profile_state", placeholder="e.g., NC")
+        st.text_input("Intended Major", key="profile_major", placeholder="e.g., Computer Science")
+        st.selectbox("Grade Level",
+                    options=["", "High School Senior", "Freshman", "Sophomore", "Junior", "Senior"],
+                    key="profile_education_level",
+                    help="Your current or upcoming grade level")
+        st.text_input("Citizenship", key="profile_citizenship", placeholder="e.g., U.S. Citizen")
+
+        st.subheader("Interests & Goals", divider=False)
         st.text_input(
-            "profile_keywords (comma-separated)",
+            "Interests / Keywords",
             key="profile_keywords_csv",
+            placeholder="e.g., robotics, leadership, community service (comma-separated)",
+            help="Topics you're passionate about—we'll match scholarships to these"
         )
-        st.text_area("goals/free_text", key="profile_goals", height=120)
-        st.checkbox("Use today override", key="profile_use_today_override")
-        st.date_input("today override", key="profile_today_override")
+        st.text_area("Your Goals", key="profile_goals", height=120,
+                    placeholder="Tell us about your goals, dreams, or what matters to you",
+                    help="We use this to find scholarships that align with your aspirations")
+
+        st.subheader("Advanced", divider=False)
+        st.checkbox("Use custom date", key="profile_use_today_override", help="Override today's date for testing")
+        st.date_input("Custom date", key="profile_today_override")
 
         save_col, load_col = st.columns(2)
         if save_col.button("Save Profile", use_container_width=True):
