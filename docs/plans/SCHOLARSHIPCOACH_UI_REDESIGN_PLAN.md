@@ -152,16 +152,16 @@ streamlit run app/main.py   # visual: ranked cards replace the dataframe; orderi
 ```
 
 **Checklist:**
-- [ ] Add a `_render_scholarship_card(row)` helper in `app/main.py` (or `app/helpers.py`)
+- [x] Add a `_render_scholarship_card(row)` helper in `app/main.py` (or `app/helpers.py`)
       rendering: title, award amount (`format_amount_range`), deadline with an urgency
       indicator, a "Why this matches you" list (`explain_ranked_row`), and an Apply/source
       link
-- [ ] Replace the top-N `st.dataframe` render with a loop of cards (preserve existing rank
+- [x] Replace the top-N `st.dataframe` render with a loop of cards (preserve existing rank
       order and the top-N / search / deadline / amount filters)
-- [ ] Verify the same inputs produce the same ordering as before (behavior-preserving)
-- [ ] Keep the win-model top-k summary available but unobtrusive (operator area or a small
+- [x] Verify the same inputs produce the same ordering as before (behavior-preserving)
+- [x] Keep the win-model top-k summary available but unobtrusive (operator area or a small
       caption)
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 

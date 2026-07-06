@@ -379,6 +379,81 @@ def _topk_win_model_summary(df: pd.DataFrame) -> dict[str, float] | None:
     }
 
 
+def _calculate_days_until_deadline(deadline_str: str, today: date) -> int | None:
+    try:
+        deadline = pd.to_datetime(deadline_str)
+        return (deadline.date() - today).days
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def _get_urgency_indicator(days_until_deadline: int | None) -> tuple[str, str]:
+    if days_until_deadline is None:
+        return ("⚠️ Unknown deadline", "#666666")
+    if days_until_deadline < 0:
+        return ("⏰ Passed", "#888888")
+    if days_until_deadline <= 7:
+        return ("🔴 URGENT (≤7 days)", "#FF4444")
+    if days_until_deadline <= 30:
+        return ("🟡 Soon (≤30 days)", "#FFAA00")
+    return ("🟢 Later", "#00AA00")
+
+
+def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
+    title = str(row.get("title") or row.get("scholarship_id") or "Untitled")
+    sponsor = str(row.get("sponsor") or "")
+    deadline = str(row.get("deadline") or "")
+    amount_str = format_amount_range(row.get("amount_min"), row.get("amount_max"))
+    source_url = str(row.get("source_url") or "").strip()
+
+    days_until = _calculate_days_until_deadline(deadline, today_value)
+    urgency_text, urgency_color = _get_urgency_indicator(days_until)
+
+    with st.container(border=True):
+        col1, col2 = st.columns([0.85, 0.15])
+        with col1:
+            st.markdown(f"**{title}**")
+            if sponsor:
+                st.caption(sponsor)
+        with col2:
+            st.markdown(f"<div style='text-align: right; font-size: 0.85em;'>{urgency_text}</div>", unsafe_allow_html=True)
+
+        col_amt, col_deadline = st.columns(2)
+        with col_amt:
+            st.text(f"Award: {amount_str}")
+        with col_deadline:
+            st.text(f"Deadline: {deadline if deadline else 'Unknown'}")
+
+        st.markdown("**Why this matches you:**")
+        for explanation in explain_ranked_row(row):
+            st.markdown(f"• {explanation}")
+
+        if source_url:
+            st.link_button("Apply at Source", source_url, use_container_width=False)
+
+        with st.expander("Signal details", expanded=False):
+            component_columns = [
+                "text_sim",
+                "tfidf_sim",
+                "embed_sim",
+                "amount_utility",
+                "keyword_overlap",
+                "effort_penalty",
+                "urgency_boost",
+                "ev_proxy_norm",
+                "p_win",
+                "expected_value",
+                "expected_value_norm",
+                "final_score",
+            ]
+            component_values = {
+                column: float(row.get(column))
+                for column in component_columns
+                if column in row and pd.notna(row.get(column))
+            }
+            st.json(component_values)
+
+
 def main() -> None:
     st.set_page_config(page_title="Scholarship Coach", layout="wide")
     st.title("Scholarship Coach")
@@ -674,64 +749,18 @@ def main() -> None:
         st.subheader(f"Top Ranked Scholarships ({len(top_df)} shown)")
         win_summary = _topk_win_model_summary(top_df)
         if win_summary is not None:
-            st.write(
-                {
-                    "mean_p_win_top_k": round(win_summary["mean_p_win"], 4),
-                    "median_p_win_top_k": round(win_summary["median_p_win"], 4),
-                    "mean_expected_value_top_k": round(win_summary["mean_expected_value"], 2),
-                    "median_expected_value_top_k": round(win_summary["median_expected_value"], 2),
-                }
-            )
-        table_columns = [
-            "scholarship_id",
-            "title",
-            "sponsor",
-            "deadline",
-            "amount",
-            "final_score",
-            "p_win",
-            "expected_value",
-            "source_url",
-        ]
-        available_columns = [column for column in table_columns if column in top_df.columns]
-        st.dataframe(top_df[available_columns], use_container_width=True)
+            with st.expander("📊 Win Model Summary", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Mean P(Win)", f"{round(win_summary['mean_p_win'], 4)}")
+                    st.metric("Mean Expected Value", f"${round(win_summary['mean_expected_value'], 2):,.0f}")
+                with col2:
+                    st.metric("Median P(Win)", f"{round(win_summary['median_p_win'], 4)}")
+                    st.metric("Median Expected Value", f"${round(win_summary['median_expected_value'], 2):,.0f}")
 
-        st.subheader("Ranked Detail + Explainability")
+        today_for_cards = _effective_today(st.session_state.profile)
         for _, row in top_df.iterrows():
-            title = str(row.get("title") or row.get("scholarship_id"))
-            with st.expander(title):
-                component_columns = [
-                    "text_sim",
-                    "tfidf_sim",
-                    "embed_sim",
-                    "amount_utility",
-                    "keyword_overlap",
-                    "effort_penalty",
-                    "urgency_boost",
-                    "ev_proxy_norm",
-                    "p_win",
-                    "expected_value",
-                    "expected_value_norm",
-                    "final_score",
-                ]
-                component_values = {
-                    column: float(row.get(column))
-                    for column in component_columns
-                    if column in row and pd.notna(row.get(column))
-                }
-                st.write("Component scores")
-                st.json(component_values)
-                st.write(
-                    {
-                        "deadline": str(row.get("deadline") or ""),
-                        "amount": format_amount_range(row.get("amount_min"), row.get("amount_max")),
-                        "sponsor": str(row.get("sponsor") or ""),
-                        "source_url": str(row.get("source_url") or ""),
-                    }
-                )
-                st.write("Why ranked")
-                for explanation in explain_ranked_row(row):
-                    st.write(f"- {explanation}")
+            _render_scholarship_card(row, today_for_cards)
 
     ineligible_df: pd.DataFrame | None = st.session_state.ineligible_df
     if isinstance(ineligible_df, pd.DataFrame):
