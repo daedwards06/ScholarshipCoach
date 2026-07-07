@@ -113,16 +113,16 @@ python -m pytest tests/ -q --cov=src.eval.metrics --cov-report=term
 ```
 
 **Checklist:**
-- [ ] Add `tests/test_metrics.py` with hand-computed cases: NDCG@k (known DCG/IDCG values,
+- [x] Add `tests/test_metrics.py` with hand-computed cases: NDCG@k (known DCG/IDCG values,
       including all-zero labels and k > len(labels)), coverage_at_k (duplicates across
       profiles), eligibility_precision (reason-code breakdown), amount_distribution_stats
       (NaN amounts skipped)
-- [ ] Change `compute_ndcg_at_k` to return `float | None` instead of `float | "N/A"`;
+- [x] Change `compute_ndcg_at_k` to return `float | None` instead of `float | "N/A"`;
       update the eval script to format `None` as "N/A" at the presentation layer
-- [ ] Change `ranking_stability` to return `{"is_stable": bool, "mismatches": [...]}`
+- [x] Change `ranking_stability` to return `{"is_stable": bool, "mismatches": [...]}`
       without raising; move the hard failure to the caller in the eval script
-- [ ] `src/eval/metrics.py` direct coverage ≥ 90%
-- [ ] Tests + ruff green
+- [x] `src/eval/metrics.py` direct coverage ≥ 90%
+- [x] Tests + ruff green
 
 ---
 

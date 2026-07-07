@@ -135,10 +135,9 @@ def ranking_stability(
         run_two: Second run to compare against ``run_one``.
 
     Returns:
-        Dict with ``is_stable`` (bool) and ``mismatches`` (empty list when stable).
-
-    Raises:
-        AssertionError: If any profile produces a different ordering between runs.
+        Dict with ``is_stable`` (bool) and ``mismatches`` (empty list when stable,
+        otherwise one entry per profile whose ordering diverged). This function
+        never raises; the caller decides whether a mismatch is fatal.
     """
     mismatches: list[dict[str, Any]] = []
     for profile_id in sorted(set(run_one) | set(run_two)):
@@ -153,17 +152,13 @@ def ranking_stability(
                 }
             )
 
-    is_stable = len(mismatches) == 0
-    if not is_stable:
-        raise AssertionError(f"Ranking stability check failed: {mismatches}")
-
-    return {"is_stable": is_stable, "mismatches": mismatches}
+    return {"is_stable": len(mismatches) == 0, "mismatches": mismatches}
 
 
 def compute_ndcg_at_k(
     relevance_labels: dict[str, list[int]] | None,
     k: int,
-) -> float | str:
+) -> float | None:
     """Compute mean NDCG@k across all profiles.
 
     Args:
@@ -172,10 +167,12 @@ def compute_ndcg_at_k(
         k: Cutoff rank.
 
     Returns:
-        Mean NDCG@k as a float, or ``"N/A"`` if no labels are provided.
+        Mean NDCG@k as a float, or ``None`` if there is nothing to score (no
+        labels provided, or every profile's label list is empty). Callers render
+        ``None`` as "N/A" at the presentation layer.
     """
     if not relevance_labels:
-        return "N/A"
+        return None
 
     ndcg_values: list[float] = []
     for labels in relevance_labels.values():
@@ -188,7 +185,7 @@ def compute_ndcg_at_k(
         ndcg_values.append((dcg / idcg) if idcg > 0 else 0.0)
 
     if not ndcg_values:
-        return "N/A"
+        return None
     return float(sum(ndcg_values) / len(ndcg_values))
 
 

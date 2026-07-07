@@ -388,7 +388,7 @@ def _cross_label_check(
     if not enabled:
         return None
 
-    ndcg_by_label_mode: dict[str, float | str] = {}
+    ndcg_by_label_mode: dict[str, float | None] = {}
     for label_mode in ("hybrid", "no_similarity"):
         cfg = replace(relevance_config, label_mode=label_mode)
         labels_by_profile: dict[str, list[int]] = {}
@@ -477,6 +477,13 @@ def _format_score(value: Any) -> str:
     return f"{float(value):.4f}"
 
 
+def _format_ndcg(value: Any) -> str:
+    """Render an NDCG value for the report, showing ``None`` as "N/A"."""
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return "N/A"
+    return f"{float(value):.4f}"
+
+
 def _markdown_report(
     *,
     snapshot_path: Path,
@@ -556,7 +563,7 @@ def _markdown_report(
     )
     lines.append(f"- Ranking stability: {metrics['ranking_stability']['is_stable']}")
     lines.append(
-        f"- NDCG@K (K={metrics['ndcg_at_k']['k']}): {metrics['ndcg_at_k']['value']}"
+        f"- NDCG@K (K={metrics['ndcg_at_k']['k']}): {_format_ndcg(metrics['ndcg_at_k']['value'])}"
     )
     if use_win_model:
         win_summary = metrics.get("win_model_topk") or {}
@@ -595,8 +602,7 @@ def _markdown_report(
         lines.append("|:---|---:|")
         for label_mode in ("hybrid", "no_similarity"):
             value = ndcg_by_mode.get(label_mode)
-            formatted = f"{value:.4f}" if isinstance(value, (int, float)) else str(value)
-            lines.append(f"| {label_mode} | {formatted} |")
+            lines.append(f"| {label_mode} | {_format_ndcg(value)} |")
         lines.append("")
 
     lines.append("## Per Profile Top-K")
@@ -757,6 +763,10 @@ def main() -> int:
         calibration,
         args.use_win_model,
     )
+
+    stability = metrics["ranking_stability"]
+    if not stability["is_stable"]:
+        raise SystemExit(f"Ranking stability check failed: {stability['mismatches']}")
 
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
     generated_at = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
