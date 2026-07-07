@@ -41,6 +41,8 @@ this protocol exactly:
 |------|-------------|
 | `docs/plans/SCHOLARSHIPCOACH_PORTFOLIO_UPGRADE_PLAN.md` | B+ → A portfolio upgrade (Phases 0–4) |
 | `docs/plans/SCHOLARSHIPCOACH_UI_REDESIGN_PLAN.md` | Streamlit card-UI redesign (owns the app/UI track; absorbs Portfolio Tasks 3.2 & 3.4) |
+| `docs/plans/SCHOLARSHIPCOACH_EVAL_CREDIBILITY_PLAN.md` | Evaluation credibility, matching quality, CI/repo hardening (from 2026-07-05 project review; Task 5 refines Portfolio Task 2.1) |
+| `docs/plans/SCHOLARSHIPCOACH_LLM_EXTRACTION_PLAN.md` | Generative-LLM structured extraction at the ingest boundary (cached, fill-only, measured vs. parser gold; optional UI explanations) |
 
 *(Add new plan files to this table as they are created.)*
 
