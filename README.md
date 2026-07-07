@@ -81,6 +81,11 @@ Evaluation is fully **offline and snapshot-based**. Proxy relevance labels are h
 | Relevance-Optimized (Grid Search, 150 configs) | 0.57 | 0.45 | 160-record catalog, win model |
 | **Pareto-Selected (Relevance + Coverage + EV)** | **0.61** | **0.40** | 163-record catalog, win model |
 
+> **Coverage@k here is a cross-profile _diversity_ ratio, not catalog coverage.** It is
+> `unique recommended scholarships / total recommended slots` summed across all golden
+> profiles — how distinct each profile's top-k list is, not what fraction of the catalog
+> gets surfaced. A value near 1.0 means profiles are served largely different scholarships.
+
 **Additional metrics — Pareto-Selected config (163-record catalog):**
 
 | Metric | Value |
@@ -90,6 +95,27 @@ Evaluation is fully **offline and snapshot-based**. Proxy relevance labels are h
 | Mean Expected Value in Top-10 | ~$9,640 |
 
 All experiments are deterministic, snapshot-driven, versioned per objective, and reproducible via CLI flags.
+
+---
+
+## Limitations & Evaluation Honesty
+
+This is a portfolio project, and the headline metrics come with caveats worth stating plainly.
+See [`docs/evaluation.md`](docs/evaluation.md) for the full methodology.
+
+- **Proxy labels share features with the ranker.** Relevance labels are built from
+  `keyword_overlap` and text similarity — the same signals Stage 2 scores on. Tuning weights
+  to maximize NDCG against those labels is therefore partly self-fulfilling: the tuner can gain
+  by upweighting the features the labels are made of. As a check, `--cross-label-check` scores
+  the *same* ranking under both label heuristics (`hybrid` and `no_similarity`) and reports NDCG
+  side by side; gains that survive the switch are more believable. A small human-labeled eval set
+  (planned) is the stronger fix.
+- **The win model is synthetic.** `p_win` and expected value are trained on labels from a
+  transparent heuristic generator, not real award outcomes. They demonstrate a calibration/EV
+  pipeline — they are not validated outcome forecasts.
+- **The catalog is small.** With ~160 records, coverage and amount statistics are noisy and NDCG
+  variation is limited by low candidate diversity. Metric interpretability improves as the catalog
+  grows.
 
 ---
 

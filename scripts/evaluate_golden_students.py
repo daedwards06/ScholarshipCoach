@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -106,6 +107,13 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=False,
         help="Report a deterministic suggested similarity threshold from eligible-item distributions.",
+    )
+    parser.add_argument(
+        "--cross-label-check",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Score the same ranking under BOTH proxy label modes (hybrid and no_similarity) "
+        "and report NDCG@k side by side, as a check on proxy-label circularity.",
     )
     parser.add_argument(
         "--use-best-weights",
@@ -360,6 +368,52 @@ def _calibration_payload(
     }
 
 
+def _cross_label_check(
+    students: list[GoldenStudent],
+    per_profile_results: list[dict[str, Any]],
+    *,
+    similarity_mode: str,
+    relevance_config: RelevanceConfig,
+    k: int,
+    enabled: bool,
+) -> dict[str, Any] | None:
+    """Re-score the same ranking under both proxy label modes and report NDCG@k.
+
+    The top-K ordering is fixed (labels never drive ranking), so relabelling each
+    profile's ranked frame under ``hybrid`` and ``no_similarity`` isolates how much
+    the reported NDCG depends on the labelling heuristic itself. If NDCG holds up
+    across heuristics, the gains are less likely to be an artifact of the ranker
+    sharing features with the labels.
+    """
+    if not enabled:
+        return None
+
+    ndcg_by_label_mode: dict[str, float | str] = {}
+    for label_mode in ("hybrid", "no_similarity"):
+        cfg = replace(relevance_config, label_mode=label_mode)
+        labels_by_profile: dict[str, list[int]] = {}
+        for student, result in zip(students, per_profile_results, strict=True):
+            reranked_df = result["reranked_df"]
+            profile_k = int(result["k"])
+            if profile_k > 0 and isinstance(reranked_df, pd.DataFrame) and not reranked_df.empty:
+                topk_df = reranked_df.head(profile_k)
+                labels_by_profile[student.student_id] = proxy_relevance_labels(
+                    topk_df,
+                    student,
+                    similarity_mode=similarity_mode,
+                    cfg=cfg,
+                )
+            else:
+                labels_by_profile[student.student_id] = []
+        ndcg_by_label_mode[label_mode] = compute_ndcg_at_k(labels_by_profile, k=k)
+
+    return {
+        "k": k,
+        "similarity_mode": similarity_mode,
+        "ndcg_by_label_mode": ndcg_by_label_mode,
+    }
+
+
 def _metrics_payload(
     per_profile_results: list[dict[str, Any]],
     per_profile_topk: dict[str, list[dict[str, Any]]],
@@ -437,6 +491,7 @@ def _markdown_report(
     model_name: str | None = None,
     use_win_model: bool = False,
     win_model_path: Path | None = None,
+    cross_label: dict[str, Any] | None = None,
 ) -> str:
     lines: list[str] = []
     proxy_relevance = metrics.get("proxy_relevance", {})
@@ -523,6 +578,27 @@ def _markdown_report(
     else:
         lines.append("- None")
     lines.append("")
+
+    if cross_label:
+        ndcg_by_mode = cross_label.get("ndcg_by_label_mode", {})
+        lines.append("## Cross-Label NDCG Check")
+        lines.append("")
+        lines.append(
+            "Same ranking, re-scored under both proxy label heuristics. Proxy labels share "
+            "features with the ranker, so a single-heuristic NDCG is partly self-fulfilling; "
+            "if the number holds up across heuristics the gains are more believable."
+        )
+        lines.append("")
+        lines.append(f"- Cross-label similarity mode: `{cross_label.get('similarity_mode', similarity_mode)}`")
+        lines.append("")
+        lines.append("| Label mode | NDCG@K |")
+        lines.append("|:---|---:|")
+        for label_mode in ("hybrid", "no_similarity"):
+            value = ndcg_by_mode.get(label_mode)
+            formatted = f"{value:.4f}" if isinstance(value, (int, float)) else str(value)
+            lines.append(f"| {label_mode} | {formatted} |")
+        lines.append("")
+
     lines.append("## Per Profile Top-K")
     lines.append("")
 
@@ -660,6 +736,15 @@ def main() -> int:
         enabled=args.calibrate_thresholds,
         similarity_mode=args.similarity_mode,
     )
+    max_k_observed = max((len(records) for records in run_one_topk.values()), default=0)
+    cross_label = _cross_label_check(
+        students,
+        run_one_results,
+        similarity_mode=args.similarity_mode,
+        relevance_config=relevance_config,
+        k=max_k_observed,
+        enabled=args.cross_label_check,
+    )
 
     metrics = _metrics_payload(
         run_one_results,
@@ -692,6 +777,7 @@ def main() -> int:
         metrics=metrics,
         students=students,
         per_profile_topk=run_one_topk,
+        cross_label=cross_label,
     )
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     markdown_path.write_text(markdown_text, encoding="utf-8")
@@ -711,6 +797,7 @@ def main() -> int:
             relevance_config,
         ),
         "calibration": calibration,
+        "cross_label_check": cross_label,
         "weights_path": str(weights_path) if weights_path is not None else None,
         "used_baseline_weights": weights_path is None,
         "used_best_weights": used_best_weights,

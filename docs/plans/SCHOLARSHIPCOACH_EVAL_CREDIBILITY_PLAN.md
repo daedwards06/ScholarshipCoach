@@ -77,17 +77,17 @@ python scripts/evaluate_golden_students.py --k 10 --similarity-mode embeddings -
 ```
 
 **Checklist:**
-- [ ] Add a `--cross-label-check` flag to `evaluate_golden_students.py` that computes
+- [x] Add a `--cross-label-check` flag to `evaluate_golden_students.py` that computes
       NDCG@k under BOTH label modes (`hybrid` and `no_similarity`) in one run and reports
       them side by side in the markdown report
-- [ ] Add at least one test covering the cross-label report path
-- [ ] Add a "Limitations & Evaluation Honesty" section to the README: proxy labels share
+- [x] Add at least one test covering the cross-label report path
+- [x] Add a "Limitations & Evaluation Honesty" section to the README: proxy labels share
       features with the ranker (so tuned NDCG is partly self-fulfilling), the win model is
       synthetic, and the catalog is small — link to `docs/evaluation.md` for detail
-- [ ] Document the Coverage@k definition (unique recommended / total recommended slots —
+- [x] Document the Coverage@k definition (unique recommended / total recommended slots —
       a cross-profile diversity ratio, not catalog coverage) in the README metrics table
       footnote and in the `coverage_at_k` docstring
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 

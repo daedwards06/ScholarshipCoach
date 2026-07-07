@@ -58,10 +58,13 @@ def coverage_at_k(
     per_profile_topk: dict[str, list[dict[str, Any]]],
     k: int,
 ) -> dict[str, Any]:
-    """Compute catalog coverage across top-k recommendations for all profiles.
+    """Compute the cross-profile diversity ratio of the top-k recommendations.
 
-    Coverage@k measures the diversity of recommendations: what fraction of
-    all recommended slots are filled by unique scholarships.
+    This is NOT catalog coverage (recommended items / total catalog). It is
+    ``unique recommended scholarships / total recommended slots`` across every
+    profile: a diversity ratio measuring how much the top-k lists overlap. A
+    value near 1.0 means each profile is served largely distinct scholarships;
+    a low value means the same few scholarships dominate many profiles' lists.
 
     Args:
         per_profile_topk: Maps profile ID → list of ranked scholarship dicts.
