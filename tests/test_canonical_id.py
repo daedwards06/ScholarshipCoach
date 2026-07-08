@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from normalize.canonical_id import generate_scholarship_id
+from src.normalize.canonical_id import generate_scholarship_id
 
 _BASE_PAYLOAD = {
     "title": "Future Leaders Scholarship",
