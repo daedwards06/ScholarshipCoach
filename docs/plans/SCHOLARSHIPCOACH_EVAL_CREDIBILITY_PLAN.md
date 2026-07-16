@@ -210,19 +210,30 @@ python scripts/evaluate_golden_students.py --k 10 --similarity-mode embeddings
 ```
 
 **Checklist:**
-- [ ] Create `src/rank/taxonomy.py`: a static major→family map (e.g. computer science /
+- [x] Create `src/rank/taxonomy.py`: a static major→family map (e.g. computer science /
       computer engineering / software engineering → `engineering` and `stem`; nursing →
       `health`; etc.) with a `majors_match(profile_major, majors_allowed)` helper that
       passes on exact match OR shared family; unknown majors fall back to exact match
-- [ ] Stage 1 major check uses `majors_match`; reason code `MAJOR_NOT_ALLOWED` unchanged
-- [ ] Add education-level adjacency: a profile with `high school` also matches
+- [x] Stage 1 major check uses `majors_match`; reason code `MAJOR_NOT_ALLOWED` unchanged
+- [x] Add education-level adjacency: a profile with `high school` also matches
       scholarships labeled `undergraduate` (college-bound); implemented as a small
       adjacency map, default ON, with a `strict_education_level` escape hatch on the check
-- [ ] Unit tests: family match passes, unrelated major still fails, high school ↔
+      (`StudentProfile.strict_education_level`, via `education_level_matches(..., strict=)`)
+- [x] Unit tests: family match passes, unrelated major still fails, high school ↔
       undergraduate adjacency, strict mode restores exact behavior
-- [ ] Re-run golden eval; note eligibility-precision and NDCG shifts in the report and
+- [x] Re-run golden eval; note eligibility-precision and NDCG shifts in the report and
       update the README metrics note if numbers move materially
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
+
+**Re-eval note (2026-07-15):** On the current golden-eval catalog snapshot
+(`scholarships_snapshot_20260627.parquet`, 51 records) the change is a **no-op**:
+`majors_allowed` is empty for all 51 rows and `education_level` is null for 50 of 51
+(the one non-null is scraped free text, not a level), so the relaxed major/education
+checks never fire. Eligibility precision (0.4314) and eligible count (198) are unchanged,
+and `nc_cs_rising_sophomore` yields the same 22 eligible rows under adjacency-on and
+strict mode. The relaxation is proven correct by the new synthetic-row unit tests; it will
+move real recall only once the catalog carries structured major/level restrictions.
+No README metrics update (numbers did not move materially).
 
 ---
 

@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
+from src.rank.taxonomy import education_level_matches, majors_match
 
 
 def _row(**kwargs) -> dict:
@@ -214,6 +215,79 @@ def test_apply_eligibility_filter_collects_multiple_reasons() -> None:
         "EDUCATION_LEVEL_MISMATCH",
         "CITIZENSHIP_MISMATCH",
     ]
+
+
+def test_family_match_passes_for_related_major(sample_profile: StudentProfile) -> None:
+    """A Computer Science profile matches Computer Engineering / STEM awards."""
+    df = pd.DataFrame(
+        [
+            _row(scholarship_id="ce", majors_allowed=["Computer Engineering"]),
+            _row(scholarship_id="stem", majors_allowed=["STEM"]),
+            _row(scholarship_id="eng", majors_allowed=["Engineering"]),
+        ]
+    )
+    eligible_df, ineligible_df = apply_eligibility_filter(df=df, profile=sample_profile)
+
+    assert set(eligible_df["scholarship_id"]) == {"ce", "stem", "eng"}
+    assert ineligible_df.empty
+
+
+def test_unrelated_major_still_fails(sample_profile: StudentProfile) -> None:
+    """A Computer Science profile is rejected from an unrelated (nursing) award."""
+    df = pd.DataFrame([_row(scholarship_id="health", majors_allowed=["Nursing"])])
+    _, ineligible_df = apply_eligibility_filter(df=df, profile=sample_profile)
+
+    assert ineligible_df.iloc[0]["reasons"] == ["MAJOR_NOT_ALLOWED"]
+
+
+def test_unknown_major_falls_back_to_exact_match() -> None:
+    """A major absent from the taxonomy only matches by exact string."""
+    profile = StudentProfile(major="Underwater Basket Weaving", today=date(2026, 2, 22))
+    assert majors_match("Underwater Basket Weaving", ["underwater basket weaving"]) is True
+    assert majors_match("Underwater Basket Weaving", ["Engineering"]) is False
+    # No restriction (empty allowed list / empty scholarship level) always passes.
+    assert majors_match("Underwater Basket Weaving", []) is True
+    assert education_level_matches("high school", None) is True
+    df = pd.DataFrame([_row(scholarship_id="niche", majors_allowed=["Engineering"])])
+    _, ineligible_df = apply_eligibility_filter(df=df, profile=profile)
+    assert ineligible_df.iloc[0]["reasons"] == ["MAJOR_NOT_ALLOWED"]
+
+
+def test_high_school_matches_undergraduate_by_adjacency() -> None:
+    """A college-bound high-school profile passes an undergraduate-labeled award."""
+    profile = StudentProfile(
+        major="Computer Science",
+        education_level="high school",
+        today=date(2026, 2, 22),
+    )
+    df = pd.DataFrame(
+        [
+            _row(scholarship_id="ug", education_level="Undergraduate"),
+            _row(scholarship_id="grad", education_level="Graduate"),
+        ]
+    )
+    eligible_df, ineligible_df = apply_eligibility_filter(df=df, profile=profile)
+
+    assert eligible_df["scholarship_id"].tolist() == ["ug"]
+    assert ineligible_df.iloc[0]["scholarship_id"] == "grad"
+    assert ineligible_df.iloc[0]["reasons"] == ["EDUCATION_LEVEL_MISMATCH"]
+
+
+def test_strict_education_level_restores_exact_behavior() -> None:
+    """The strict escape hatch rejects the high-school ↔ undergraduate adjacency."""
+    profile = StudentProfile(
+        major="Computer Science",
+        education_level="high school",
+        strict_education_level=True,
+        today=date(2026, 2, 22),
+    )
+    df = pd.DataFrame([_row(scholarship_id="ug", education_level="Undergraduate")])
+    eligible_df, ineligible_df = apply_eligibility_filter(df=df, profile=profile)
+
+    assert eligible_df.empty
+    assert ineligible_df.iloc[0]["reasons"] == ["EDUCATION_LEVEL_MISMATCH"]
+    assert education_level_matches("high school", "Undergraduate") is True
+    assert education_level_matches("high school", "Undergraduate", strict=True) is False
 
 
 def test_zero_amount_filtered_below_positive_amount(sample_profile: StudentProfile) -> None:

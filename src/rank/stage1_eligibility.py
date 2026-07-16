@@ -11,6 +11,7 @@ from datetime import date
 
 import pandas as pd
 
+from src.rank.taxonomy import education_level_matches, majors_match
 from src.text_utils import normalize_list as _normalize_list
 from src.text_utils import normalize_text as _normalize_text
 
@@ -21,7 +22,9 @@ class StudentProfile:
 
     All fields are optional so callers can supply only the attributes they know.
     ``today`` is used as the reference date for deadline comparisons; it
-    defaults to ``date.today()`` if not set.
+    defaults to ``date.today()`` if not set. When ``strict_education_level`` is
+    ``True`` the education check requires an exact level match instead of
+    allowing adjacency (e.g. high school ↔ undergraduate).
     """
 
     gpa: float | None = None
@@ -30,6 +33,7 @@ class StudentProfile:
     education_level: str | None = None
     citizenship: str | None = None
     today: date | None = None
+    strict_education_level: bool = False
 
 
 def _row_reasons(row: pd.Series, profile: StudentProfile, today: date) -> list[str]:
@@ -52,13 +56,15 @@ def _row_reasons(row: pd.Series, profile: StudentProfile, today: date) -> list[s
         reasons.append("STATE_NOT_ALLOWED")
 
     majors_allowed = _normalize_list(row.get("majors_allowed"))
-    profile_major = _normalize_text(profile.major)
-    if majors_allowed and profile_major not in majors_allowed:
+    if majors_allowed and not majors_match(profile.major, majors_allowed):
         reasons.append("MAJOR_NOT_ALLOWED")
 
     scholarship_education_level = _normalize_text(row.get("education_level"))
-    profile_education_level = _normalize_text(profile.education_level)
-    if scholarship_education_level and scholarship_education_level != profile_education_level:
+    if scholarship_education_level and not education_level_matches(
+        profile.education_level,
+        scholarship_education_level,
+        strict=profile.strict_education_level,
+    ):
         reasons.append("EDUCATION_LEVEL_MISMATCH")
 
     scholarship_citizenship = _normalize_text(row.get("citizenship"))
