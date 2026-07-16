@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import json
 import re
 from datetime import date
@@ -14,7 +9,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from helpers import explain_ranked_row, format_amount_range, reasons_to_text
+from app.helpers import explain_ranked_row, format_amount_range, reasons_to_text
 from scripts.run_ingest import get_latest_snapshot_path, run_ingest
 from src.embeddings.cache import ensure_embedding_store_for_df
 from src.eval.golden_students import get_golden_students

@@ -386,16 +386,16 @@ streamlit run app/main.py   # visual: app still boots after import fix
 ```
 
 **Checklist:**
-- [ ] Prune `reports/` to a curated set (2–3 showcase golden-eval + 1–2 weight-tuning
+- [x] Prune `reports/` to a curated set (2–3 showcase golden-eval + 1–2 weight-tuning
       reports, renamed or listed in a small `reports/README.md` explaining what each shows);
       gitignore future timestamped reports (keep the directory via the README)
-- [ ] Move `IMPLEMENTATION_CONTEXT.md` into `docs/` (or delete if fully superseded by
+- [x] Move `IMPLEMENTATION_CONTEXT.md` into `docs/` (or delete if fully superseded by
       `docs/system_design.md` — check content first)
-- [ ] Remove `docs/examples/MARS_PORTFOLIO_UPGRADE_PLAN.md` (foreign-project template)
-- [ ] Replace the `sys.path.insert` hack in `app/main.py` with a proper package import
+- [x] Remove `docs/examples/MARS_PORTFOLIO_UPGRADE_PLAN.md` (foreign-project template)
+- [x] Replace the `sys.path.insert` hack in `app/main.py` with a proper package import
       (`from app.helpers import ...`); confirm `streamlit run app/main.py` still works
       from the repo root
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 

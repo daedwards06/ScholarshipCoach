@@ -27,7 +27,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*"]
+include = ["src*", "app*", "scripts*"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
