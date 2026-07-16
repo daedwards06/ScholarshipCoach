@@ -22,6 +22,7 @@ dev = [
   "pytest",
   "ruff",
   "pytest-cov",
+  "mypy",
 ]
 
 [tool.setuptools.packages.find]
@@ -41,7 +42,12 @@ omit = ["src/scholarshipcoach.egg-info/*"]
 [tool.coverage.report]
 show_missing = true
 skip_empty = true
-fail_under = 50
+fail_under = 70
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+files = ["src"]
 
 [tool.ruff]
 line-length = 100

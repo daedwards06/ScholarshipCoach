@@ -342,16 +342,24 @@ python -m mypy src/
 ```
 
 **Checklist:**
-- [ ] Generate a pinned `requirements.lock` (`pip freeze` of the working venv, filtered to
+- [x] Generate a pinned `requirements.lock` (`pip freeze` of the working venv, filtered to
       project deps + transitive) and document in README: `pip install -r requirements.lock`
       for exact reproduction, `pip install -e .` for latest
-- [ ] Add `mypy` to the dev extras and a `python -m mypy src/` step to CI; add minimal
+- [x] Add `mypy` to the dev extras and a `python -m mypy src/` step to CI; add minimal
       `[tool.mypy]` config (start permissive: `ignore_missing_imports = true`); fix any
       errors surfaced
-- [ ] Raise `fail_under` from 50 to 70 so the enforced floor backs the advertised number
-- [ ] Fix the coverage badge: either wire a dynamic badge (Codecov or gist-based) or
+- [x] Raise `fail_under` from 50 to 70 so the enforced floor backs the advertised number
+- [x] Fix the coverage badge: either wire a dynamic badge (Codecov or gist-based) or
       relabel the static badge honestly (e.g. "coverage 73% (CI-enforced ≥ 70%)")
-- [ ] CI green on all steps; tests + ruff green locally
+- [x] CI green on all steps; tests + ruff green locally
+
+**Implementation note (2026-07-15):** `requirements.lock` is the 81-package transitive
+closure of the runtime + dev deps (computed via `importlib.metadata`, not a raw 123-line
+`pip freeze`, so IDE/jupyter cruft is excluded), pinned on Python 3.12. Added `[tool.mypy]`
+(`ignore_missing_imports = true`, `files = ["src"]`) and a "Type check" CI step — mypy ran
+**clean, 0 errors** across 37 source files, so no code changes were needed. `fail_under`
+raised 50 → 70; actual measured coverage is **76.75%**, so the badge now reads
+`coverage 77% (CI-enforced ≥ 70%)`. Local gate: 156 passed, ruff clean, mypy clean.
 
 ---
 

@@ -24,5 +24,8 @@ jobs:
       - name: Lint
         run: ruff check src/ scripts/ app/ tests/
 
+      - name: Type check
+        run: python -m mypy src/
+
       - name: Test
         run: python -m pytest tests/ -q --tb=short

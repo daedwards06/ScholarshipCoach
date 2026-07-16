@@ -5,7 +5,7 @@
 ### A Decision-Aware Scholarship Recommendation & Optimization System
 
 [![CI](https://github.com/daedwards06/ScholarshipCoach/actions/workflows/ci.yml/badge.svg)](https://github.com/daedwards06/ScholarshipCoach/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-73%25-brightgreen)](https://github.com/daedwards06/ScholarshipCoach)
+[![Coverage](https://img.shields.io/badge/coverage-77%25%20%28CI--enforced%20%E2%89%A5%2070%25%29-brightgreen)](https://github.com/daedwards06/ScholarshipCoach)
 [![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -224,7 +224,14 @@ The win model is **optional** and fully surfaced in the UI, so users can inspect
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e .
+pip install -e .            # latest compatible dependency versions
+```
+
+For an exact, byte-for-byte reproducible environment (pinned transitive closure,
+Python 3.12), install from the lockfile instead:
+
+```powershell
+pip install -r requirements.lock
 ```
 
 ### 2 — Ingest scholarships
