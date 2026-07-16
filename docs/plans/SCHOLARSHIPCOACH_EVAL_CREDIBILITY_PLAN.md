@@ -263,16 +263,25 @@ python scripts/evaluate_golden_students.py --k 10 --similarity-mode embeddings
 ```
 
 **Checklist:**
-- [ ] Split the reason code: `AMOUNT_ZERO` (a numeric amount is present and ≤ 0 → still
+- [x] Split the reason code: `AMOUNT_ZERO` (a numeric amount is present and ≤ 0 → still
       ineligible) vs unknown (both amount fields null → **eligible**, no reason code)
-- [ ] Confirm unknown-amount rows get `amount_utility = 0.0` (Stage 2) and `ev_proxy = 0` /
+- [x] Confirm unknown-amount rows get `amount_utility = 0.0` (Stage 2) and `ev_proxy = 0` /
       `expected_value = 0` (Stage 3) so they rank on fit alone, never on money
-- [ ] Card UI shows an "Amount not published" note for unknown-amount rows
-- [ ] Update tests: unknown-amount row passes Stage 1; stated-$0 row still filtered
-- [ ] Add a one-line note under Portfolio Plan Task 2.1 pointing here ("refined by
+- [x] Card UI shows an "Amount not published" note for unknown-amount rows
+- [x] Update tests: unknown-amount row passes Stage 1; stated-$0 row still filtered
+- [x] Add a one-line note under Portfolio Plan Task 2.1 pointing here ("refined by
       Eval Credibility Plan Task 5 — unknown amounts now pass Stage 1")
-- [ ] Re-run golden eval; update README metrics note if numbers move materially
-- [ ] Tests + ruff green
+- [x] Re-run golden eval; update README metrics note if numbers move materially
+- [x] Tests + ruff green
+
+**Re-eval note (2026-07-15):** On the golden-eval catalog snapshot, all 63 rows previously
+tagged `AMOUNT_MISSING_OR_ZERO` were *unknown* amounts (zero stated-$0 records), so the reason
+code disappears entirely under the split. Eligible count rose **198 → 207** (+9 net — the other
+54 formerly-amount-filtered rows are still ineligible for deadline/state reasons) and eligibility
+precision **0.4314 → 0.4510**. Crucially, headline **NDCG@10 held at 0.7175**: unknown-amount rows
+carry zero amount utility / EV, so they rank on fit alone and did not displace any top-10 result.
+The README metrics table cites a different (163-record Pareto) catalog and its headline NDCG did
+not move, so no README update (numbers did not move materially there).
 
 ---
 

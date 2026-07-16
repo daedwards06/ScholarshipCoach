@@ -74,13 +74,19 @@ def _row_reasons(row: pd.Series, profile: StudentProfile, today: date) -> list[s
 
     amount_max = row.get("amount_max")
     amount_min = row.get("amount_min")
-    resolved_amount = 0.0
-    if amount_max is not None and not pd.isna(amount_max):
+    has_amount_max = amount_max is not None and not pd.isna(amount_max)
+    has_amount_min = amount_min is not None and not pd.isna(amount_min)
+    if has_amount_max:
         resolved_amount = float(amount_max)
-    elif amount_min is not None and not pd.isna(amount_min):
+    elif has_amount_min:
         resolved_amount = float(amount_min)
-    if resolved_amount <= 0.0:
-        reasons.append("AMOUNT_MISSING_OR_ZERO")
+    else:
+        resolved_amount = None
+    if resolved_amount is not None and resolved_amount <= 0.0:
+        # A stated non-positive amount is a real disqualifier; an *unknown*
+        # amount (both fields null) is a data-quality gap, not ineligibility,
+        # so it passes through with zero amount utility (Stage 2/3) instead.
+        reasons.append("AMOUNT_ZERO")
 
     return reasons
 

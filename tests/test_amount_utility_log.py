@@ -19,3 +19,19 @@ def test_log_amount_utility_reduces_extreme_outlier_dominance() -> None:
     assert linear[1] == 1.0
     assert log_scaled[1] == 1.0
     assert log_scaled[0] > linear[0]
+
+
+def test_unknown_amount_yields_zero_utility() -> None:
+    """An unknown-amount row (both fields null) contributes zero amount utility."""
+    df = pd.DataFrame(
+        [
+            {"amount_min": None, "amount_max": None},
+            {"amount_min": None, "amount_max": 5_000.0},
+        ]
+    )
+
+    log_scaled = _compute_amount_utility(df, mode="log")
+    linear = _compute_amount_utility(df, mode="linear")
+
+    assert log_scaled[0] == 0.0
+    assert linear[0] == 0.0

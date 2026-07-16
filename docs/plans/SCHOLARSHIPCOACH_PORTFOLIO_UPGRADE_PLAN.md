@@ -672,6 +672,11 @@ REQUIREMENTS:
 
 ### Task 2.1: Fix $0-Amount Scholarships Ranking Highly
 
+> **Refined by Eval Credibility Plan Task 5** — unknown amounts (both amount fields
+> null) now pass Stage 1 (`AMOUNT_ZERO` only filters a *stated* non-positive amount);
+> they rank on fit alone with zero amount utility and are flagged "Amount not published"
+> in the UI.
+
 **Why:** Scholarships with `amount_max = 0` or `None` are ranking #1 in some profiles because the win model assigns them high `p_win` (0.72) while `expected_value = 0`. The ranking over-weights non-monetary signals. For your student's actual use, recommending $0 scholarships is worse than useless â€” it wastes time.
 
 **Preflight Files:**

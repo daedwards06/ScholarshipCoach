@@ -404,6 +404,7 @@ def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
     sponsor = str(row.get("sponsor") or "")
     deadline = str(row.get("deadline") or "")
     amount_str = format_amount_range(row.get("amount_min"), row.get("amount_max"))
+    amount_not_published = pd.isna(row.get("amount_min")) and pd.isna(row.get("amount_max"))
     source_url = str(row.get("source_url") or "").strip()
 
     days_until = _calculate_days_until_deadline(deadline, today_value)
@@ -421,6 +422,8 @@ def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
         col_amt, col_deadline = st.columns(2)
         with col_amt:
             st.text(f"Award: {amount_str}")
+            if amount_not_published:
+                st.caption("Amount not published — ranked on fit alone")
         with col_deadline:
             st.text(f"Deadline: {deadline if deadline else 'Unknown'}")
 

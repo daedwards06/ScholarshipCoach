@@ -34,8 +34,8 @@ def _row(**kwargs) -> dict:
         ({"majors_allowed": ["History"]}, "MAJOR_NOT_ALLOWED"),
         ({"education_level": "Graduate"}, "EDUCATION_LEVEL_MISMATCH"),
         ({"citizenship": "Canada"}, "CITIZENSHIP_MISMATCH"),
-        ({"amount_max": 0.0}, "AMOUNT_MISSING_OR_ZERO"),
-        ({"amount_max": None}, "AMOUNT_MISSING_OR_ZERO"),
+        ({"amount_max": 0.0}, "AMOUNT_ZERO"),
+        ({"amount_min": -100.0, "amount_max": None}, "AMOUNT_ZERO"),
     ],
 )
 def test_each_reason_code_is_emitted_individually(
@@ -290,19 +290,22 @@ def test_strict_education_level_restores_exact_behavior() -> None:
     assert education_level_matches("high school", "Undergraduate", strict=True) is False
 
 
-def test_zero_amount_filtered_below_positive_amount(sample_profile: StudentProfile) -> None:
-    """A $0-amount scholarship is filtered in Stage 1; a $5000 one passes through."""
+def test_stated_zero_amount_filtered_but_unknown_amount_passes(
+    sample_profile: StudentProfile,
+) -> None:
+    """A stated $0 amount is filtered as AMOUNT_ZERO; an *unknown* amount passes Stage 1."""
     df = pd.DataFrame(
         [
             _row(scholarship_id="zero-amount", amount_max=0.0, amount_min=None),
-            _row(scholarship_id="missing-amount", amount_max=None, amount_min=None),
+            _row(scholarship_id="unknown-amount", amount_max=None, amount_min=None),
             _row(scholarship_id="positive-amount", amount_max=5000.0),
         ]
     )
     eligible_df, ineligible_df = apply_eligibility_filter(df=df, profile=sample_profile)
 
-    assert eligible_df["scholarship_id"].tolist() == ["positive-amount"]
-    ineligible_ids = set(ineligible_df["scholarship_id"])
-    assert ineligible_ids == {"zero-amount", "missing-amount"}
-    for _, row in ineligible_df.iterrows():
-        assert "AMOUNT_MISSING_OR_ZERO" in row["reasons"]
+    assert set(eligible_df["scholarship_id"]) == {"unknown-amount", "positive-amount"}
+    assert ineligible_df["scholarship_id"].tolist() == ["zero-amount"]
+    assert ineligible_df.iloc[0]["reasons"] == ["AMOUNT_ZERO"]
+    # An unknown-amount row carries no reason code — it is eligible, not disqualified.
+    unknown_row = eligible_df[eligible_df["scholarship_id"] == "unknown-amount"].iloc[0]
+    assert unknown_row["reasons"] == []
