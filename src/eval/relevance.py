@@ -30,12 +30,19 @@ class RelevanceConfig:
         tfidf_threshold: Minimum TF-IDF cosine similarity to assign label ≥ 1.
         embed_threshold: Minimum embedding cosine similarity to assign label ≥ 1.
         strict_requires_all_of: Profile fields that must all match for label 2.
+        require_major_match_for_label2: When ``True`` (default), label 2 requires
+            an *explicit* major match — a scholarship that lists no
+            ``majors_allowed`` no longer passes the major check vacuously. This
+            stops unrestricted scholarships (open to all majors) from earning the
+            top relevance label on keyword overlap alone. Set ``False`` to restore
+            the older "compatible-or-unrestricted" behavior.
     """
 
     label_mode: Literal["hybrid", "no_similarity"] = "hybrid"
     tfidf_threshold: float = 0.12
     embed_threshold: float = 0.30
     strict_requires_all_of: tuple[str, ...] = ("major", "state", "education_level")
+    require_major_match_for_label2: bool = True
 
 
 DEFAULT_RELEVANCE_CONFIG = RelevanceConfig()
@@ -57,8 +64,13 @@ def _strict_profile_match(
     majors_allowed = _normalize_list(row.get("majors_allowed"))
     states_allowed = _normalize_list(row.get("states_allowed"))
     scholarship_edu = _normalize_text(row.get("education_level"))
+    profile_major = _normalize_text(profile.major)
+    if cfg.require_major_match_for_label2:
+        major_match = bool(majors_allowed) and (profile_major in majors_allowed)
+    else:
+        major_match = (not majors_allowed) or (profile_major in majors_allowed)
     checks: dict[str, bool] = {
-        "major": (not majors_allowed) or (_normalize_text(profile.major) in majors_allowed),
+        "major": major_match,
         "state": (not states_allowed) or (_normalize_text(profile.state) in states_allowed),
         "education_level": (not scholarship_edu)
         or (scholarship_edu == _normalize_text(profile.education_level)),
@@ -103,7 +115,10 @@ def proxy_relevance_label(
 ) -> int:
     """Assign a proxy relevance label (0, 1, or 2) to a single scholarship row.
 
-    Label 2 (highly relevant): keyword overlap AND strict profile match.
+    Label 2 (highly relevant): keyword overlap AND strict profile match. By
+        default the strict match requires an explicit major match (see
+        ``RelevanceConfig.require_major_match_for_label2``), so scholarships open
+        to all majors do not earn label 2 on keyword overlap alone.
     Label 1 (relevant): keyword overlap OR text similarity above threshold.
     Label 0 (not relevant): neither condition met.
 

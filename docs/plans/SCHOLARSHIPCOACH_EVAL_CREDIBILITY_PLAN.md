@@ -149,23 +149,43 @@ python scripts/evaluate_golden_students.py --k 10 --human-labels data/eval/human
 ```
 
 **Checklist:**
-- [ ] Add `scripts/make_labeling_worksheet.py`: emits `data/eval/labeling_worksheet_<profile>.csv`
+- [x] Add `scripts/make_labeling_worksheet.py`: emits `data/eval/labeling_worksheet_<profile>.csv`
       with scholarship_id, title, sponsor, amount, deadline, description snippet, and an
       empty `label` column (0/1/2), sampled across the eligible set (not just the top-k,
       to avoid ranking bias in the label set)
-- [ ] Add `--human-labels <csv>` to `evaluate_golden_students.py`: when provided, compute
+- [x] Add `--human-labels <csv>` to `evaluate_golden_students.py`: when provided, compute
       and report NDCG@k against human labels alongside proxy NDCG (rows without a human
       label are excluded from the human metric, not zero-filled)
-- [ ] Commit a small `data/eval/human_labels_sample.csv` fixture (5–10 rows) so the path
+- [x] Commit a small `data/eval/human_labels_sample.csv` fixture (5–10 rows) so the path
       is exercised by a test
-- [ ] Add tests for worksheet generation and human-label NDCG computation
-- [ ] Document the labeling workflow in `docs/evaluation.md` (label rubric = same 0/1/2
+- [x] Add tests for worksheet generation and human-label NDCG computation
+- [x] Document the labeling workflow in `docs/evaluation.md` (label rubric = same 0/1/2
       semantics as the proxy)
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 *(Follow-up human step, outside this task: fill in the worksheet for
 `nc_cs_rising_sophomore` and 1–2 golden profiles, then re-run eval with `--human-labels`
 and refresh the README metrics table with the human-labeled NDCG.)*
+
+**Follow-ups completed during human labeling (2026-07-08):**
+- Hand-labeled **two** golden profiles (44 pairs): `nc_cs_rising_sophomore` (CS) and
+  `golden_tx_nursing_ug_us` (nursing), combined in `data/eval/human_labels.csv`. 2-profile mean
+  **Human NDCG@10 ≈ 0.85** (CS 0.98 / nursing 0.71). The CS↔nursing gap is real — it widens to
+  1.00 vs 0.63 under a strict "2s-only" reading, so it is not an artifact of labeling generosity —
+  and reflects a catalog/tuning skew toward technical scholarships. README metrics table refreshed
+  with a "Human-labeled check" subsection.
+- Added `scripts/check_label_agreement.py` — a diagnostic that recomputes each scholarship's
+  proxy label and flags human↔proxy disagreements (sharp = `|human − proxy| ≥ 2`), with a
+  `source_url` column added to the worksheet to make hand-judging easier.
+- **Proxy label-2 tightening (design change to a headline metric).** Labeling surfaced that the
+  top proxy label (2) was awarded to scholarships publishing *no* major restriction (e.g. a
+  nursing award rated highly relevant for a CS student), because the strict match passed
+  vacuously on an empty `majors_allowed`. `RelevanceConfig.require_major_match_for_label2`
+  (default **on**, CLI `--[no-]require-major-match-for-label2`) now requires an explicit major
+  match for label 2. Measured effect: sharp human↔proxy disagreements 4 → 0. Trade-off:
+  relevant-but-unrestricted awards now cap at label 1 (the proxy depends on structured major
+  metadata). **Cross-ref Task 4:** once `majors_match` / the major taxonomy lands, the proxy's
+  "explicit major match" should reuse family matching rather than exact-string.
 
 ---
 

@@ -8,11 +8,16 @@ import pytest
 
 from scripts.evaluate_golden_students import (
     _cross_label_check,
+    _human_label_check,
     _load_weight_overrides,
     _markdown_report,
 )
 from src.eval.golden_students import get_golden_students
+from src.eval.human_labels import load_human_labels
 from src.eval.relevance import RelevanceConfig
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+SAMPLE_HUMAN_LABELS = ROOT_DIR / "data" / "eval" / "human_labels_sample.csv"
 
 
 def test_load_weight_overrides_reads_best_weights_payload(tmp_path: Path) -> None:
@@ -209,3 +214,114 @@ def test_markdown_report_renders_cross_label_section() -> None:
     assert "## Cross-Label NDCG Check" in report
     assert "| hybrid | 0.6100 |" in report
     assert "| no_similarity | 0.5400 |" in report
+
+
+def test_load_human_labels_reads_sample_fixture() -> None:
+    labels = load_human_labels(SAMPLE_HUMAN_LABELS)
+
+    assert set(labels) == {"nc_cs_rising_sophomore"}
+    profile_labels = labels["nc_cs_rising_sophomore"]
+    assert len(profile_labels) == 8
+    assert set(profile_labels.values()) <= {0, 1, 2}
+    assert profile_labels["188521397d327a825b5253de6e012bbbd2171ab6"] == 2
+
+
+def test_load_human_labels_skips_blank_and_out_of_range(tmp_path: Path) -> None:
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text(
+        "profile_id,scholarship_id,label\n"
+        "p,sch_a,2\n"
+        "p,sch_b,\n"  # blank label -> skipped
+        "p,sch_c,5\n"  # out of range -> skipped
+        "p,sch_d,not_a_number\n"  # unparseable -> skipped
+        ",sch_e,1\n",  # blank profile -> skipped
+        encoding="utf-8",
+    )
+
+    labels = load_human_labels(csv_path)
+
+    assert labels == {"p": {"sch_a": 2}}
+
+
+def test_load_human_labels_rejects_missing_columns(tmp_path: Path) -> None:
+    csv_path = tmp_path / "bad.csv"
+    csv_path.write_text("scholarship_id,label\nsch_a,2\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="missing columns"):
+        load_human_labels(csv_path)
+
+
+def test_human_label_check_scores_only_labeled_rows() -> None:
+    student = next(s for s in get_golden_students() if s.student_id == "golden_ca_cs_ug_us")
+    # Ranked order a, b, c, d. Human labels cover a(2), c(1), d(0) — b is unlabeled and
+    # must be dropped (not zero-filled), leaving the labeled order [2, 1, 0].
+    reranked_df = pd.DataFrame(
+        [
+            {"scholarship_id": "sch_a"},
+            {"scholarship_id": "sch_b"},
+            {"scholarship_id": "sch_c"},
+            {"scholarship_id": "sch_d"},
+        ]
+    )
+    per_profile_results = [{"student_id": student.student_id, "k": 4, "reranked_df": reranked_df}]
+    human_labels = {student.student_id: {"sch_a": 2, "sch_c": 1, "sch_d": 0}}
+
+    result = _human_label_check(
+        [student],
+        per_profile_results,
+        human_labels,
+        k=10,
+        enabled=True,
+    )
+
+    assert result is not None
+    assert result["profiles_with_labels"] == 1
+    assert result["labeled_pairs"] == 3
+    assert result["per_profile_labeled_counts"] == {student.student_id: 3}
+    # [2, 1, 0] is already ideally ordered, so NDCG is 1.0.
+    assert result["ndcg_at_k"] == pytest.approx(1.0)
+
+
+def test_human_label_check_disabled_returns_none() -> None:
+    result = _human_label_check([], [], None, k=10, enabled=False)
+    assert result is None
+
+
+def test_markdown_report_renders_human_label_section() -> None:
+    report = _markdown_report(
+        snapshot_path=Path("snapshot.parquet"),
+        snapshot_count=1,
+        generated_at="2026-02-28T00:00:00Z",
+        weights_path=None,
+        metrics={
+            "eligibility": {
+                "eligibility_precision": 1.0,
+                "eligible_count": 1,
+                "total_count": 1,
+                "ineligible_reason_breakdown": {},
+            },
+            "coverage_at_k": {"k": 1, "coverage_at_k": 1.0, "unique_recommended_count": 1},
+            "amount_distribution_topk": {"mean": 0.0, "median": 0.0, "max": 0.0},
+            "ranking_stability": {"is_stable": True},
+            "ndcg_at_k": {"k": 10, "value": 0.72},
+            "proxy_relevance": {
+                "label_mode": "hybrid",
+                "text_similarity_thresholds": {"tfidf": 0.12, "embeddings": 0.30},
+                "active_text_similarity_threshold": 0.12,
+                "calibration": None,
+            },
+        },
+        students=[],
+        per_profile_topk={},
+        human_label={
+            "k": 10,
+            "ndcg_at_k": 0.95,
+            "profiles_with_labels": 1,
+            "labeled_pairs": 8,
+        },
+    )
+
+    assert "## Human-Labeled NDCG Check" in report
+    assert "- Proxy NDCG@K (K=10): 0.7200" in report
+    assert "- Human NDCG@K (K=10): 0.9500" in report
+    assert "- Labeled (profile, scholarship) pairs: 8" in report

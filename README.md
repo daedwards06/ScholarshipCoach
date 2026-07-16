@@ -96,6 +96,31 @@ Evaluation is fully **offline and snapshot-based**. Proxy relevance labels are h
 
 All experiments are deterministic, snapshot-driven, versioned per objective, and reproducible via CLI flags.
 
+**Human-labeled check** (2 hand-labeled profiles, 44 rows, 51-record June 2026 snapshot):
+
+| Profile | Human NDCG@10 |
+|:---|---:|
+| `nc_cs_rising_sophomore` (CS) | 0.98 |
+| `golden_tx_nursing_ug_us` (nursing) | 0.71 |
+| **2-profile mean** | **0.85** |
+
+Across both profiles: **29 / 44 (66%)** exact human↔proxy label agreement, **0** sharp
+disagreements (0↔2).
+
+Human NDCG is a **non-circular** measurement — labels are hand-judged, so they do not share features
+with the ranker. Two honest signals fall out of it:
+
+- The ranker orders scholarships **much better for the CS student (0.98) than the nursing student
+  (0.71)** — this catalog and the weight tuning skew technical, so a nursing student is served less
+  well. Single-profile (CS-only) reporting would have hidden this.
+- The gap is **not** an artifact of labeling standard: under a strict reading (only `2`s count) it
+  *widens* to 1.00 vs 0.63. The same scholarship flips across profiles as expected — the *Brave of
+  Heart Nursing* award is a `0` for the CS student and a `2` for the nursing student.
+
+These are *not* directly comparable to the proxy NDCG above (averaged across 9 golden profiles on a
+larger catalog). Reproduce with `--human-labels`; see
+[`docs/evaluation.md`](docs/evaluation.md#human-labeled-evaluation).
+
 ---
 
 ## Limitations & Evaluation Honesty
@@ -108,8 +133,16 @@ See [`docs/evaluation.md`](docs/evaluation.md) for the full methodology.
   to maximize NDCG against those labels is therefore partly self-fulfilling: the tuner can gain
   by upweighting the features the labels are made of. As a check, `--cross-label-check` scores
   the *same* ranking under both label heuristics (`hybrid` and `no_similarity`) and reports NDCG
-  side by side; gains that survive the switch are more believable. A small human-labeled eval set
-  (planned) is the stronger fix.
+  side by side; gains that survive the switch are more believable. A small **human-labeled eval set
+  now exists** (hand-judged for a CS and a nursing profile, 44 pairs), scoring **mean NDCG@10 ≈ 0.85**
+  (CS 0.98 / nursing 0.71) — a non-circular headline the proxy can't game.
+- **Building the human set exposed a real proxy weakness.** The top label (2) was being awarded to
+  scholarships that publish *no* major restriction — so a nursing award could rate as highly relevant
+  for a CS student. The label-2 rule now requires an **explicit major match**
+  (`require_major_match_for_label2`, default on), which removed every sharp human↔proxy disagreement.
+  The trade-off: relevant-but-unrestricted awards (e.g. a general STEM scholarship) now cap at label 1,
+  reflecting the proxy's dependence on structured major metadata. `scripts/check_label_agreement.py`
+  flags the remaining human↔proxy gaps.
 - **The win model is synthetic.** `p_win` and expected value are trained on labels from a
   transparent heuristic generator, not real award outcomes. They demonstrate a calibration/EV
   pipeline — they are not validated outcome forecasts.

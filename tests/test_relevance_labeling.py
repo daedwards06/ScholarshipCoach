@@ -83,6 +83,39 @@ def test_tfidf_threshold_boundary(
     assert proxy_relevance_label(row, sample_golden_student, similarity_mode="tfidf", cfg=cfg) == expected_label
 
 
+def test_label2_requires_positive_major_match_by_default(
+    sample_golden_student: GoldenStudent,
+) -> None:
+    # Scholarship open to all majors (no restriction) with keyword overlap.
+    row = _open_row(keyword_overlap=1.0)
+
+    # Default: an unrestricted scholarship cannot earn label 2 on keyword overlap
+    # alone; it caps at 1.
+    default_cfg = RelevanceConfig()
+    assert proxy_relevance_label(row, sample_golden_student, similarity_mode="tfidf", cfg=default_cfg) == 1
+
+    # Escape hatch restores the older vacuous-match behavior (label 2).
+    legacy_cfg = RelevanceConfig(require_major_match_for_label2=False)
+    assert proxy_relevance_label(row, sample_golden_student, similarity_mode="tfidf", cfg=legacy_cfg) == 2
+
+
+def test_label2_positive_major_match_still_scores_two(
+    sample_golden_student: GoldenStudent,
+) -> None:
+    # Scholarship that explicitly targets the student's major (no state/edu limit).
+    row = pd.Series(
+        {
+            "majors_allowed": ["Computer Science"],
+            "states_allowed": [],
+            "education_level": None,
+            "keyword_overlap": 1.0,
+            "text_sim": 0.0,
+        }
+    )
+
+    assert proxy_relevance_label(row, sample_golden_student, similarity_mode="tfidf", cfg=RelevanceConfig()) == 2
+
+
 def test_proxy_relevance_labels_are_deterministic_for_tiny_frame(
     sample_golden_student: GoldenStudent,
 ) -> None:

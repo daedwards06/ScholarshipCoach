@@ -11,6 +11,7 @@ from typing import Any
 import pandas as pd
 
 from src.eval.golden_students import GoldenStudent, get_golden_students
+from src.eval.human_labels import load_human_labels
 from src.eval.metrics import (
     amount_distribution_stats,
     compute_ndcg_at_k,
@@ -103,6 +104,14 @@ def parse_args() -> argparse.Namespace:
         help="Proxy relevance threshold for embeddings mode. Defaults to 0.30.",
     )
     parser.add_argument(
+        "--require-major-match-for-label2",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Require an explicit major match for proxy label 2 (default). Use "
+        "--no-require-major-match-for-label2 to restore the older behavior where "
+        "scholarships open to all majors could earn label 2 on keyword overlap alone.",
+    )
+    parser.add_argument(
         "--calibrate-thresholds",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -114,6 +123,14 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help="Score the same ranking under BOTH proxy label modes (hybrid and no_similarity) "
         "and report NDCG@k side by side, as a check on proxy-label circularity.",
+    )
+    parser.add_argument(
+        "--human-labels",
+        type=Path,
+        default=None,
+        help="CSV of human relevance labels (profile_id, scholarship_id, label 0/1/2). "
+        "When provided, report human-judged NDCG@k alongside proxy NDCG. Rows without a "
+        "label are excluded from the human metric, not zero-filled.",
     )
     parser.add_argument(
         "--use-best-weights",
@@ -414,6 +431,50 @@ def _cross_label_check(
     }
 
 
+def _human_label_check(
+    students: list[GoldenStudent],
+    per_profile_results: list[dict[str, Any]],
+    human_labels: dict[str, dict[str, int]] | None,
+    *,
+    k: int,
+    enabled: bool,
+) -> dict[str, Any] | None:
+    """Compute human-judged NDCG@k over only the rows a human labelled.
+
+    For each profile, the ranked order is taken from its reranked frame and
+    filtered to scholarships that carry a human label; unlabelled rows are
+    dropped (not zero-filled), so the metric reflects only judged items.
+    """
+    if not enabled or not human_labels:
+        return None
+
+    labels_by_profile: dict[str, list[int]] = {}
+    per_profile_labeled_counts: dict[str, int] = {}
+    for student, result in zip(students, per_profile_results, strict=True):
+        profile_labels = human_labels.get(student.student_id)
+        if not profile_labels:
+            continue
+        reranked_df = result["reranked_df"]
+        if not isinstance(reranked_df, pd.DataFrame) or reranked_df.empty:
+            continue
+        ordered_labels = [
+            profile_labels[str(scholarship_id)]
+            for scholarship_id in reranked_df["scholarship_id"]
+            if str(scholarship_id) in profile_labels
+        ]
+        if ordered_labels:
+            labels_by_profile[student.student_id] = ordered_labels
+            per_profile_labeled_counts[student.student_id] = len(ordered_labels)
+
+    return {
+        "k": k,
+        "profiles_with_labels": len(labels_by_profile),
+        "labeled_pairs": int(sum(per_profile_labeled_counts.values())),
+        "per_profile_labeled_counts": per_profile_labeled_counts,
+        "ndcg_at_k": compute_ndcg_at_k(labels_by_profile, k=k),
+    }
+
+
 def _metrics_payload(
     per_profile_results: list[dict[str, Any]],
     per_profile_topk: dict[str, list[dict[str, Any]]],
@@ -439,7 +500,11 @@ def _metrics_payload(
         "ndcg_at_k": {"k": max_k_observed, "value": ndcg},
         "proxy_relevance": {
             "labels": {
-                "2": "major/state/education match and keyword overlap > 0",
+                "2": (
+                    "explicit major match, compatible state/education, and keyword overlap > 0"
+                    if relevance_config.require_major_match_for_label2
+                    else "major/state/education compatible and keyword overlap > 0"
+                ),
                 "1": (
                     "keyword overlap > 0 OR text similarity >= mode threshold"
                     if relevance_config.label_mode == "hybrid"
@@ -499,6 +564,7 @@ def _markdown_report(
     use_win_model: bool = False,
     win_model_path: Path | None = None,
     cross_label: dict[str, Any] | None = None,
+    human_label: dict[str, Any] | None = None,
 ) -> str:
     lines: list[str] = []
     proxy_relevance = metrics.get("proxy_relevance", {})
@@ -605,6 +671,24 @@ def _markdown_report(
             lines.append(f"| {label_mode} | {_format_ndcg(value)} |")
         lines.append("")
 
+    if human_label:
+        lines.append("## Human-Labeled NDCG Check")
+        lines.append("")
+        lines.append(
+            "NDCG@k computed against hand-labeled relevance judgements (same 0/1/2 semantics "
+            "as the proxy). Only human-judged scholarships are scored; unlabeled rows are "
+            "excluded, not zero-filled. Because human labels do not share features with the "
+            "ranker, this is a more defensible headline than proxy NDCG."
+        )
+        lines.append("")
+        lines.append(f"- Proxy NDCG@K (K={metrics['ndcg_at_k']['k']}): {_format_ndcg(metrics['ndcg_at_k']['value'])}")
+        lines.append(
+            f"- Human NDCG@K (K={human_label.get('k')}): {_format_ndcg(human_label.get('ndcg_at_k'))}"
+        )
+        lines.append(f"- Profiles with labels: {human_label.get('profiles_with_labels', 0)}")
+        lines.append(f"- Labeled (profile, scholarship) pairs: {human_label.get('labeled_pairs', 0)}")
+        lines.append("")
+
     lines.append("## Per Profile Top-K")
     lines.append("")
 
@@ -686,6 +770,7 @@ def main() -> int:
         label_mode=args.label_mode,
         tfidf_threshold=args.tfidf_threshold,
         embed_threshold=args.embed_threshold,
+        require_major_match_for_label2=args.require_major_match_for_label2,
     )
     snapshot_path = _resolve_snapshot_path(args.snapshot, args.processed_dir)
     weights_path, used_best_weights = _resolve_weight_path(args.weights, args.use_best_weights)
@@ -751,6 +836,15 @@ def main() -> int:
         k=max_k_observed,
         enabled=args.cross_label_check,
     )
+    human_labels_path = _resolve_path(args.human_labels) if args.human_labels else None
+    human_labels = load_human_labels(human_labels_path) if human_labels_path else None
+    human_label = _human_label_check(
+        students,
+        run_one_results,
+        human_labels,
+        k=args.k,
+        enabled=human_labels is not None,
+    )
 
     metrics = _metrics_payload(
         run_one_results,
@@ -788,6 +882,7 @@ def main() -> int:
         students=students,
         per_profile_topk=run_one_topk,
         cross_label=cross_label,
+        human_label=human_label,
     )
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     markdown_path.write_text(markdown_text, encoding="utf-8")
@@ -808,6 +903,9 @@ def main() -> int:
         ),
         "calibration": calibration,
         "cross_label_check": cross_label,
+        "human_label_check": (
+            {**human_label, "source": str(human_labels_path)} if human_label else None
+        ),
         "weights_path": str(weights_path) if weights_path is not None else None,
         "used_baseline_weights": weights_path is None,
         "used_best_weights": used_best_weights,

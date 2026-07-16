@@ -40,6 +40,21 @@ class GoldenStudent:
         }
 
 
+def get_golden_student(student_id: str) -> GoldenStudent:
+    """Return the golden student with ``student_id``.
+
+    Raises:
+        ValueError: If no golden student has the given id, with the available
+            ids listed in the message.
+    """
+    students = get_golden_students()
+    for student in students:
+        if student.student_id == student_id:
+            return student
+    available = ", ".join(s.student_id for s in students)
+    raise ValueError(f"Unknown golden profile id '{student_id}'. Available: {available}")
+
+
 def get_golden_students() -> list[GoldenStudent]:
     """Return the full list of golden student evaluation fixtures.
 
