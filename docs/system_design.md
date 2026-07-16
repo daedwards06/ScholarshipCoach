@@ -58,3 +58,14 @@ Stage 3 now has an optional local-only win probability layer for portfolio demon
 - When the win model is disabled, the existing `ev_proxy_norm` path is unchanged
 
 This model is illustrative. It should not be treated as a real outcome predictor or a guarantee of scholarship success.
+
+### Framing: a calibration/recovery demonstration on a known generator
+
+Because the labels come from a transparent logistic generator (`src/win_model/synthetic.py`, `GENERATOR_COEFFICIENTS` and `p_true`), the honest claim for this component is not "it forecasts award outcomes" but "it is a calibration/EV pipeline that provably recovers its known generator." The training report (`train_report_*.json`) carries a `recovery` section proving this:
+
+- `recovery.p_true` — Pearson correlation and mean absolute error between the predicted `p_win` and the generator's latent `p_true` on the held-out test split.
+- `recovery.coefficients` — per-feature comparison of the base model's learned logistic coefficients against the generator coefficients. Magnitudes differ (the base model is fit on standardised features) but the *sign* is directly comparable, so `direction_consistent` flags whether each learned effect points the same way as the generator. Features not used by the generator report `direction_consistent = null`.
+
+### Why the Platt calibrator slot stays
+
+The base model is a linear `LogisticRegression`, and the generator is linear, so an additional Platt (logistic) calibration step is mathematically near-redundant today — it cannot improve a base model that is already well-calibrated in-family. It is retained deliberately for **pipeline realism**: the calibrator slot is the seam where isotonic or Platt scaling becomes load-bearing the moment the base model is swapped for a non-linear estimator (e.g. gradient-boosted trees) or the synthetic labels are replaced with real award outcomes. Keeping the slot wired and exercised in every training run means that swap is a one-line change, not a pipeline redesign. This is a conscious choice over swapping to a non-linear base model now, which would trade a clean linear recovery proof for calibration that "visibly does something" but no longer demonstrates exact generator recovery.

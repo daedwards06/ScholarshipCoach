@@ -16,6 +16,25 @@ import pandas as pd
 from src.rank.stage2_scoring import build_scholarship_text, build_student_profile_text
 from src.win_model.features import FEATURE_COLUMNS, build_pair_features
 
+# Single source of truth for the synthetic label generator. The win model is a
+# calibration/recovery demonstration: it should provably recover these known
+# coefficients (directionally) and the resulting ``p_true``. Keys are feature
+# names in ``FEATURE_COLUMNS``; values are the coefficient applied to that
+# feature (after the clip/scale transforms below) inside the logit. Features
+# absent here contribute nothing to the generator.
+GENERATOR_INTERCEPT: float = -2.2
+GENERATOR_COEFFICIENTS: dict[str, float] = {
+    "major_match": 1.0,
+    "education_level_match": 0.7,
+    "state_match": 0.5,
+    "text_sim": 0.6,
+    "keyword_overlap": 0.6,
+    "gpa_above_min": 0.4,
+    "essay_required": -0.4,
+    "days_to_deadline": -0.25,
+    "amount_log": -0.35,
+}
+
 
 def _student_stage2_profile(student: Any) -> dict[str, Any]:
     if hasattr(student, "as_stage2_profile"):
@@ -152,16 +171,16 @@ def generate_synthetic_training_data(
     clipped_amount = (X_df["amount_log"] / max_amount_log).clip(lower=0.0, upper=1.0)
 
     logits = (
-        -2.2
-        + (1.0 * X_df["major_match"])
-        + (0.7 * X_df["education_level_match"])
-        + (0.5 * X_df["state_match"])
-        + (0.6 * clipped_text)
-        + (0.6 * clipped_keyword)
-        + (0.4 * clipped_gpa)
-        - (0.4 * X_df["essay_required"])
-        - (0.25 * clipped_deadline)
-        - (0.35 * clipped_amount)
+        GENERATOR_INTERCEPT
+        + (GENERATOR_COEFFICIENTS["major_match"] * X_df["major_match"])
+        + (GENERATOR_COEFFICIENTS["education_level_match"] * X_df["education_level_match"])
+        + (GENERATOR_COEFFICIENTS["state_match"] * X_df["state_match"])
+        + (GENERATOR_COEFFICIENTS["text_sim"] * clipped_text)
+        + (GENERATOR_COEFFICIENTS["keyword_overlap"] * clipped_keyword)
+        + (GENERATOR_COEFFICIENTS["gpa_above_min"] * clipped_gpa)
+        + (GENERATOR_COEFFICIENTS["essay_required"] * X_df["essay_required"])
+        + (GENERATOR_COEFFICIENTS["days_to_deadline"] * clipped_deadline)
+        + (GENERATOR_COEFFICIENTS["amount_log"] * clipped_amount)
     )
     p_true = 1.0 / (1.0 + np.exp(-np.asarray(logits, dtype=float)))
     y = rng.binomial(1, p_true, size=n_samples).astype(int)

@@ -307,21 +307,19 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Extend `train_win_model` to evaluate against the known generator: hold `p_true`
+- [x] Extend `train_win_model` to evaluate against the known generator: hold `p_true`
       for the test split and report correlation + mean absolute error between predicted
       `p_win` and `p_true` in the training report JSON
-- [ ] Add a "recovery check" section to the report: per-feature comparison of learned
+- [x] Add a "recovery check" section to the report: per-feature comparison of learned
       logistic coefficients vs. generator coefficients (directionally consistent)
-- [ ] Reframe the README Win Probability section: this is a calibration/EV *pipeline
+- [x] Reframe the README Win Probability section: this is a calibration/EV *pipeline
       demonstration on synthetic labels with a known generator*, validated by recovering
       `p_true` — not an outcome forecast (docs already say this; the README should too)
-- [ ] Address the Platt redundancy: either document why it stays (pipeline realism — the
+- [x] Address the Platt redundancy: document why it stays (pipeline realism — the
       calibrator slot is where isotonic/Platt goes when a non-linear base model or real
-      labels arrive) or swap the base model to a small gradient-boosted tree so
-      calibration visibly does something; pick ONE and note the choice in
-      `docs/system_design.md`
-- [ ] Test covering the new report fields
-- [ ] Tests + ruff green
+      labels arrive); choice noted in `docs/system_design.md`
+- [x] Test covering the new report fields
+- [x] Tests + ruff green
 
 ---
 

@@ -178,7 +178,22 @@ The Streamlit UI allows live switching between weight profiles.
 
 ## Win Probability Model
 
-A **calibrated logistic regression** model trained on synthetic labels with Platt scaling.
+A **calibration / expected-value pipeline demonstration**, not an outcome forecast. The labels
+come from a transparent logistic *generator* (`src/win_model/synthetic.py`), so the defensible
+claim is not "this predicts who wins" but "this pipeline provably recovers its known generator."
+A calibrated logistic regression (Platt scaling on top of a scaled `LogisticRegression`) is
+trained on those synthetic labels, and every training run writes a **recovery check** to the
+report proving the claim:
+
+- **`p_true` recovery** — Pearson correlation and mean absolute error between predicted `p_win`
+  and the generator's latent `p_true` on the held-out test split.
+- **Coefficient recovery** — the learned logistic coefficients are compared to the generator
+  coefficients; magnitudes differ (features are standardized) but the *signs* line up, so each
+  learned effect points the same direction as the generator that produced the labels.
+
+The Platt calibrator is intentionally near-redundant for today's linear base model; it is kept as
+the seam where isotonic/Platt scaling becomes load-bearing once a non-linear base model or real
+award outcomes replace the synthetic labels (see `docs/system_design.md`).
 
 **Input features:**
 

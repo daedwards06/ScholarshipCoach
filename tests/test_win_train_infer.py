@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -7,8 +8,9 @@ import numpy as np
 import pandas as pd
 
 from src.eval.golden_students import get_golden_students
+from src.win_model.features import FEATURE_COLUMNS
 from src.win_model.infer import load_model, predict_p_win
-from src.win_model.synthetic import generate_synthetic_training_data
+from src.win_model.synthetic import GENERATOR_COEFFICIENTS, generate_synthetic_training_data
 from src.win_model.train import train_win_model
 
 
@@ -91,3 +93,41 @@ def test_train_and_infer_win_model_are_deterministic(tmp_path: Path) -> None:
 
     assert np.all((first_pred >= 0.0) & (first_pred <= 1.0))
     assert np.allclose(first_pred, second_pred)
+
+
+def test_train_report_includes_generator_recovery(tmp_path: Path) -> None:
+    snapshot_df = _tiny_snapshot()
+    students = get_golden_students()[:3]
+
+    result = train_win_model(snapshot_df, students, tmp_path / "out", seed=0)
+
+    report = json.loads(Path(result["train_report_path"]).read_text(encoding="utf-8"))
+    recovery = report["recovery"]
+
+    # p_true recovery: predicted p_win closely tracks the generator's latent
+    # probability — the core honesty claim for this component.
+    p_true = recovery["p_true"]
+    assert p_true["n_test"] > 0
+    assert p_true["pearson_correlation"] is not None
+    assert p_true["pearson_correlation"] > 0.9
+    assert 0.0 <= p_true["mean_absolute_error"] <= 0.2
+
+    # Coefficient recovery: one row per feature, signs match the generator.
+    rows = recovery["coefficients"]
+    assert [row["feature"] for row in rows] == list(FEATURE_COLUMNS)
+    by_feature = {row["feature"]: row for row in rows}
+    assert by_feature["major_match"]["generator_coefficient"] == GENERATOR_COEFFICIENTS["major_match"]
+    # The strongest, non-collinear generator signals recover their direction.
+    for feature in ("major_match", "education_level_match", "state_match", "essay_required"):
+        assert by_feature[feature]["direction_consistent"] is True
+    # A feature the generator never uses has no defined direction.
+    assert by_feature["source_is_scholarship_america"]["direction_consistent"] is None
+    # The clear majority of generator-driven features recover their sign; a
+    # couple may be masked by collinearity in this tiny fixture (e.g. keyword
+    # overlap vs. text similarity), which the strong p_true recovery confirms.
+    generator_rows = [row for row in rows if row["generator_coefficient"] != 0.0]
+    consistent = sum(1 for row in generator_rows if row["direction_consistent"])
+    assert consistent >= len(generator_rows) - 1
+
+    # Returned dict mirrors the report's recovery section.
+    assert result["recovery"]["p_true"]["n_test"] == p_true["n_test"]
