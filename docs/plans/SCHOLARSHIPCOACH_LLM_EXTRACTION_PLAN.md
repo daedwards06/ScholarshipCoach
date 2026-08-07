@@ -174,20 +174,20 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Cache key = SHA1 of (source text fingerprint: title + description +
+- [x] Cache key = SHA1 of (source text fingerprint: title + description +
       eligibility_text, model name, `EXTRACTION_PROMPT_VERSION`)
-- [ ] Store extractions as JSON under
+- [x] Store extractions as JSON under
       `data/processed/llm_extractions/<model_sanitized>/<key>.json` including the
       validated fields plus metadata (`extracted_at`, model, prompt version)
-- [ ] `get_or_extract(client, cache_dir, record_fields) -> dict`: cache hit returns
+- [x] `get_or_extract(client, cache_dir, record_fields) -> dict`: cache hit returns
       stored result with **no API call**; miss calls `extract_fields`, validates,
       writes, returns; a `client=None` (disabled) with a cache miss returns `{}`
-- [ ] Add `data/processed/llm_extractions/` to `.gitignore` (build artifact, same
+- [x] Add `data/processed/llm_extractions/` to `.gitignore` (build artifact, same
       policy as embeddings)
-- [ ] `tests/test_llm_extraction_cache.py`: hit avoids the client (assert fake client
+- [x] `tests/test_llm_extraction_cache.py`: hit avoids the client (assert fake client
       not called), miss writes-then-reads identically, prompt-version bump changes the
       key, disabled-client behavior
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 

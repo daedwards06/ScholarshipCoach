@@ -37,6 +37,7 @@ data/raw/
 *.parquet
 data/processed/win_model/
 data/processed/embeddings/
+data/processed/llm_extractions/
 
 # Personal data
 student_profile.json
