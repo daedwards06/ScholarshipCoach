@@ -91,23 +91,23 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Create `src/llm/__init__.py` and `src/llm/client.py`: an `LlmClient` with a
+- [x] Create `src/llm/__init__.py` and `src/llm/client.py`: an `LlmClient` with a
       single `complete(system: str, user: str) -> str` method posting to an
       OpenAI-compatible `/chat/completions` endpoint via `requests`
-- [ ] Configuration via env vars: `SCHOLARSHIPCOACH_LLM_API_KEY`,
+- [x] Configuration via env vars: `SCHOLARSHIPCOACH_LLM_API_KEY`,
       `SCHOLARSHIPCOACH_LLM_BASE_URL`, `SCHOLARSHIPCOACH_LLM_MODEL`; a
       `client_from_env() -> LlmClient | None` factory returns `None` (feature
       disabled) when the key is absent — no exception, no network call
-- [ ] Bounded retries with backoff on 429/5xx (mirror `PoliteHttpClient` conventions);
+- [x] Bounded retries with backoff on 429/5xx (mirror `PoliteHttpClient` conventions);
       hard timeout; requests are temperature-0 for repeatability
-- [ ] The client accepts an injectable transport/session so tests run with a fake —
+- [x] The client accepts an injectable transport/session so tests run with a fake —
       zero network in the test suite
-- [ ] Add `.env` to `.gitignore`; never log the API key
-- [ ] `tests/test_llm_client.py`: env factory (present/absent key), retry path,
+- [x] Add `.env` to `.gitignore`; never log the API key
+- [x] `tests/test_llm_client.py`: env factory (present/absent key), retry path,
       timeout path, payload shape — all against the fake transport
-- [ ] Document provider setup (Gemini OpenAI-compat / Groq / OpenRouter base URLs,
+- [x] Document provider setup (Gemini OpenAI-compat / Groq / OpenRouter base URLs,
       free-tier note with "verify current limits at signup") in `docs/llm_extraction.md` (new)
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 

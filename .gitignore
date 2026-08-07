@@ -55,6 +55,10 @@ reports/weight_tuning/artifacts/
 # Streamlit secrets
 .streamlit/secrets.toml
 
+# Environment / API keys
+.env
+.env.*
+
 # NOTE: the following ARE intentionally committed:
 #   data/processed/best_weights*.json  (versioned tuning results)
 #   data/processed/changes_*.json      (delta reports)
