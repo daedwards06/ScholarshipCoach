@@ -132,24 +132,24 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Define `EXTRACTION_PROMPT_VERSION` (bump on any prompt change — cache key input)
+- [x] Define `EXTRACTION_PROMPT_VERSION` (bump on any prompt change — cache key input)
       and a system/user prompt asking for STRICT JSON with exactly these nullable
       fields: `deadline` (ISO date), `amount_min`, `amount_max`, `min_gpa`,
       `states_allowed` (2-letter codes), `majors_allowed`, `education_level`,
       `citizenship`, `essay_required`, `keywords` — with "null when not stated,
       never guess" instructions
-- [ ] `parse_extraction(raw: str) -> dict`: tolerant JSON recovery (strip code fences,
+- [x] `parse_extraction(raw: str) -> dict`: tolerant JSON recovery (strip code fences,
       find the JSON object), then per-field validation: dates must parse ISO and be
       plausible (2020–2040), GPA in [0, 5], amounts ≥ 0 and `min ≤ max`, states
       mapped to known 2-letter codes, education level mapped to the pipeline's
       existing vocabulary; any field failing validation is dropped to `None`
-- [ ] `extract_fields(client, *, title, description, eligibility_text) -> dict`:
+- [x] `extract_fields(client, *, title, description, eligibility_text) -> dict`:
       composes prompt → `client.complete` → `parse_extraction`; returns `{}` on any
       client error (extraction is always best-effort)
-- [ ] `tests/test_llm_extraction.py` with canned LLM responses (valid JSON, fenced
+- [x] `tests/test_llm_extraction.py` with canned LLM responses (valid JSON, fenced
       JSON, malformed JSON, out-of-range values, hallucinated extra fields) — no
       network, no real client
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 

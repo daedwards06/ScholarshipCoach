@@ -7,5 +7,19 @@ downstream of the snapshot stays deterministic and offline.
 from __future__ import annotations
 
 from src.llm.client import LlmClient, LlmError, client_from_env
+from src.llm.extraction import (
+    EXTRACTION_FIELDS,
+    EXTRACTION_PROMPT_VERSION,
+    extract_fields,
+    parse_extraction,
+)
 
-__all__ = ["LlmClient", "LlmError", "client_from_env"]
+__all__ = [
+    "EXTRACTION_FIELDS",
+    "EXTRACTION_PROMPT_VERSION",
+    "LlmClient",
+    "LlmError",
+    "client_from_env",
+    "extract_fields",
+    "parse_extraction",
+]
