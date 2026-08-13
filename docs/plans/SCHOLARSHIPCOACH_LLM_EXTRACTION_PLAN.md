@@ -216,22 +216,22 @@ python scripts/run_ingest.py --max-listing-pages 1 --max-detail-pages 5 --llm-en
 ```
 
 **Checklist:**
-- [ ] Add `--llm-enrich` (default off) and `--llm-max-calls <n>` (default e.g. 100,
+- [x] Add `--llm-enrich` (default off) and `--llm-max-calls <n>` (default e.g. 100,
       free-tier guardrail) to `run_ingest.py`
-- [ ] Enrichment pass: for each normalized record with at least one empty target
+- [x] Enrichment pass: for each normalized record with at least one empty target
       field AND non-empty description/eligibility text, call `get_or_extract`
       (cache-first) and fill **only** the empty fields — parser values are never
       overwritten
-- [ ] Record provenance: an `llm_enriched_fields` column (list of field names filled
+- [x] Record provenance: an `llm_enriched_fields` column (list of field names filled
       by the LLM, empty list otherwise) that survives snapshot write/read
-- [ ] Respect `--llm-max-calls` for actual API calls (cache hits don't count);
+- [x] Respect `--llm-max-calls` for actual API calls (cache hits don't count);
       log a clear summary: records scanned / cache hits / API calls / fields filled
-- [ ] With no API key: `--llm-enrich` logs "LLM enrichment disabled (no key)" and the
+- [x] With no API key: `--llm-enrich` logs "LLM enrichment disabled (no key)" and the
       run completes normally (cache-only fills still apply)
-- [ ] Ingest report JSON gains an `llm_enrichment` block with the summary counts
-- [ ] Tests (fake client): fill-only semantics, provenance column, max-calls cap,
+- [x] Ingest report JSON gains an `llm_enrichment` block with the summary counts
+- [x] Tests (fake client): fill-only semantics, provenance column, max-calls cap,
       disabled path, snapshot round-trip of the new column
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 
@@ -241,6 +241,14 @@ python scripts/run_ingest.py --max-listing-pages 1 --max-detail-pages 5 --llm-en
 LLM system." The existing catalog has fields the regex parsers extracted successfully —
 free gold labels. Blind the LLM to those fields, re-extract from raw text, and score
 per-field agreement.
+
+**Prerequisite (added 2026-08-13, after Task 4):** the current latest snapshot
+(`scholarships_snapshot_20260627.parquet`, 51 records) predates Task 4, so it has **no
+`llm_enriched_fields` column**. Start this task with one uncapped `python
+scripts/run_ingest.py` so the evaluation samples a fresh catalog written by the Task 4
+code path — and do it once, at the start, so the sample stays stable across the eval
+run and the report it produces. Until then, any code reading provenance off the latest
+snapshot must tolerate the column's absence rather than assume it.
 
 **Preflight Files:**
 - `src/io/snapshotting.py` (`load_latest_snapshot_df` — evaluation input)
@@ -258,6 +266,9 @@ python scripts/evaluate_llm_extraction.py --sample-size 60
 ```
 
 **Checklist:**
+- [ ] Run one uncapped `python scripts/run_ingest.py` first so the latest snapshot is
+      fresh and carries the Task 4 `llm_enriched_fields` column; record the snapshot
+      date in the eval report
 - [ ] Create `scripts/evaluate_llm_extraction.py`: sample N snapshot records where the
       parsers populated at least one target field; run LLM extraction on their raw
       text (cache-aware); compare per field

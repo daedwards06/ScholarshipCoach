@@ -48,7 +48,12 @@ REQUIRED_COLUMNS = [
 ]
 
 TRACKED_DIFF_FIELDS = ("deadline", "amount", "title", "eligibility_text")
-SNAPSHOT_COLUMNS = [*REQUIRED_COLUMNS, "embedding_key"]
+
+# Provenance for the optional ingest-boundary LLM enrichment pass: the list of
+# fields whose value was filled by the LLM rather than a deterministic parser.
+LLM_PROVENANCE_COLUMN = "llm_enriched_fields"
+OPTIONAL_COLUMNS = [LLM_PROVENANCE_COLUMN]
+SNAPSHOT_COLUMNS = [*REQUIRED_COLUMNS, "embedding_key", LLM_PROVENANCE_COLUMN]
 
 
 def _coerce_output_date(run_date: date | str | None) -> date:
@@ -150,18 +155,40 @@ def find_prior_snapshot(processed_dir: Path, target_date: date) -> Path | None:
     return candidates[-1] if candidates else None
 
 
+def coerce_provenance_list(value: Any) -> list[str]:
+    """Coerce a provenance cell to a plain list of field names (``[]`` when absent)."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    if hasattr(value, "tolist") and not isinstance(value, (bytes, bytearray)):
+        value = value.tolist()
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value if str(item).strip()]
+    return []
+
+
 def prepare_snapshot_df(records: pd.DataFrame) -> pd.DataFrame:
     """Ensure ``records`` has all required columns, then sort by ``scholarship_id``.
 
-    Missing columns are filled with ``None``.  Returns a clean copy with a
-    stable row order suitable for deterministic delta computation.
+    Missing columns are filled with ``None``.  The optional LLM provenance
+    column is normalized to a list per row (empty when enrichment did not run).
+    Returns a clean copy with a stable row order suitable for deterministic
+    delta computation.
     """
     snapshot_df = records.copy()
     for column in REQUIRED_COLUMNS:
         if column not in snapshot_df.columns:
             snapshot_df[column] = None
 
-    ordered = snapshot_df[REQUIRED_COLUMNS]
+    if LLM_PROVENANCE_COLUMN in snapshot_df.columns:
+        snapshot_df[LLM_PROVENANCE_COLUMN] = snapshot_df[LLM_PROVENANCE_COLUMN].apply(
+            coerce_provenance_list
+        )
+    else:
+        snapshot_df[LLM_PROVENANCE_COLUMN] = [[] for _ in range(len(snapshot_df))]
+
+    ordered = snapshot_df[[*REQUIRED_COLUMNS, *OPTIONAL_COLUMNS]]
     return ordered.sort_values(by=["scholarship_id"], kind="mergesort").reset_index(drop=True)
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ from src.ingest.cache import write_raw_payload
 from src.ingest.http import PoliteHttpClient
 from src.ingest.registry import register_sources
 from src.io.snapshotting import (
+    LLM_PROVENANCE_COLUMN,
     REQUIRED_COLUMNS,
     build_and_write_snapshot,
     find_prior_snapshot,
@@ -20,10 +22,22 @@ from src.io.snapshotting import (
     load_latest_snapshot_df as _load_latest_snapshot_df,
     write_json_atomic,
 )
+from src.llm.cache import (
+    compute_extraction_key,
+    extraction_path,
+    get_or_extract,
+    load_extraction,
+)
+from src.llm.client import DEFAULT_MODEL, MODEL_ENV, LlmClient, client_from_env
+from src.llm.extraction import EXTRACTION_FIELDS, EXTRACTION_PROMPT_VERSION
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
 logger = logging.getLogger("run_ingest")
+
+LLM_SOURCE_TEXT_FIELDS = ("title", "description", "eligibility_text")
+LLM_LIST_FIELDS = ("states_allowed", "majors_allowed", "keywords")
+LLM_NUMERIC_FIELDS = ("amount_min", "amount_max", "min_gpa")
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,6 +57,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-runtime-seconds", type=int, default=600)
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--llm-enrich",
+        action="store_true",
+        help="Fill empty structured fields from listing text using the LLM extraction layer.",
+    )
+    parser.add_argument(
+        "--llm-max-calls",
+        type=int,
+        default=100,
+        help="Maximum live LLM API calls per run (cache hits are free and do not count).",
+    )
     return parser.parse_args()
 
 
@@ -142,6 +167,168 @@ def _dedupe_records(df: pd.DataFrame) -> pd.DataFrame:
     return dedupe_df.reset_index(drop=True)
 
 
+def _resolve_llm_model_name(client: LlmClient | None) -> str:
+    if client is not None:
+        return client.model
+    return os.environ.get(MODEL_ENV, "").strip() or DEFAULT_MODEL
+
+
+def _empty_llm_summary(*, requested: bool = False, model_name: str | None = None) -> dict[str, Any]:
+    return {
+        "requested": requested,
+        "enabled": False,
+        "model": model_name,
+        "prompt_version": EXTRACTION_PROMPT_VERSION,
+        "api_call_limit": 0,
+        "records_scanned": 0,
+        "records_eligible": 0,
+        "cache_hits": 0,
+        "api_calls": 0,
+        "max_calls_reached": False,
+        "records_enriched": 0,
+        "fields_filled": 0,
+        "fields_filled_by_field": {},
+    }
+
+
+def _is_empty_field(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (list, tuple, set)):
+        return len(value) == 0
+    if hasattr(value, "tolist") and hasattr(value, "__len__"):
+        return len(value) == 0
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _coerce_llm_value(field_name: str, value: Any) -> Any:
+    """Convert a validated extraction value into the column's in-frame type."""
+    if value is None:
+        return None
+    if field_name == "deadline":
+        try:
+            return date.fromisoformat(str(value))
+        except ValueError:
+            return None
+    if field_name in ("amount_min", "amount_max", "min_gpa"):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+    if field_name in LLM_LIST_FIELDS:
+        return _coerce_list(value)
+    if field_name == "essay_required":
+        return value if isinstance(value, bool) else None
+    text = str(value).strip()
+    return text or None
+
+
+def _enrich_records_with_llm(
+    df: pd.DataFrame,
+    *,
+    client: LlmClient | None,
+    model_name: str,
+    processed_dir: Path,
+    max_calls: int,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Fill empty structured fields from listing text, cache-first and fill-only.
+
+    A record is a candidate only when it has at least one empty extraction
+    target field and some description/eligibility text to extract from.  Values
+    the deterministic parsers produced are never overwritten; every field the
+    LLM does fill is recorded in the :data:`LLM_PROVENANCE_COLUMN` column.
+
+    Cached extractions resolve without a client, so a keyless run still applies
+    prior work.  ``max_calls`` caps live API calls only.
+
+    Returns:
+        Tuple of (enriched DataFrame, summary counts for the ingest report).
+    """
+    summary = _empty_llm_summary(requested=True, model_name=model_name)
+    summary["enabled"] = client is not None
+    summary["api_call_limit"] = max_calls
+
+    enriched = df.copy()
+    if enriched.empty:
+        enriched[LLM_PROVENANCE_COLUMN] = pd.Series(dtype="object")
+        return enriched, summary
+
+    # Non-numeric target columns must hold Python objects (dates, lists, bools)
+    # before a filled value can be written into them.
+    for column in EXTRACTION_FIELDS:
+        if column in enriched.columns and column not in LLM_NUMERIC_FIELDS:
+            as_object = enriched[column].astype(object)
+            enriched[column] = as_object.where(as_object.notna(), None)
+
+    provenance: list[list[str]] = [[] for _ in range(len(enriched))]
+    target_fields = [name for name in EXTRACTION_FIELDS if name in enriched.columns]
+    by_field: dict[str, int] = {}
+    api_calls = 0
+
+    for position, (index, row) in enumerate(list(enriched.iterrows())):
+        summary["records_scanned"] += 1
+        empty_fields = [name for name in target_fields if _is_empty_field(row.get(name))]
+        if not empty_fields:
+            continue
+
+        record = {name: row.get(name) for name in LLM_SOURCE_TEXT_FIELDS}
+        has_source_text = any(
+            str(record.get(name) or "").strip()
+            for name in ("description", "eligibility_text")
+        )
+        if not has_source_text:
+            continue
+        summary["records_eligible"] += 1
+
+        key = compute_extraction_key(record, model_name=model_name)
+        cached = load_extraction(extraction_path(key, model_name, processed_dir=processed_dir))
+        if cached is not None:
+            summary["cache_hits"] += 1
+            cached_fields = cached.get("fields")
+            fields = dict(cached_fields) if isinstance(cached_fields, dict) else {}
+        elif client is None:
+            continue
+        elif api_calls >= max_calls:
+            summary["max_calls_reached"] = True
+            continue
+        else:
+            api_calls += 1
+            fields = get_or_extract(
+                client,
+                record,
+                processed_dir=processed_dir,
+                model_name=model_name,
+            )
+        if not fields:
+            continue
+
+        filled: list[str] = []
+        for name in empty_fields:
+            value = _coerce_llm_value(name, fields.get(name))
+            if value is None:
+                continue
+            enriched.at[index, name] = value
+            filled.append(name)
+            by_field[name] = by_field.get(name, 0) + 1
+
+        if filled:
+            provenance[position] = filled
+            summary["records_enriched"] += 1
+            summary["fields_filled"] += len(filled)
+
+    enriched[LLM_PROVENANCE_COLUMN] = provenance
+    summary["api_calls"] = api_calls
+    summary["fields_filled_by_field"] = dict(sorted(by_field.items()))
+    return enriched, summary
+
+
 def _missing_text(series: pd.Series) -> pd.Series:
     return series.isna() | series.astype(str).str.strip().eq("")
 
@@ -185,6 +372,8 @@ def run_ingest(
     concurrency: int = 4,
     resume: bool = False,
     report_dir: Path | None = None,
+    llm_enrich: bool = False,
+    llm_max_calls: int = 100,
 ) -> dict[str, Any]:
     started_at = datetime.now(tz=UTC)
     resolved_raw_dir = _resolve_repo_path(raw_dir or (ROOT_DIR / "data" / "raw"))
@@ -206,6 +395,7 @@ def run_ingest(
     missing_title_or_source_count = 0
     snapshot_skip_reason: str | None = None
     run_exception: dict[str, str] | None = None
+    llm_summary: dict[str, Any] = _empty_llm_summary(requested=llm_enrich)
 
     try:
         sources = register_sources()
@@ -280,6 +470,37 @@ def run_ingest(
         normalized_df = _normalize_records(source_records)
         normalized_df = _dedupe_records(normalized_df)
 
+        if llm_enrich and not normalized_df.empty:
+            llm_client = client_from_env()
+            llm_model_name = _resolve_llm_model_name(llm_client)
+            if llm_client is None:
+                logger.info(
+                    "LLM enrichment disabled (no key); applying cached extractions only."
+                )
+            normalized_df, llm_summary = _enrich_records_with_llm(
+                normalized_df,
+                client=llm_client,
+                model_name=llm_model_name,
+                processed_dir=resolved_processed_dir,
+                max_calls=llm_max_calls,
+            )
+            logger.info(
+                "LLM enrichment: scanned=%d eligible=%d cache_hits=%d api_calls=%d "
+                "records_enriched=%d fields_filled=%d",
+                llm_summary["records_scanned"],
+                llm_summary["records_eligible"],
+                llm_summary["cache_hits"],
+                llm_summary["api_calls"],
+                llm_summary["records_enriched"],
+                llm_summary["fields_filled"],
+            )
+            if llm_summary["max_calls_reached"]:
+                logger.warning(
+                    "LLM enrichment hit the --llm-max-calls cap of %d; "
+                    "remaining records were left unenriched.",
+                    llm_max_calls,
+                )
+
         prior_snapshot_path = find_prior_snapshot(resolved_processed_dir, effective_run_date)
         if prior_snapshot_path is not None:
             try:
@@ -348,6 +569,8 @@ def run_ingest(
                 "max_runtime_seconds": max_runtime_seconds,
                 "concurrency": concurrency,
                 "resume": resume,
+                "llm_enrich": llm_enrich,
+                "llm_max_calls": llm_max_calls,
             },
             "sources": {
                 "attempted": attempted_sources,
@@ -378,6 +601,7 @@ def run_ingest(
                     else 0.0
                 ),
             },
+            "llm_enrichment": llm_summary,
             "cache_paths": cache_paths,
             "artifact_paths": {
                 "snapshot": str(snapshot_path.resolve()) if snapshot_path else None,
@@ -425,6 +649,8 @@ def main() -> int:
         max_runtime_seconds=args.max_runtime_seconds,
         concurrency=args.concurrency,
         resume=args.resume,
+        llm_enrich=args.llm_enrich,
+        llm_max_calls=args.llm_max_calls,
     )
 
     print(f"Run status: {report['status']}")
@@ -437,6 +663,15 @@ def main() -> int:
         f"removed={report['delta_counts']['removed']}, "
         f"changed={report['delta_counts']['changed']}"
     )
+    if args.llm_enrich:
+        llm_report = report["llm_enrichment"]
+        print(
+            "LLM enrichment: "
+            f"enabled={llm_report['enabled']}, "
+            f"cache_hits={llm_report['cache_hits']}, "
+            f"api_calls={llm_report['api_calls']}, "
+            f"fields_filled={llm_report['fields_filled']}"
+        )
     return 0 if report["status"] != "failed" else 1
 
 
