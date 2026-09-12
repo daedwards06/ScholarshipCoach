@@ -94,6 +94,37 @@ def test_repeat_migration_preserves_existing_rows(tmp_path: Path) -> None:
     assert stored.name == "Test Student"
 
 
+def test_a_database_at_an_older_migration_catches_up_without_losing_rows(
+    tmp_path: Path,
+) -> None:
+    """A coach.db created before Task 3.3 upgrades in place on the next open."""
+    older = tmp_path / "migrations"
+    older.mkdir()
+    (older / "0001_initial.sql").write_text(
+        (MIGRATIONS_DIR / "0001_initial.sql").read_text(encoding="utf-8-sig"), encoding="utf-8"
+    )
+    db_path = tmp_path / "coach.db"
+    with open_db(db_path, older) as conn:
+        repo.upsert_student(conn, "student_1", "Test Student")
+        # Written the way the pre-3.3 build wrote it: no 0002 columns to fill.
+        conn.execute(
+            "INSERT INTO applications "
+            "(student_id, catalog_id, status, notes, created_at, updated_at) "
+            "VALUES ('student_1', 'legacy-award', 'saved', '', '2026-09-01', '2026-09-01')"
+        )
+        conn.commit()
+        assert applied_migrations(conn) == ["0001_initial.sql"]
+
+    with open_db(db_path) as conn:
+        assert applied_migrations(conn) == [path.name for path in migration_files()]
+        (application,) = repo.list_applications(conn, "student_1")
+        assert application.catalog_id == "legacy-award"
+        # The columns 0002 adds are readable on a row that predates them.
+        assert application.title == ""
+        assert application.deadline is None
+        assert application.submitted_on is None
+
+
 def test_migration_names_are_numbered(tmp_path: Path) -> None:
     assert migration_files(), "expected at least the initial migration"
     (tmp_path / "initial.sql").write_text("SELECT 1;", encoding="utf-8")

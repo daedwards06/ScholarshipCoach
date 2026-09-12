@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
+from collections.abc import Mapping
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +40,7 @@ from src.rank.timeline import (
     classify_timeline,
 )
 from src.rank.weights import Stage2Weights, Stage3Weights
-from src.store import repo
+from src.store import repo, tracker
 from src.store.db import open_db
 from src.text_utils import coerce_text
 from src.win_model.infer import get_latest_model_path, load_model
@@ -62,8 +63,6 @@ SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
 # Sections whose surfaces are built by later Phase 3 tasks. Listing them now is
 # deliberate: the nav shows the family the whole product, not just what runs.
 _PENDING_SECTION_NOTES = {
-    "this_week": "Checklist items and deadlines due in the next 14 days.",
-    "applications": "Awards you have saved, with status, notes and checklists.",
     "essays": "Your essay bank, themed and reused across prompts.",
     "recommenders": "Who you asked for letters, when, and what is still outstanding.",
     "catalog_inbox": "Add an award from a URL, and review proposed catalog changes.",
@@ -536,7 +535,76 @@ def _get_urgency_indicator(days_until_deadline: int | None) -> tuple[str, str]:
     return ("🟢 Later", "#00AA00")
 
 
-def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
+def _student_id() -> str:
+    return str(st.session_state.profile.get("student_id") or DEFAULT_STUDENT_ID)
+
+
+def _ensure_student(conn: Any) -> str:
+    """Make sure the profile has a row to hang applications off, and return it."""
+    student_id = _student_id()
+    if repo.get_student(conn, student_id) is None:
+        repo.upsert_student(conn, student_id, str(st.session_state.profile.get("name") or ""))
+    return student_id
+
+
+def _row_catalog_id(row: pd.Series) -> str:
+    """The stable id to track an award under, falling back to the snapshot id."""
+    return coerce_text(row.get("catalog_id")) or coerce_text(row.get("scholarship_id"))
+
+
+def _row_requirements(row: pd.Series) -> dict[str, Any]:
+    """The award's ``requirements`` object, rebuilt for pre-catalog sources."""
+    raw = row.get("requirements")
+    if isinstance(raw, Mapping) and raw:
+        return dict(raw)
+    essay_required = row.get("essay_required")
+    essay_prompt = coerce_text(row.get("essay_prompt"))
+    return {
+        "essay": None if essay_required is None or pd.isna(essay_required) else bool(essay_required),
+        "essay_prompts": [essay_prompt] if essay_prompt else [],
+    }
+
+
+def _saved_catalog_ids(student_id: str) -> set[str]:
+    """Catalog ids the student already tracks, so cards can say so."""
+    try:
+        with open_db() as conn:
+            return {
+                application.catalog_id
+                for application in repo.list_applications(conn, student_id)
+            }
+    except Exception:
+        return set()
+
+
+def _save_award_from_card(row: pd.Series, today_value: date) -> None:
+    catalog_id = _row_catalog_id(row)
+    if not catalog_id:
+        st.error("This award has no id to track it by.")
+        return
+    deadline, _ = _timeline_deadline(row, today_value)
+    try:
+        with open_db() as conn:
+            student_id = _ensure_student(conn)
+            _, created = tracker.save_award(
+                conn,
+                student_id,
+                catalog_id,
+                title=coerce_text(row.get("title")) or catalog_id,
+                source_url=coerce_text(row.get("source_url")),
+                deadline=deadline or None,
+                requirements=_row_requirements(row),
+            )
+    except Exception as exc:
+        st.error(f"Could not save this award: {exc}")
+        return
+    st.toast("Saved to My Applications." if created else "Already in My Applications.")
+    st.rerun()
+
+
+def _render_scholarship_card(
+    row: pd.Series, today_value: date, saved_ids: set[str] | None = None
+) -> None:
     title = (
         coerce_text(row.get("title")) or coerce_text(row.get("scholarship_id")) or "Untitled"
     )
@@ -577,8 +645,22 @@ def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
         for explanation in explain_ranked_row(row):
             st.markdown(f"• {explanation}")
 
-        if source_url:
-            st.link_button("Apply at Source", source_url, use_container_width=False)
+        catalog_id = _row_catalog_id(row)
+        already_saved = catalog_id in (saved_ids or set())
+        col_save, col_apply = st.columns([0.25, 0.75])
+        with col_save:
+            if already_saved:
+                st.button(
+                    "✓ Saved",
+                    key=f"save_{catalog_id}",
+                    disabled=True,
+                    help="Already under My Applications.",
+                )
+            elif st.button("Save", key=f"save_{catalog_id}", type="secondary"):
+                _save_award_from_card(row, today_value)
+        with col_apply:
+            if source_url:
+                st.link_button("Apply at Source", source_url, use_container_width=False)
 
         with st.expander("Signal details", expanded=False):
             component_columns = [
@@ -962,8 +1044,9 @@ def _render_find_section() -> None:
                     st.metric("Median Expected Value", f"${round(win_summary['median_expected_value'], 2):,.0f}")
 
         today_for_cards = _effective_today(st.session_state.profile)
+        saved_ids = _saved_catalog_ids(_student_id())
         for _, row in top_df.iterrows():
-            _render_scholarship_card(row, today_for_cards)
+            _render_scholarship_card(row, today_for_cards, saved_ids)
 
     ineligible_df: pd.DataFrame | None = st.session_state.ineligible_df
     if isinstance(ineligible_df, pd.DataFrame):
@@ -1008,6 +1091,218 @@ def _render_find_section() -> None:
                     st.text(f"Award: {amount_str}")
                 with col_reason:
                     st.text(f"Reason: {reasons_text}")
+
+
+def _render_checklist(conn: Any, application: repo.Application) -> None:
+    items = repo.list_checklist_items(conn, application.id)
+    if items:
+        for item in items:
+            col_done, col_due = st.columns([0.75, 0.25])
+            with col_done:
+                checked = st.checkbox(item.label, value=item.done, key=f"chk_{item.id}")
+            with col_due:
+                due_value = None
+                if item.due_on:
+                    try:
+                        due_value = date.fromisoformat(item.due_on[:10])
+                    except ValueError:
+                        due_value = None
+                due_choice = st.date_input(
+                    "Due",
+                    value=due_value,
+                    key=f"chk_due_{item.id}",
+                    format="YYYY-MM-DD",
+                    label_visibility="collapsed",
+                )
+            new_due = due_choice.isoformat() if isinstance(due_choice, date) else None
+            if checked != item.done or new_due != (item.due_on[:10] if item.due_on else None):
+                repo.update_checklist_item(conn, item.id, done=checked, due_on=new_due)
+                st.rerun()
+    else:
+        st.caption("No requirements recorded for this award — add what it asks for below.")
+
+    new_label = st.text_input(
+        "Add a step", key=f"chk_new_{application.id}", placeholder="e.g. Ask Ms. Perez for a letter"
+    )
+    if st.button("Add step", key=f"chk_add_{application.id}") and new_label.strip():
+        tracker.add_checklist_item(conn, application.id, new_label)
+        st.session_state[f"chk_new_{application.id}"] = ""
+        st.rerun()
+
+
+def _render_outcome_form(conn: Any, application: repo.Application, today_value: date) -> None:
+    outcome = repo.get_outcome(conn, application.id)
+    st.markdown("**Result**")
+    col_result, col_amount = st.columns(2)
+    with col_result:
+        result = st.selectbox(
+            "Result",
+            options=tracker.DECIDED_STATUSES,
+            index=(
+                tracker.DECIDED_STATUSES.index(outcome.result)
+                if outcome is not None and outcome.result in tracker.DECIDED_STATUSES
+                else 0
+            ),
+            format_func=lambda name: tracker.STATUS_LABELS[str(name)],
+            key=f"outcome_result_{application.id}",
+        )
+    with col_amount:
+        amount = st.number_input(
+            "Amount awarded",
+            min_value=0.0,
+            step=500.0,
+            value=float(outcome.amount_awarded or 0.0) if outcome is not None else 0.0,
+            key=f"outcome_amount_{application.id}",
+        )
+    paid_to = st.text_input(
+        "Paid to",
+        value=outcome.paid_to if outcome is not None else "",
+        key=f"outcome_paid_{application.id}",
+        placeholder="School, or the student",
+    )
+    renewal = st.text_input(
+        "Renewal terms",
+        value=outcome.renewal_terms if outcome is not None else "",
+        key=f"outcome_renewal_{application.id}",
+        placeholder="e.g. renewable 4 years at 3.0 GPA",
+    )
+    if st.button("Record result", key=f"outcome_save_{application.id}"):
+        try:
+            tracker.record_outcome(
+                conn,
+                application.id,
+                str(result),
+                amount_awarded=float(amount) or None,
+                paid_to=paid_to,
+                renewal_terms=renewal,
+                today=today_value,
+            )
+        except tracker.TransitionError as exc:
+            st.error(str(exc))
+        else:
+            st.rerun()
+
+
+def _render_application_detail(
+    conn: Any, application: repo.Application, today_value: date
+) -> None:
+    status = tracker.normalize_status(application.status)
+    done, total = tracker.checklist_progress(repo.list_checklist_items(conn, application.id))
+    progress = f" — {done}/{total} done" if total else ""
+    header = f"{application.title or application.catalog_id} · {tracker.STATUS_LABELS[status]}{progress}"
+
+    with st.expander(header, expanded=False):
+        if application.deadline:
+            days_until = _calculate_days_until_deadline(application.deadline, today_value)
+            urgency_text, _ = _get_urgency_indicator(days_until)
+            st.caption(f"Deadline: {application.deadline} · {urgency_text}")
+        if application.submitted_on:
+            st.caption(f"Submitted {application.submitted_on}")
+        if application.source_url:
+            st.link_button("Apply at Source", application.source_url)
+
+        choices = tracker.next_statuses(status)
+        chosen = st.selectbox(
+            "Status",
+            options=choices,
+            index=0,
+            format_func=lambda name: tracker.STATUS_LABELS[str(name)],
+            key=f"app_status_{application.id}",
+        )
+        if str(chosen) != status:
+            try:
+                tracker.set_status(conn, application.id, str(chosen), today=today_value)
+            except tracker.TransitionError as exc:
+                st.error(str(exc))
+            else:
+                st.rerun()
+
+        _render_checklist(conn, application)
+
+        notes = st.text_area(
+            "Notes", value=application.notes, key=f"app_notes_{application.id}", height=90
+        )
+        if notes != application.notes:
+            repo.update_application(conn, application.id, notes=notes)
+
+        if status in ("submitted", *tracker.DECIDED_STATUSES):
+            _render_outcome_form(conn, application, today_value)
+
+        if st.button("Remove from my list", key=f"app_delete_{application.id}"):
+            repo.delete_application(conn, application.id)
+            st.rerun()
+
+
+def _render_applications_section() -> None:
+    st.subheader(modes.SECTION_LABELS["applications"])
+    today_value = _effective_today(st.session_state.profile)
+    try:
+        with open_db() as conn:
+            student_id = _ensure_student(conn)
+            applications = repo.list_applications(conn, student_id)
+            if not applications:
+                st.info(
+                    "Nothing saved yet. Open Find Scholarships and press Save on a card."
+                )
+                return
+
+            counts = {status: 0 for status in tracker.APPLICATION_STATUSES}
+            for application in applications:
+                counts[tracker.normalize_status(application.status)] += 1
+            st.caption(
+                " · ".join(
+                    f"{tracker.STATUS_LABELS[status]}: {count}"
+                    for status, count in counts.items()
+                    if count
+                )
+            )
+
+            status_filter = st.selectbox(
+                "Show",
+                options=("all", *tracker.APPLICATION_STATUSES),
+                format_func=lambda name: (
+                    "All" if name == "all" else tracker.STATUS_LABELS[str(name)]
+                ),
+                key="applications_status_filter",
+            )
+            for application in applications:
+                if status_filter != "all":
+                    if tracker.normalize_status(application.status) != status_filter:
+                        continue
+                _render_application_detail(conn, application, today_value)
+    except Exception as exc:
+        st.error(f"Could not open the family database: {exc}")
+
+
+def _render_this_week_section() -> None:
+    st.subheader(modes.SECTION_LABELS["this_week"])
+    today_value = _effective_today(st.session_state.profile)
+    st.caption(
+        f"Due on or before {today_value + timedelta(days=tracker.THIS_WEEK_DAYS)}, "
+        "plus anything already overdue."
+    )
+    try:
+        with open_db() as conn:
+            student_id = _ensure_student(conn)
+            due_items = tracker.this_week(conn, student_id, today=today_value)
+    except Exception as exc:
+        st.error(f"Could not open the family database: {exc}")
+        return
+
+    if not due_items:
+        st.success("Nothing due in the next two weeks.")
+        return
+
+    for due in due_items:
+        urgency_text, _ = _get_urgency_indicator(due.days_until)
+        with st.container(border=True):
+            col_what, col_when = st.columns([0.7, 0.3])
+            with col_what:
+                st.markdown(f"**{due.label}**")
+                st.caption(due.award_title)
+            with col_when:
+                st.text(due.due_on)
+                st.caption(f"{urgency_text} · {tracker.STATUS_LABELS[due.status]}")
 
 
 def _operator_enabled() -> bool:
@@ -1060,6 +1355,10 @@ def main() -> None:
 
     if section == "find":
         _render_find_section()
+    elif section == "this_week":
+        _render_this_week_section()
+    elif section == "applications":
+        _render_applications_section()
     elif section == "settings":
         _render_settings_section()
     else:

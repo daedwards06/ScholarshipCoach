@@ -714,14 +714,42 @@ streamlit run app/main.py   # visual: Save on a card creates an application; che
 ```
 
 **Checklist:**
-- [ ] Card gains a Save button; saved awards appear under My Applications with status
+- [x] Card gains a Save button; saved awards appear under My Applications with status
       `saved|planning|in_progress|submitted|won|lost|skipped`
-- [ ] Checklist items generated from the award's `requirements` (essay per prompt, letters
+- [x] Checklist items generated from the award's `requirements` (essay per prompt, letters
       count, transcript, FAFSA, video/portfolio, interview) plus free-form items
-- [ ] Notes per application; submitted date; outcome entry writes to `outcomes`
-- [ ] This Week view: checklist items and deadlines within 14 days across all applications
-- [ ] Tests: checklist generation from requirements; status transitions; This Week query
-- [ ] Tests + ruff green
+- [x] Notes per application; submitted date; outcome entry writes to `outcomes`
+- [x] This Week view: checklist items and deadlines within 14 days across all applications
+- [x] Tests: checklist generation from requirements; status transitions; This Week query
+- [x] Tests + ruff green
+
+**As built — contracts later tasks depend on:**
+- Logic lives in `src/store/tracker.py`; `app/main.py` only draws it. Migration
+  `0002_tracker.sql` adds `title`, `source_url`, `deadline` and `submitted_on` to
+  `applications`. Those three catalog copies are deliberate: My Applications has to read
+  without a snapshot loaded, and the deadline the student planned against is the one they
+  saw, not what the next `verify_catalog` pass finds.
+- `save_award(...)` returns `(application, created)` and is idempotent on
+  `(student_id, catalog_id)` --- a second Save returns the existing row and never rebuilds a
+  checklist the student has been ticking off. `catalog_id` falls back to `scholarship_id`
+  for rows from non-curated sources.
+- `checklist_labels(requirements)` builds one item per *thing a person does*: one per entry
+  in `essay_prompts` (numbered when there are several, truncated at 80 chars), one per
+  recommendation letter, then transcript / FAFSA / video-or-portfolio / interview. Only
+  `True` produces an item --- `None` means the catalog does not know, and inventing a task
+  out of a null is how a student writes an essay nobody asked for. Free-form items append
+  after the template via `add_checklist_item`.
+- Status moves along `ALLOWED_TRANSITIONS`; `next_statuses(current)` is what the picker
+  offers. `won`/`lost` are unreachable from anything but `submitted`, and each can step back
+  to `submitted` so a misclick is not permanent. `set_status` stamps `submitted_on` once
+  (a re-submit keeps the first date) and mirrors `won`/`lost` into `outcomes`, so status and
+  the outcome row cannot disagree. `record_outcome` walks an unsubmitted award through
+  `submitted` rather than refusing the news.
+- `this_week(conn, student_id, today=, within_days=14)` returns sorted `DueItem`s of kind
+  `deadline` (from `applications.deadline`) and `checklist` (only items with a `due_on`),
+  for applications in `OPEN_STATUSES` only. Overdue work stays on the list --- a tracker that
+  drops a task the day it goes red is worse than no tracker. Task 3.5 extends this surface
+  with recommender due dates and milestones.
 
 ---
 

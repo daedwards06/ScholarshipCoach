@@ -35,6 +35,10 @@ class Application:
     catalog_id: str
     status: str = "saved"
     notes: str = ""
+    title: str = ""
+    source_url: str = ""
+    deadline: str | None = None
+    submitted_on: str | None = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -216,12 +220,18 @@ def delete_student(conn: sqlite3.Connection, student_id: str) -> bool:
 
 
 def _to_application(row: sqlite3.Row) -> Application:
+    deadline = row["deadline"]
+    submitted_on = row["submitted_on"]
     return Application(
         id=int(row["id"]),
         student_id=str(row["student_id"]),
         catalog_id=str(row["catalog_id"]),
         status=str(row["status"]),
         notes=str(row["notes"]),
+        title=str(row["title"]),
+        source_url=str(row["source_url"]),
+        deadline=None if deadline is None else str(deadline),
+        submitted_on=None if submitted_on is None else str(submitted_on),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
     )
@@ -233,6 +243,9 @@ def create_application(
     catalog_id: str,
     status: str = "saved",
     notes: str = "",
+    title: str = "",
+    source_url: str = "",
+    deadline: str | None = None,
 ) -> Application:
     now = utc_now()
     row_id = _insert(
@@ -243,11 +256,27 @@ def create_application(
             "catalog_id": catalog_id,
             "status": status,
             "notes": notes,
+            "title": title,
+            "source_url": source_url,
+            "deadline": deadline,
+            "submitted_on": None,
             "created_at": now,
             "updated_at": now,
         },
     )
-    return Application(row_id, student_id, catalog_id, status, notes, now, now)
+    return Application(
+        row_id,
+        student_id,
+        catalog_id,
+        status,
+        notes,
+        title,
+        source_url,
+        deadline,
+        None,
+        now,
+        now,
+    )
 
 
 def get_application(conn: sqlite3.Connection, application_id: int) -> Application | None:
@@ -290,8 +319,24 @@ def update_application(
     *,
     status: str = UNSET,
     notes: str = UNSET,
+    title: str = UNSET,
+    source_url: str = UNSET,
+    deadline: str | None = UNSET,
+    submitted_on: str | None = UNSET,
 ) -> bool:
-    return _update(conn, "applications", application_id, _set(status=status, notes=notes))
+    return _update(
+        conn,
+        "applications",
+        application_id,
+        _set(
+            status=status,
+            notes=notes,
+            title=title,
+            source_url=source_url,
+            deadline=deadline,
+            submitted_on=submitted_on,
+        ),
+    )
 
 
 def delete_application(conn: sqlite3.Connection, application_id: int) -> bool:
