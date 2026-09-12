@@ -5,6 +5,11 @@
 > and `SCHOLARSHIPCOACH_EVAL_CREDIBILITY_PLAN.md`
 > Executor: Claude via Claude Code | Est. effort: 6 focused tasks + 1 optional stretch
 
+> **Status update (2026-09-12):** Tasks 1–5 are complete. Tasks 6, 7, 8, and 9 are **deferred**
+> to `SCHOLARSHIPCOACH_FAMILY_PRODUCT_PLAN.md` Phase 5 (future enhancements) by owner decision:
+> the family product proceeds without a generative LLM. Do not execute those tasks from this
+> plan unless the owner reactivates it (start from Task 8).
+
 ---
 
 ## Why this plan exists
