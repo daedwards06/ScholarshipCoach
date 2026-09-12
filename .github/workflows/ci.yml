@@ -5,10 +5,21 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Runtime dependencies are unpinned, so a new upstream release can break the
+  # build with no code change. A weekly run surfaces that drift on its own
+  # schedule instead of ambushing the next unrelated push.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -19,16 +30,35 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
+        id: install
         run: pip install -e ".[dev]"
 
+      # Every check runs even after an earlier one fails, so a red build reports
+      # all of its problems at once. Previously a lint failure skipped the test
+      # step entirely, hiding whether anything else was actually broken.
       - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: ruff check src/ scripts/ app/ tests/
 
       - name: Validate curated catalog
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: python scripts/validate_catalog.py
 
       - name: Type check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: python -m mypy src/
 
       - name: Test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: python -m pytest tests/ -q --tb=short
+
+      - name: Report tool versions
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          {
+            echo "| Tool | Version |"
+            echo "|---|---|"
+            echo "| ruff | $(ruff --version) |"
+            echo "| mypy | $(python -m mypy --version) |"
+            echo "| pytest | $(python -m pytest --version) |"
+          } >> "$GITHUB_STEP_SUMMARY"
