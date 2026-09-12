@@ -392,6 +392,35 @@ def _apply_rank_filters(
     return filtered
 
 
+def _source_health_rows(source_info: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten the report's per-source health blocks, disabled connectors included."""
+    rows: list[dict[str, Any]] = []
+    for item in source_info.get("details", []):
+        health = item.get("health") or {}
+        rows.append(
+            {
+                "source": item.get("source"),
+                "status": item.get("status"),
+                "records_this_run": health.get("records_this_run", item.get("records", 0)),
+                "records_prior_run": health.get("records_prior_run"),
+                "zero_record_regression": bool(health.get("zero_record_regression")),
+                "note": item.get("error"),
+            }
+        )
+    for item in source_info.get("disabled", []):
+        rows.append(
+            {
+                "source": item.get("source"),
+                "status": "disabled",
+                "records_this_run": None,
+                "records_prior_run": None,
+                "zero_record_regression": False,
+                "note": item.get("note"),
+            }
+        )
+    return rows
+
+
 def _display_ingest_summary(report: dict[str, Any]) -> None:
     st.subheader("Ingest Report")
     source_info = report.get("sources", {})
@@ -409,13 +438,26 @@ def _display_ingest_summary(report: dict[str, Any]) -> None:
             "delta_changed": delta_counts.get("changed", 0),
         }
     )
+    regressions = source_info.get("zero_record_regressions") or []
+    if regressions:
+        st.error(
+            "Zero-record regression: "
+            + ", ".join(str(name) for name in regressions)
+            + " returned records on the prior run and none on this one."
+        )
+
+    health_rows = _source_health_rows(source_info)
+    if health_rows:
+        st.caption("Source health")
+        st.dataframe(pd.DataFrame(health_rows), use_container_width=True)
+
     failed_details = [
         item for item in source_info.get("details", []) if item.get("status") != "succeeded"
     ]
     if failed_details:
         st.warning("Some sources failed during ingest.")
         st.dataframe(pd.DataFrame(failed_details), use_container_width=True)
-    else:
+    elif not regressions:
         st.success("All sources succeeded.")
 
 

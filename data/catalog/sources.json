@@ -1,0 +1,16 @@
+{
+  "sources": {
+    "curated_catalog": {
+      "enabled": true,
+      "note": "Hand-curated records in data/catalog/records/. Primary data asset."
+    },
+    "scholarship_america": {
+      "enabled": true,
+      "note": "Aggregator scrape. Records carry trust=aggregator and need confirmation."
+    },
+    "bold_org": {
+      "enabled": false,
+      "note": "Disabled 2026-09-12: has returned 0 records since at least June 2026. The listing is client-rendered and no longer ships __NEXT_DATA__; re-enable only after the parser is rewritten and verified against a live page."
+    }
+  }
+}

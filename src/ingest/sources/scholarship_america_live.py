@@ -41,10 +41,25 @@ _FWP_JSON_PATTERN = re.compile(
     flags=re.IGNORECASE | re.DOTALL,
 )
 _LABEL_BLOCK_PATTERN = re.compile(
-    r"(Sponsor|Provider|Organization|Eligibility|Deadline|Amount|Award|Education|Institution|State|Territory|Essay(?: Prompt)?|Essay Required)\s*:?\s*",
+    r"(Sponsor|Provider|Organization|Eligibility|Deadline|Amount|Award|Education|Institution|Status|State|Territory|Essay(?: Prompt)?|Essay Required)\s*:?\s*",
     re.IGNORECASE,
 )
-_NON_DETAIL_TITLE_HINTS = ("browse scholarships", "page not found", "not found", "access denied")
+_NON_DETAIL_TITLE_HINTS = (
+    "browse scholarships",
+    "page not found",
+    "not found",
+    "access denied",
+    "scholarship status",
+)
+_TRUST = "aggregator"
+# Ordered longest-phrase-first so "opening soon" is not read as "open".
+_STATUS_KEYWORDS = (
+    ("closed", "closed"),
+    ("opening soon", "upcoming"),
+    ("not yet open", "upcoming"),
+    ("upcoming", "upcoming"),
+    ("open", "open"),
+)
 
 _US_STATES_AND_TERRITORIES = [
     "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
@@ -551,7 +566,7 @@ class ScholarshipAmericaLiveSource(BaseSource):
             return None
 
         title = _extract_title(html)
-        if any(hint in title.lower() for hint in _NON_DETAIL_TITLE_HINTS):
+        if _is_non_detail_title(title):
             return None
 
         sponsor = _extract_field_value(text, ["sponsor", "provider", "organization"]) or "Scholarship America"
@@ -561,11 +576,15 @@ class ScholarshipAmericaLiveSource(BaseSource):
         deadline = _extract_deadline(text)
         amount_min, amount_max = _extract_amount_range(text)
         education_level = _extract_field_value(text, ["education", "institution", "school"]) or None
+        status = _extract_status(text)
 
         states_allowed = _extract_states(text, eligibility_text)
         essay_required, essay_prompt = _extract_essay_fields(text)
         source_id = _slug_from_url(normalized_url)
         resolved_title = title or source_id.replace("-", " ").strip().title() or normalized_url
+        # The slug fallback can reintroduce a chrome page the <title> check missed.
+        if _is_non_detail_title(resolved_title):
+            return None
 
         scholarship_id = generate_scholarship_id(
             title=resolved_title,
@@ -599,6 +618,8 @@ class ScholarshipAmericaLiveSource(BaseSource):
             "keywords": [source_id] if source_id else None,
             "first_seen_at": fetched_at,
             "last_seen_at": fetched_at,
+            "status": status,
+            "trust": _TRUST,
         }
 
     def _extract_urls_from_json(self, payload: Any) -> set[str]:
@@ -758,6 +779,22 @@ def _extract_field_value(text: str, field_names: list[str]) -> str:
         if candidate:
             return candidate
     return ""
+
+
+def _is_non_detail_title(title: str) -> bool:
+    lowered = (title or "").lower()
+    return any(hint in lowered for hint in _NON_DETAIL_TITLE_HINTS)
+
+
+def _extract_status(text: str) -> str | None:
+    raw = _extract_field_value(text, ["status"])
+    if not raw:
+        return None
+    lowered = raw.lower()
+    for keyword, value in _STATUS_KEYWORDS:
+        if keyword in lowered:
+            return value
+    return "unknown"
 
 
 def _extract_eligibility_text(text: str) -> str:

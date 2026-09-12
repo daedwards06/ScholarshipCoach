@@ -202,3 +202,52 @@ def test_scholarship_america_live_national_scholarship_not_tagged_mn_only() -> N
         "National scholarship with 'Minnesota' only in footer boilerplate "
         "must not be tagged as MN-only"
     )
+
+
+def _parse_sa_detail(fixture_name: str, slug: str):
+    fixture_path = Path(__file__).resolve().parent / "resources" / fixture_name
+    return ScholarshipAmericaLiveSource().parse_detail_html(
+        fixture_path.read_text(encoding="utf-8"),
+        detail_url=f"https://scholarshipamerica.org/scholarships/{slug}/",
+        fetched_at=datetime(2026, 2, 22, 12, 0, tzinfo=UTC),
+    )
+
+
+def test_scholarship_america_live_parses_open_status_and_aggregator_trust() -> None:
+    record = _parse_sa_detail("scholarship_america_detail_sample.html", "future-leaders-scholarship")
+
+    assert record is not None
+    assert record["status"] == "open"
+    assert record["trust"] == "aggregator"
+
+
+def test_scholarship_america_live_parses_closed_status() -> None:
+    record = _parse_sa_detail("scholarship_america_closed_sample.html", "legacy-achievement-scholarship")
+
+    assert record is not None
+    assert record["status"] == "closed"
+    assert record["trust"] == "aggregator"
+
+
+def test_scholarship_america_live_status_is_none_when_unlabeled() -> None:
+    record = _parse_sa_detail("scholarship_america_national_sample.html", "national-excellence-scholarship")
+
+    assert record is not None
+    assert record["status"] is None
+
+
+def test_scholarship_america_live_drops_scholarship_status_chrome_page() -> None:
+    record = _parse_sa_detail("scholarship_america_status_chrome_sample.html", "scholarship-status")
+
+    assert record is None
+
+
+def test_scholarship_america_live_drops_status_page_titled_only_by_its_slug() -> None:
+    """The live page has no usable <title>, so the slug fallback must be filtered too."""
+    record = ScholarshipAmericaLiveSource().parse_detail_html(
+        "<html><head><title></title></head><body><p>Sign in to check your status.</p></body></html>",
+        detail_url="https://scholarshipamerica.org/scholarships/scholarship-status/",
+        fetched_at=datetime(2026, 2, 22, 12, 0, tzinfo=UTC),
+    )
+
+    assert record is None

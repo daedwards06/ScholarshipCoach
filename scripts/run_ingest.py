@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 from datetime import UTC, date, datetime
@@ -12,7 +13,7 @@ import pandas as pd
 
 from src.ingest.cache import write_raw_payload
 from src.ingest.http import PoliteHttpClient
-from src.ingest.registry import register_sources
+from src.ingest.registry import disabled_sources, register_sources
 from src.io.snapshotting import (
     CATALOG_COLUMNS,
     CATALOG_DICT_COLUMNS,
@@ -383,6 +384,67 @@ def _exception_summary(exc: Exception) -> dict[str, str]:
     return {"type": type(exc).__name__, "message": str(exc)}
 
 
+def _load_prior_source_counts(report_dir: Path) -> dict[str, int]:
+    """Return ``{source_name: records}`` from the most recent readable ingest report."""
+    try:
+        candidates = sorted(report_dir.glob("ingest_*.json"))
+    except OSError:
+        return {}
+
+    for path in reversed(candidates):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+            logger.warning("Skipping unreadable prior ingest report at %s", path)
+            continue
+        details = payload.get("sources", {}).get("details")
+        if not isinstance(details, list):
+            continue
+        counts: dict[str, int] = {}
+        for entry in details:
+            if not isinstance(entry, dict) or not entry.get("source"):
+                continue
+            try:
+                counts[str(entry["source"])] = int(entry.get("records", 0))
+            except (TypeError, ValueError):
+                continue
+        if counts:
+            return counts
+    return {}
+
+
+def _apply_source_health(
+    source_attempts: list[dict[str, Any]],
+    prior_counts: dict[str, int],
+) -> None:
+    """Attach a ``health`` block per source and fail any zero-record regression.
+
+    A connector that returned records last run and none now is the failure mode
+    this exists for: without it the run reports ``succeeded`` on an empty scrape.
+    """
+    for entry in source_attempts:
+        records_this_run = int(entry.get("records", 0))
+        records_prior_run = prior_counts.get(entry["source"])
+        regression = bool(
+            records_prior_run
+            and records_prior_run > 0
+            and records_this_run == 0
+        )
+        entry["health"] = {
+            "records_this_run": records_this_run,
+            "records_prior_run": records_prior_run,
+            "zero_record_regression": regression,
+        }
+        if regression:
+            entry["status"] = "failed"
+            entry["error"] = "zero_records"
+            logger.error(
+                "Source %s returned 0 records but returned %d on the prior run.",
+                entry["source"],
+                records_prior_run,
+            )
+
+
 def run_ingest(
     *,
     date: date | None = None,
@@ -420,6 +482,8 @@ def run_ingest(
     snapshot_skip_reason: str | None = None
     run_exception: dict[str, str] | None = None
     llm_summary: dict[str, Any] = _empty_llm_summary(requested=llm_enrich)
+    prior_source_counts = _load_prior_source_counts(resolved_report_dir)
+    disabled_source_entries = disabled_sources()
 
     try:
         sources = register_sources()
@@ -568,6 +632,10 @@ def run_ingest(
             snapshot_skip_reason = snapshot_skip_reason or "Snapshot generation failed after records were normalized."
     finally:
         finished_at = datetime.now(tz=UTC)
+        _apply_source_health(source_attempts, prior_source_counts)
+        zero_record_regressions = [
+            entry["source"] for entry in source_attempts if entry["health"]["zero_record_regression"]
+        ]
         attempted_sources = [entry["source"] for entry in source_attempts]
         succeeded_sources = [entry["source"] for entry in source_attempts if entry["status"] == "succeeded"]
         partial_sources = [entry["source"] for entry in source_attempts if entry["status"] == "partial"]
@@ -585,6 +653,12 @@ def run_ingest(
             status = "partial" if not normalized_df.empty or bool(succeeded_sources) else "failed"
         else:
             status = "success"
+
+        for source_name in zero_record_regressions:
+            guardrail_warnings.append(
+                f"Source '{source_name}' returned 0 records but returned "
+                f"{prior_source_counts.get(source_name)} on the prior run."
+            )
 
         report_payload = {
             "status": status,
@@ -612,6 +686,9 @@ def run_ingest(
                 "succeeded_count": len(succeeded_sources),
                 "partial_count": len(partial_sources),
                 "failed_count": len(failed_sources),
+                "disabled": disabled_source_entries,
+                "disabled_count": len(disabled_source_entries),
+                "zero_record_regressions": zero_record_regressions,
                 "details": source_attempts,
             },
             "progress": {

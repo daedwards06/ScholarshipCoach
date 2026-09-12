@@ -316,17 +316,39 @@ python scripts/run_ingest.py --max-listing-pages 1 --max-detail-pages 20 --max-r
 ```
 
 **Checklist:**
-- [ ] Scholarship America: parse `Status: Open|Closed` into `status`; drop records whose title
+- [x] Scholarship America: parse `Status: Open|Closed` into `status`; drop records whose title
       is a page chrome string (extend `_NON_DETAIL_TITLE_HINTS` with "scholarship status");
       set `trust = aggregator`
-- [ ] Ingest report gains `health` per source: `records_this_run`, `records_prior_run`,
+- [x] Ingest report gains `health` per source: `records_this_run`, `records_prior_run`,
       `zero_record_regression` (true when prior > 0 and now == 0); any regression sets the
       source `status` to `failed` with `error = "zero_records"` and the run status to `partial`
-- [ ] `register_sources` reads an `enabled` flag per connector from
+- [x] `register_sources` reads an `enabled` flag per connector from
       `data/catalog/sources.json`; Bold.org ships `enabled: false` with a note until rewritten
-- [ ] Operator area in the app shows the health table and a warning banner on any regression
-- [ ] Tests: regression detection, disabled source skipped, status parsing, junk title dropped
-- [ ] Tests + ruff green
+- [x] Operator area in the app shows the health table and a warning banner on any regression
+- [x] Tests: regression detection, disabled source skipped, status parsing, junk title dropped
+- [x] Tests + ruff green
+
+**As built — contracts later tasks depend on:**
+- `data/catalog/sources.json` is the kill switch: `{"sources": {"<name>": {"enabled": bool,
+  "note": str}}}`. A connector missing from the file is enabled, and an unreadable or malformed
+  file enables everything — a broken config must never silently stop the ingest. `bold_org`
+  ships `enabled: false`, so it is no longer in `attempted` and never trips a regression.
+- `register_sources(config_path=None)` and the new `load_source_settings` /
+  `disabled_sources` helpers all take an optional config path, so tests point at a tmp file.
+- Per-source health lives at `sources.details[].health`; the run-level roll-ups are
+  `sources.zero_record_regressions` (list of names), `sources.disabled` (`[{source, note}]`)
+  and `sources.disabled_count`. A regression also appends a `guardrail_warnings` line.
+- `records_prior_run` comes from the most recent readable `reports/ingest_runs/ingest_*.json`,
+  matched by source name; it is `None` on a first run, which is never a regression.
+- Regression demotes only the source (`status = "failed"`, `error = "zero_records"`); the run
+  status still falls out of the existing derivation, so it is `partial` whenever any records
+  survived and `failed` when none did.
+- `_is_non_detail_title` is checked twice in `parse_detail_html` — once on the extracted
+  `<title>` and again on `resolved_title`, because the live "Scholarship Status" page has no
+  usable title and reaches the check only through the URL-slug fallback.
+- Scholarship America records now carry `status` (`open|closed|upcoming|unknown`, or `None`
+  when the page has no `Status:` label) and `trust = "aggregator"`, so Stage 1's existing
+  closed-award rule now fires on live aggregator rows.
 
 ---
 
