@@ -4,6 +4,8 @@ from typing import Any
 
 import pandas as pd
 
+from src.text_utils import coerce_text
+
 
 def format_amount_range(amount_min: Any, amount_max: Any) -> str:
     min_value = _coerce_amount(amount_min)
@@ -60,9 +62,11 @@ def explain_ranked_row(row: pd.Series, *, max_signals: int = 3) -> list[str]:
 def reasons_to_text(value: Any) -> str:
     if value is None:
         return ""
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         return ", ".join(str(item) for item in value if str(item).strip())
-    return str(value)
+    if hasattr(value, "tolist") and not isinstance(value, (str, bytes, bytearray)):
+        return reasons_to_text(value.tolist())
+    return coerce_text(value)
 
 
 def _coerce_amount(value: Any) -> float | None:

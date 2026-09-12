@@ -33,6 +33,7 @@ from src.llm.cache import (
 )
 from src.llm.client import DEFAULT_MODEL, MODEL_ENV, LlmClient, client_from_env
 from src.llm.extraction import EXTRACTION_FIELDS, EXTRACTION_PROMPT_VERSION
+from src.text_utils import coerce_text
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -299,8 +300,7 @@ def _enrich_records_with_llm(
 
         record = {name: row.get(name) for name in LLM_SOURCE_TEXT_FIELDS}
         has_source_text = any(
-            str(record.get(name) or "").strip()
-            for name in ("description", "eligibility_text")
+            coerce_text(record.get(name)) for name in ("description", "eligibility_text")
         )
         if not has_source_text:
             continue

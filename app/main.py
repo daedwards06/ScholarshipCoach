@@ -17,6 +17,7 @@ from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
 from src.rank.weights import Stage2Weights, Stage3Weights
+from src.text_utils import coerce_text
 from src.win_model.infer import get_latest_model_path, load_model
 from src.win_model.train import train_win_model
 
@@ -395,12 +396,14 @@ def _get_urgency_indicator(days_until_deadline: int | None) -> tuple[str, str]:
 
 
 def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
-    title = str(row.get("title") or row.get("scholarship_id") or "Untitled")
-    sponsor = str(row.get("sponsor") or "")
-    deadline = str(row.get("deadline") or "")
+    title = (
+        coerce_text(row.get("title")) or coerce_text(row.get("scholarship_id")) or "Untitled"
+    )
+    sponsor = coerce_text(row.get("sponsor"))
+    deadline = coerce_text(row.get("deadline"))
     amount_str = format_amount_range(row.get("amount_min"), row.get("amount_max"))
     amount_not_published = pd.isna(row.get("amount_min")) and pd.isna(row.get("amount_max"))
-    source_url = str(row.get("source_url") or "").strip()
+    source_url = coerce_text(row.get("source_url"))
 
     days_until = _calculate_days_until_deadline(deadline, today_value)
     urgency_text, urgency_color = _get_urgency_indicator(days_until)
@@ -781,10 +784,14 @@ def main() -> None:
         st.write(f"**{len(excluded_filtered)} scholarship{'s' if len(excluded_filtered) != 1 else ''} excluded** by eligibility filter")
 
         for _, row in excluded_filtered.iterrows():
-            title = str(row.get("title") or row.get("scholarship_id") or "Untitled")
-            deadline = str(row.get("deadline") or "Unknown")
+            title = (
+                coerce_text(row.get("title"))
+                or coerce_text(row.get("scholarship_id"))
+                or "Untitled"
+            )
+            deadline = coerce_text(row.get("deadline"), default="Unknown")
             amount_str = format_amount_range(row.get("amount_min"), row.get("amount_max"))
-            reasons = row.get("reasons") or []
+            reasons = row.get("reasons")
             reasons_text = reasons_to_text(reasons)
 
             with st.container(border=True):

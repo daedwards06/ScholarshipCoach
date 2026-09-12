@@ -46,7 +46,7 @@ from src.llm.cache import (
 )
 from src.llm.client import DEFAULT_MODEL, MODEL_ENV, LlmClient, client_from_env
 from src.llm.extraction import EXTRACTION_FIELDS, EXTRACTION_PROMPT_VERSION
-from src.text_utils import normalize_text
+from src.text_utils import coerce_text, normalize_text
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -244,7 +244,7 @@ def _row_get(row: Any, key: str) -> Any:
 def has_source_text(row: Any) -> bool:
     """Return True when a record has text for the LLM to extract from."""
     return any(
-        str(_row_get(row, field) or "").strip()
+        coerce_text(_row_get(row, field))
         for field in ("description", "eligibility_text")
     )
 
@@ -639,7 +639,7 @@ def main() -> int:
         per_record.append(
             {
                 "scholarship_id": str(_row_get(row, "scholarship_id")),
-                "title": str(_row_get(row, "title") or ""),
+                "title": coerce_text(_row_get(row, "title")),
                 "gold_fields": sorted(gold),
                 "predicted_fields": sorted(
                     field

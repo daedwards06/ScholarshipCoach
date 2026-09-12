@@ -5,9 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  # Runtime dependencies are unpinned, so a new upstream release can break the
-  # build with no code change. A weekly run surfaces that drift on its own
-  # schedule instead of ambushing the next unrelated push.
+  # Push/PR runs install the pinned set in constraints-ci.txt. This weekly run
+  # installs unpinned on purpose, so a new upstream release shows up as its own
+  # scheduled failure rather than ambushing the next unrelated push.
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
@@ -29,31 +29,40 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install dependencies
+      # Pinned for push/PR so a green local run means a green CI run.
+      - name: Install dependencies (pinned)
         id: install
+        if: github.event_name != 'schedule'
+        run: pip install -e ".[dev]" -c constraints-ci.txt
+
+      # The weekly run deliberately ignores the pins, so dependency drift
+      # surfaces on its own schedule instead of ambushing an unrelated push.
+      - name: Install dependencies (unpinned drift check)
+        id: install_drift
+        if: github.event_name == 'schedule'
         run: pip install -e ".[dev]"
 
       # Every check runs even after an earlier one fails, so a red build reports
       # all of its problems at once. Previously a lint failure skipped the test
       # step entirely, hiding whether anything else was actually broken.
       - name: Lint
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ !cancelled() && (steps.install.outcome == 'success' || steps.install_drift.outcome == 'success') }}
         run: ruff check src/ scripts/ app/ tests/
 
       - name: Validate curated catalog
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ !cancelled() && (steps.install.outcome == 'success' || steps.install_drift.outcome == 'success') }}
         run: python scripts/validate_catalog.py
 
       - name: Type check
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ !cancelled() && (steps.install.outcome == 'success' || steps.install_drift.outcome == 'success') }}
         run: python -m mypy src/
 
       - name: Test
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ !cancelled() && (steps.install.outcome == 'success' || steps.install_drift.outcome == 'success') }}
         run: python -m pytest tests/ -q --tb=short
 
       - name: Report tool versions
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ !cancelled() && (steps.install.outcome == 'success' || steps.install_drift.outcome == 'success') }}
         run: |
           {
             echo "| Tool | Version |"

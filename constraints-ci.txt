@@ -1,0 +1,29 @@
+# Exact runtime dependency versions for CI.
+#
+# Why this file exists: `dependencies` in pyproject.toml is intentionally
+# unbounded so the package stays installable, but CI installs fresh on every
+# run, so an unbounded dependency lets a new upstream release change the build
+# with no code change. That is what broke this repo twice:
+#
+#   2026-08-07  ruff 0.16 expanded its default rule set   -> Lint red for 5 weeks
+#   2026-09-12  pandas 3.0 landed                         -> Test red
+#
+# These versions are the ones the project is developed against locally, so
+# "green on my machine" and "green in CI" mean the same thing.
+#
+# Used by the push/pull_request CI jobs:
+#     pip install -e ".[dev]" -c constraints-ci.txt
+#
+# The weekly scheduled CI run deliberately installs WITHOUT this file, so
+# dependency drift surfaces as its own scheduled failure instead of ambushing
+# the next unrelated push. When that weekly run goes red, reproduce locally,
+# fix or adapt, then bump the pins here in their own commit.
+
+pandas==2.3.3
+numpy==2.4.2
+pyarrow==23.0.1
+scikit-learn==1.8.0
+sentence-transformers==5.2.3
+streamlit==1.54.0
+requests==2.32.5
+jsonschema==4.26.0

@@ -61,6 +61,46 @@ def normalize_text(value: Any, *, default: str = "") -> str:
     return normalized if normalized else default
 
 
+def coerce_text(value: Any, *, default: str = "") -> str:
+    """Coerce a possibly-missing value to a stripped string, preserving case.
+
+    Use this instead of ``str(value or "")`` for anything read out of a pandas
+    row.  pandas represents a missing string as ``NaN``, and ``float("nan")``
+    is *truthy*, so ``value or ""`` does not short-circuit and ``str()`` yields
+    the literal ``"nan"``.  Unlike :func:`normalize_text` this preserves case,
+    so it is safe for text shown to a user or sent to a model.
+
+    Args:
+        value: The value to coerce.  ``None`` and pandas NA/NaT/NaN are
+               treated as missing.
+        default: Returned for missing or empty-after-stripping inputs.
+
+    Returns:
+        The stripped string, or ``default`` when the value is missing.
+
+    Examples:
+        >>> coerce_text("  Tar Heel STEM Award  ")
+        'Tar Heel STEM Award'
+        >>> coerce_text(float("nan"))
+        ''
+        >>> coerce_text(None, default="(not provided)")
+        '(not provided)'
+    """
+    if value is None:
+        return default
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped if stripped else default
+    # Handle pandas NA / NaT / np.nan without a hard numpy dependency.
+    try:
+        if pd.isna(value):
+            return default
+    except (TypeError, ValueError):
+        pass
+    stripped = str(value).strip()
+    return stripped if stripped else default
+
+
 def normalize_list(value: Any) -> list[str]:
     """Normalize a list-like value of strings: coerce, lowercase, strip each element.
 
