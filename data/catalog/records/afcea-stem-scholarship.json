@@ -41,8 +41,8 @@
   "trust": "unverified",
   "provenance": {
     "added_on": "2026-09-12",
-    "verified_on": null,
-    "verified_by": null,
+    "verified_on": "2026-09-12",
+    "verified_by": "verify_catalog",
     "source_kind": "sponsor_site"
   },
   "notes": "Migrated from data/static_feed/scholarships.json. AFCEA runs several named STEM awards behind one page; deadline and status not yet confirmed against source_url."

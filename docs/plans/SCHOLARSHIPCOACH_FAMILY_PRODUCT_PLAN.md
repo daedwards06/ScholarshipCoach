@@ -451,7 +451,7 @@ python -c "from src.ingest.prefill import prefill_from_url; print(prefill_from_u
 
 ---
 
-**As built --- contracts later tasks depend on:**
+**As built — contracts later tasks depend on:**
 - `src/ingest/extract_common.py` owns every shared pattern and helper. Public names (no
   leading underscore): `TAG_PATTERN`, `WS_PATTERN`, `SCRIPT_STYLE_PATTERN`, `MONEY_PATTERN`,
   `ISO_DATE_PATTERN`, `US_DATE_PATTERN`, `LONG_DATE_PATTERN`, `LABEL_BLOCK_PATTERN`,
@@ -537,7 +537,7 @@ python scripts/catalog_inbox.py list
 
 ---
 
-**As built --- contracts later tasks depend on:**
+**As built — contracts later tasks depend on:**
 - `src/catalog/inbox.py` exposes `INBOX_DIR` (`data/catalog/inbox/`), `REJECTED_DIR`
   (`inbox/rejected/`), `PROPOSAL_KINDS`, `Proposal`, `ProposalError`, `propose`,
   `list_proposals`, `load_proposal`, `confirm` and `reject`. Every function takes
@@ -594,16 +594,45 @@ python scripts/verify_catalog.py --max-records 5
 ```
 
 **Checklist:**
-- [ ] `scripts/verify_catalog.py`: for each record, fetch `source_url`, compute a content hash
+- [x] `scripts/verify_catalog.py`: for each record, fetch `source_url`, compute a content hash
       of the cleaned text, detect dead link (4xx/5xx), detect closed/open status text, run the
       prefill extractor and compare `deadline`, amounts, and requirement flags to the record
-- [ ] Unchanged → update `provenance.verified_on`; changed → write an inbox proposal of kind
+- [x] Unchanged → update `provenance.verified_on`; changed → write an inbox proposal of kind
       `reverify` with the diff; dead link → proposal with `status: unknown`
-- [ ] `--since-days` and `--max-records` flags; polite rate limit; summary report under
+- [x] `--since-days` and `--max-records` flags; polite rate limit; summary report under
       `reports/catalog_verify/`
-- [ ] `docs/operations.md`: how to schedule it (Windows Task Scheduler entry, monthly)
-- [ ] Tests with a fake client: unchanged, changed deadline, dead link
-- [ ] Tests + ruff green
+- [x] `docs/operations.md`: how to schedule it (Windows Task Scheduler entry, monthly)
+- [x] Tests with a fake client: unchanged, changed deadline, dead link
+- [x] Tests + ruff green
+
+**As built — contracts later tasks depend on:**
+- Logic lives in `src/catalog/verify.py`; `scripts/verify_catalog.py` is a thin CLI with
+  `main(argv)`. `verify_catalog(...)` takes `records_dir`, `inbox_dir`, `reports_dir`, `client`,
+  `extractor`, `since_days`, `max_records`, `today`, `requests_per_second`, `write_report`, so
+  tests drive the whole pass with a stub client and tmp dirs.
+- Four outcomes: `unchanged` (stamp `provenance.verified_on` + `verified_by: verify_catalog`),
+  `changed` (a `reverify` proposal carrying the merged record), `dead_link` (4xx/5xx --- a
+  proposal with `status: unknown`), and `error` (no HTTP status: SSL failure, timeout, offline
+  laptop). Only `dead_link` proposes; an unreachable host is reported, never queued.
+- A change needs a *labeled* value: `deadline` and the amounts count only at
+  `MIN_CHANGE_CONFIDENCE` (0.7), which `RegexExtractor` awards to a single value read from a
+  `Deadline:`/`Amount:` label. This is what stops a sponsor's "$450,000 awarded since 1998"
+  from rewriting `amount_max`. A labeled value does overwrite a `null` field.
+- Requirement flags count only when the record states a value and the page contradicts it;
+  a flag the record leaves `null` is never filled, because those regexes are word-presence
+  matches, not labeled fields. `status` comes from a `Status:` label or unambiguous
+  closed/open wording --- never a bare "open" in body copy.
+- `_stamp_verified_on` patches the two provenance values *as text* so a stamp does not reflow
+  a hand-formatted record; it falls back to a full rewrite only when that patch does not apply.
+  `trust` is never raised --- `verified_by: verify_catalog` is a machine check, not a person.
+- Proposal ids are `reverify-<catalog_id>`, so a monthly pass replaces its own pending
+  proposal for an award instead of stacking duplicates.
+- Reports: `reports/catalog_verify/catalog_verify_<UTC stamp>.json` (git-ignored), carrying
+  per-record outcome, HTTP status, `content_hash`, and diff. The next run reads the newest
+  readable report for prior hashes and reports `content_changed`, which flags a page that was
+  edited without any extracted field moving.
+- Scheduling and the queue workflow are documented in `docs/operations.md`; exit status is 0
+  for any completed pass (dead links are output, not failure) and 1 only on an empty catalog.
 
 ---
 

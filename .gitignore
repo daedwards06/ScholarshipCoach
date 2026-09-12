@@ -46,6 +46,7 @@ data/private/
 
 # Run-specific logs
 reports/ingest_runs/
+reports/catalog_verify/
 
 # Timestamped eval/tuning reports -- regenerated on every run.
 # A curated showcase set is force-committed (git ignores these patterns for
