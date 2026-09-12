@@ -8,7 +8,6 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -16,6 +15,16 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 from src.ingest.base import BaseSource
 from src.ingest.cache import write_raw_payload
+from src.ingest.extract_common import (
+    WS_PATTERN,
+    extract_amount_range,
+    extract_field_value,
+    find_states,
+    html_to_text,
+    meta_content,
+    parse_first_date,
+    tag_text,
+)
 from src.normalize.canonical_id import generate_scholarship_id
 
 logger = logging.getLogger(__name__)
@@ -23,26 +32,10 @@ logger = logging.getLogger(__name__)
 _BROWSE_URL = "https://scholarshipamerica.org/students/browse-scholarships/"
 _SITE_HOST = "scholarshipamerica.org"
 
-_TAG_PATTERN = re.compile(r"<[^>]+>")
-_SCRIPT_STYLE_PATTERN = re.compile(r"<(script|style)\b[^>]*>.*?</\1>", flags=re.IGNORECASE | re.DOTALL)
-_WS_PATTERN = re.compile(r"\s+")
-_MONEY_PATTERN = re.compile(r"\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
-_ISO_DATE_PATTERN = re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
-_US_DATE_PATTERN = re.compile(r"\b(\d{1,2}/\d{1,2}/20\d{2})\b")
-_LONG_DATE_PATTERN = re.compile(
-    r"\b((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
-    r"jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|"
-    r"dec(?:ember)?)\s+\d{1,2},\s+20\d{2})\b",
-    flags=re.IGNORECASE,
-)
 _LINKED_JSON_PATTERN = re.compile(r"https?://[^\"'\s>]+wp-json[^\"'\s<]+", flags=re.IGNORECASE)
 _FWP_JSON_PATTERN = re.compile(
     r"window\.FWP_JSON\s*=\s*(\{.*?\});\s*window\.FWP_HTTP",
     flags=re.IGNORECASE | re.DOTALL,
-)
-_LABEL_BLOCK_PATTERN = re.compile(
-    r"(Sponsor|Provider|Organization|Eligibility|Deadline|Amount|Award|Education|Institution|Status|State|Territory|Essay(?: Prompt)?|Essay Required)\s*:?\s*",
-    re.IGNORECASE,
 )
 _NON_DETAIL_TITLE_HINTS = (
     "browse scholarships",
@@ -60,19 +53,6 @@ _STATUS_KEYWORDS = (
     ("upcoming", "upcoming"),
     ("open", "open"),
 )
-
-_US_STATES_AND_TERRITORIES = [
-    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
-    "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois",
-    "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts",
-    "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
-    "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota",
-    "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Puerto Rico", "Rhode Island", "South Carolina",
-    "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
-    "West Virginia", "Wisconsin", "Wyoming", "Guam", "U.S. Virgin Islands", "Northern Mariana Islands",
-    "American Samoa",
-]
-
 
 @dataclass(slots=True)
 class FetchStats:
@@ -723,62 +703,38 @@ def _looks_like_detail_url(url: str, anchor_text: str) -> bool:
 
 
 def _to_text(html: str) -> str:
-    without_script = _SCRIPT_STYLE_PATTERN.sub(" ", html)
-    cleaned = _TAG_PATTERN.sub(" ", without_script)
-    return _WS_PATTERN.sub(" ", unescape(cleaned)).strip()
+    return html_to_text(html)
 
 
 def _extract_title(html: str) -> str:
-    og_match = re.search(
-        r"<meta[^>]*property=['\"]og:title['\"][^>]*content=['\"](.*?)['\"][^>]*>",
-        html,
-        flags=re.IGNORECASE,
-    )
-    if og_match:
-        return _WS_PATTERN.sub(" ", unescape(og_match.group(1))).strip()
+    og_title = meta_content(html, prop="og:title")
+    if og_title:
+        return og_title
 
-    h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", html, flags=re.IGNORECASE | re.DOTALL)
-    if h1_match:
-        return _WS_PATTERN.sub(" ", _to_text(h1_match.group(1))).strip()
+    h1 = tag_text(html, "h1")
+    if h1:
+        return h1
 
-    title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
-    if title_match:
-        title = _WS_PATTERN.sub(" ", _to_text(title_match.group(1))).strip()
+    title = tag_text(html, "title")
+    if title:
         return title.replace("| Scholarship America", "").strip()
 
     return ""
 
 
 def _extract_description(html: str) -> str:
-    meta_match = re.search(
-        r"<meta[^>]*name=['\"]description['\"][^>]*content=['\"](.*?)['\"][^>]*>",
-        html,
-        flags=re.IGNORECASE,
-    )
-    if meta_match:
-        candidate = _WS_PATTERN.sub(" ", unescape(meta_match.group(1))).strip()
-        if candidate:
-            return candidate
+    meta_description = meta_content(html, name="description")
+    if meta_description:
+        return meta_description
 
     paragraphs = re.findall(r"<p[^>]*>(.*?)</p>", html, flags=re.IGNORECASE | re.DOTALL)
-    candidates = [_WS_PATTERN.sub(" ", _to_text(chunk)).strip() for chunk in paragraphs]
+    candidates = [WS_PATTERN.sub(" ", _to_text(chunk)).strip() for chunk in paragraphs]
     candidates = [entry for entry in candidates if len(entry) >= 30]
     return candidates[0] if candidates else ""
 
 
 def _extract_field_value(text: str, field_names: list[str]) -> str:
-    lowered = text.lower()
-    for field_name in field_names:
-        key = f"{field_name.lower()}:"
-        start = lowered.find(key)
-        if start == -1:
-            continue
-        raw = text[start + len(key) :]
-        split = _LABEL_BLOCK_PATTERN.split(raw, maxsplit=1)
-        candidate = split[0].strip(" .;:\n\t")
-        if candidate:
-            return candidate
-    return ""
+    return extract_field_value(text, field_names)
 
 
 def _is_non_detail_title(title: str) -> bool:
@@ -807,48 +763,18 @@ def _extract_eligibility_text(text: str) -> str:
 
 
 def _extract_deadline(text: str) -> str | None:
-    iso = _ISO_DATE_PATTERN.search(text)
-    if iso:
-        return iso.group(1)
-
-    us_date = _US_DATE_PATTERN.search(text)
-    if us_date:
-        try:
-            return datetime.strptime(us_date.group(1), "%m/%d/%Y").date().isoformat()
-        except ValueError:
-            pass
-
-    long_date = _LONG_DATE_PATTERN.search(text)
-    if long_date:
-        raw = long_date.group(1)
-        for fmt in ("%B %d, %Y", "%b %d, %Y"):
-            try:
-                return datetime.strptime(raw, fmt).date().isoformat()
-            except ValueError:
-                continue
-    return None
+    return parse_first_date(text)
 
 
 def _extract_amount_range(text: str) -> tuple[float | None, float | None]:
-    matches = [float(chunk.replace(",", "")) for chunk in _MONEY_PATTERN.findall(text)]
-    if not matches:
-        return None, None
-    return min(matches), max(matches)
+    return extract_amount_range(text)
 
 
 def _extract_states(text: str, eligibility_text: str = "") -> list[str] | None:
     # Prefer an explicit "State/Territory:" or "State:" labeled field over full-page scan,
     # which would pick up the site's HQ address (e.g. "Minnesota") for every record.
     labeled = _extract_field_value(text, ["state/territory", "state", "territory"])
-    search_text = labeled or eligibility_text
-    if not search_text:
-        return None
-    lowered = search_text.lower()
-    found = [
-        name for name in _US_STATES_AND_TERRITORIES
-        if re.search(r"\b" + re.escape(name.lower()) + r"\b", lowered)
-    ]
-    return sorted(set(found)) if found else None
+    return find_states(labeled or eligibility_text)
 
 
 def _extract_essay_fields(text: str) -> tuple[bool | None, str | None]:

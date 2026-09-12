@@ -10,11 +10,11 @@ import json
 import logging
 import re
 from datetime import datetime
-from html import unescape
 from typing import Any
 from urllib.parse import urljoin
 
 from src.ingest.base import BaseSource, RawResponse
+from src.ingest.extract_common import extract_amount_range, parse_first_date, strip_html
 from src.normalize.canonical_id import generate_scholarship_id
 
 logger = logging.getLogger(__name__)
@@ -26,53 +26,20 @@ _NEXT_DATA_PATTERN = re.compile(
     r'<script[^>]*id=["\']__NEXT_DATA__["\'][^>]*>(.*?)</script>',
     flags=re.IGNORECASE | re.DOTALL,
 )
-_TAG_PATTERN = re.compile(r"<[^>]+>")
-_WS_PATTERN = re.compile(r"\s+")
-_MONEY_PATTERN = re.compile(r"\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
-_ISO_DATE_PATTERN = re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
-_LONG_DATE_PATTERN = re.compile(
-    r"\b((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
-    r"jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|"
-    r"dec(?:ember)?)\s+\d{1,2},?\s+20\d{2})\b",
-    flags=re.IGNORECASE,
-)
-
-
-def _strip_html(html: str) -> str:
-    return _WS_PATTERN.sub(" ", unescape(_TAG_PATTERN.sub(" ", html))).strip()
 
 
 def _extract_amount(text: str | None) -> tuple[float | None, float | None]:
+    """Amounts from a Bold.org field, which may be a bare number rather than "$1,000"."""
     if not text:
         return None, None
-    matches = [float(chunk.replace(",", "")) for chunk in _MONEY_PATTERN.findall(str(text))]
-    if not matches:
-        try:
-            val = float(str(text).replace(",", "").replace("$", "").strip())
-            if val > 0:
-                return val, val
-        except ValueError:
-            pass
+    amount_min, amount_max = extract_amount_range(str(text))
+    if amount_min is not None:
+        return amount_min, amount_max
+    try:
+        val = float(str(text).replace(",", "").replace("$", "").strip())
+    except ValueError:
         return None, None
-    return min(matches), max(matches)
-
-
-def _parse_deadline(raw: str | None) -> str | None:
-    if not raw:
-        return None
-    cleaned = str(raw).strip()
-    iso = _ISO_DATE_PATTERN.search(cleaned)
-    if iso:
-        return iso.group(1)
-    long_match = _LONG_DATE_PATTERN.search(cleaned)
-    if long_match:
-        candidate = long_match.group(1).replace(",", "")
-        for fmt in ("%B %d %Y", "%b %d %Y"):
-            try:
-                return datetime.strptime(candidate, fmt).date().isoformat()
-            except ValueError:
-                continue
-    return None
+    return (val, val) if val > 0 else (None, None)
 
 
 def _extract_keywords(text: str | None) -> list[str] | None:
@@ -140,10 +107,10 @@ def _map_bold_item(item: dict[str, Any], fetched_at: datetime) -> dict[str, Any]
     ) or None
 
     description_raw = item.get("description") or item.get("summary") or ""
-    description = _strip_html(str(description_raw)).strip() or None
+    description = strip_html(str(description_raw)).strip() or None
 
     eligibility_raw = item.get("eligibility") or item.get("eligibility_text") or ""
-    eligibility_text = _strip_html(str(eligibility_raw)).strip() or None
+    eligibility_text = strip_html(str(eligibility_raw)).strip() or None
 
     amount_raw = item.get("amount") or item.get("award_amount") or ""
     if isinstance(amount_raw, (int, float)):
@@ -151,7 +118,7 @@ def _map_bold_item(item: dict[str, Any], fetched_at: datetime) -> dict[str, Any]
     else:
         amount_min, amount_max = _extract_amount(str(amount_raw))
 
-    deadline = _parse_deadline(
+    deadline = parse_first_date(
         str(item.get("deadline") or item.get("close_date") or "")
     )
 
@@ -205,10 +172,10 @@ def _records_from_html_cards(html: str, fetched_at: datetime) -> list[dict[str, 
     records: list[dict[str, Any]] = []
     for card_match in card_pattern.finditer(html):
         card_html = card_match.group(1)
-        card_text = _strip_html(card_html)
+        card_text = strip_html(card_html)
 
         title_match = title_pattern.search(card_html)
-        title = _strip_html(title_match.group(1)) if title_match else ""
+        title = strip_html(title_match.group(1)) if title_match else ""
         if not title:
             continue
 
@@ -217,7 +184,7 @@ def _records_from_html_cards(html: str, fetched_at: datetime) -> list[dict[str, 
         source_url = urljoin(_LISTING_URL, path)
 
         amount_min, amount_max = _extract_amount(card_text)
-        deadline = _parse_deadline(card_text)
+        deadline = parse_first_date(card_text)
         keywords = _extract_keywords(card_text)
 
         scholarship_id = generate_scholarship_id(

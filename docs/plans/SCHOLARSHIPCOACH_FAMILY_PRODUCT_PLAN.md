@@ -436,20 +436,73 @@ python -c "from src.ingest.prefill import prefill_from_url; print(prefill_from_u
 ```
 
 **Checklist:**
-- [ ] `src/ingest/extract_common.py`: shared money, date (ISO, US, long-form), state,
+- [x] `src/ingest/extract_common.py`: shared money, date (ISO, US, long-form), state,
       county (NC list), essay/recommendation/transcript keyword patterns, HTML-to-text
-- [ ] Both scrapers import from it; behavior-preserving (existing parsing tests unchanged)
-- [ ] `src/ingest/prefill.py`: `Extractor` protocol
+- [x] Both scrapers import from it; behavior-preserving (existing parsing tests unchanged)
+- [x] `src/ingest/prefill.py`: `Extractor` protocol
       (`extract(title, text) -> ExtractionResult`), `RegexExtractor` implementation, and
       `prefill_from_url(url, client) -> PrefillResult` returning `title` (og:title / `<title>`),
       `sponsor` (og:site_name), `description` (meta), amount candidates, date candidates,
       state/county hits, requirement flags, the cleaned page text, and per-field confidence
-- [ ] Never guess: fields with no evidence are `None`; multiple date candidates are returned
+- [x] Never guess: fields with no evidence are `None`; multiple date candidates are returned
       as a list for the form to choose from
-- [ ] Tests with fixture HTML (a foundation page, an aggregator page, a page with no signals)
-- [ ] Tests + ruff green
+- [x] Tests with fixture HTML (a foundation page, an aggregator page, a page with no signals)
+- [x] Tests + ruff green
 
 ---
+
+**As built --- contracts later tasks depend on:**
+- `src/ingest/extract_common.py` owns every shared pattern and helper. Public names (no
+  leading underscore): `TAG_PATTERN`, `WS_PATTERN`, `SCRIPT_STYLE_PATTERN`, `MONEY_PATTERN`,
+  `ISO_DATE_PATTERN`, `US_DATE_PATTERN`, `LONG_DATE_PATTERN`, `LABEL_BLOCK_PATTERN`,
+  `GPA_PATTERN`, `US_STATES_AND_TERRITORIES`, `NC_COUNTIES`, and the functions
+  `strip_html`, `html_to_text`, `meta_content`, `tag_text`, `extract_amounts`,
+  `extract_amount_range`, `parse_date_candidates`, `parse_first_date`,
+  `extract_field_value`, `find_states`, `find_nc_counties`, `find_min_gpa`,
+  `find_requirement_flags`.
+- `strip_html` and `html_to_text` are different on purpose: only `html_to_text` drops
+  `<script>`/`<style>` bodies first. Page-level parsing must use `html_to_text`, or tracking
+  JSON leaks dates and dollar figures into the extraction.
+- `parse_first_date` is format-priority (ISO > `m/d/Y` > long form, regardless of position) and
+  is what the two scrapers use; `parse_date_candidates` is position-ordered, deduped, and
+  returns every date, and is what prefill uses so the form can offer a choice.
+  `LONG_DATE_PATTERN` now treats the comma as optional for both callers.
+- `find_states` matches full state names only --- never two-letter codes, because `IN`, `OR`,
+  `ME` and `OK` are ordinary words. `find_nc_counties` requires the literal word "County" and
+  returns the bare name (`"Wake"`), matching Stage 1's `_normalize_county` comparison.
+- `find_requirement_flags(text) -> (requirements, evidence)`. `requirements` is shaped like
+  the catalog's `requirements` object and carries only keys with positive evidence --- an
+  absent key means "the page did not say", never `False`. A requirement negated earlier in its
+  own sentence ("No essay is required") is dropped from both dicts.
+  `recommendation_letters` is an int only when a count is stated; a countless mention appears
+  in `evidence` alone, so the form asks a person for the number.
+- `src/ingest/prefill.py` exposes `Extractor` (a `runtime_checkable` Protocol with `name` and
+  `extract(title, text) -> ExtractionResult`), `RegexExtractor` (`name = "regex"`),
+  `ExtractionResult`, `PrefillResult`, `prefill_from_html(html, *, url, extractor=None)` and
+  `prefill_from_url(url, client=None, *, extractor=None)`.
+- `ExtractionResult.deadline` is `None` unless there is exactly one candidate --- ambiguity is
+  never resolved by picking the first. Same idea for `confidence`: a field missing from that
+  dict was not extracted at all.
+- Confidence is a function of *how* the evidence was found, not of how plausible the value
+  looks: labeled + single candidate `0.85`, labeled + several `0.6`, unlabeled + single `0.6`,
+  unlabeled + several `0.35`; `og:title` `0.9`, `<h1>` `0.75`, `<title>` `0.6`; `og:site_name`
+  sponsor `0.7`; meta description `0.8`; labeled state `0.7` vs. body-scan state `0.35`;
+  county `0.6`; GPA `0.6`; each requirement `0.6` under the key `requirements.<name>`.
+- `prefill_from_url` never raises: a fetch failure returns a `PrefillResult` with `error` set
+  and every field empty, so a bad paste opens a blank form. `client` is anything with
+  `get_text(url) -> str`; a `PoliteHttpClient` is built and closed automatically when omitted.
+- `PrefillResult.to_form_dict()` is the flat payload Task 2.4's confirm queue consumes. It
+  carries both `deadline_candidates` and the single `deadline`, plus `amount_candidates`,
+  `requirements`, `requirement_evidence`, `confidence`, `extractor` and `error`.
+- `extraction_result_from_fields(fields, *, confidence=0.5)` converts the validated mapping
+  from `src/llm/extraction.py::parse_extraction` into an `ExtractionResult`. That is the proof
+  the protocol is satisfiable by the LLM extractor --- it plugs in by passing `extractor=` to
+  `prefill_from_url`, with no change to the form or the queue.
+- Both scrapers now import from `extract_common` and their 17 existing parsing tests pass
+  unchanged. `bold_org._extract_amount` keeps its bare-number fallback (a Bold.org JSON field
+  may hold `1000` rather than `"$1,000"`); `scholarship_america_live` keeps `_to_text`,
+  `_extract_field_value`, `_extract_deadline`, `_extract_amount_range` and `_extract_states`
+  as thin aliases so its call sites and tests are untouched.
 
 ## Task 2.4: Inbox and Confirm Queue
 
