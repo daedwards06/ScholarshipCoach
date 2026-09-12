@@ -655,15 +655,15 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] `src/store/db.py`: connection factory for `data/private/coach.db`, schema migrations as
+- [x] `src/store/db.py`: connection factory for `data/private/coach.db`, schema migrations as
       numbered SQL files under `src/store/migrations/`, applied on open
-- [ ] Tables: `students`, `applications` (`student_id`, `catalog_id`, `status`, `notes`,
+- [x] Tables: `students`, `applications` (`student_id`, `catalog_id`, `status`, `notes`,
       `created_at`, `updated_at`), `checklist_items`, `essays`, `essay_links`
       (award prompt ↔ essay), `recommenders`, `recommendation_requests`, `outcomes`
       (`amount_awarded`, `paid_to`, `renewal_terms`), `colleges`, `settings`
-- [ ] `src/store/repo.py`: typed functions per table; no SQL in the app layer
-- [ ] Tests on a temp database: migrations idempotent, CRUD per table, cascade on student delete
-- [ ] Tests + ruff green
+- [x] `src/store/repo.py`: typed functions per table; no SQL in the app layer
+- [x] Tests on a temp database: migrations idempotent, CRUD per table, cascade on student delete
+- [x] Tests + ruff green
 
 ---
 
