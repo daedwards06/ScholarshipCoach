@@ -162,22 +162,22 @@ streamlit run app/main.py   # visual: demo profile loads; new fields render grou
 ```
 
 **Checklist:**
-- [ ] Extend `StudentProfile` with optional fields: `student_id`, `graduation_year`,
+- [x] Extend `StudentProfile` with optional fields: `student_id`, `graduation_year`,
       `grade_level` (`9|10|11|12|college_1..4`), `county`, `high_school`, `financial_need`,
       `first_gen`, `gender`, `heritage` (list), `military_family`, `disability`, `religion`,
       `parent_employers` (list), `memberships` (list), `service_hours`, `sat`, `act`,
       `intended_colleges` (list), `essay_ready` (bool)
-- [ ] Add `src/profile/store.py`: load/save `data/private/students/<student_id>.json`; list
+- [x] Add `src/profile/store.py`: load/save `data/private/students/<student_id>.json`; list
       students; the app's `PROFILE_PATH` moves here; `data/private/` added to `.gitignore`
-- [ ] Ship `data/demo/student_demo.json` (fictional, committed) and load it when no private
+- [x] Ship `data/demo/student_demo.json` (fictional, committed) and load it when no private
       profile exists, with a visible "Demo profile" banner
-- [ ] Map UI grade labels to `education_level` + `grade_level` (e.g. "High School Senior" →
+- [x] Map UI grade labels to `education_level` + `grade_level` (e.g. "High School Senior" →
       `high school`, `12`); keep `key=` session-state bindings; `_build_stage2_profile` passes
       `extracurriculars` from the profile instead of `[]`
-- [ ] Group the sidebar form: Academic, About you (identity/need axes, each optional with a
+- [x] Group the sidebar form: Academic, About you (identity/need axes, each optional with a
       "prefer not to say" default), Activities, Colleges
-- [ ] Tests: profile round-trip, demo fallback, grade-label mapping, golden students untouched
-- [ ] Tests + ruff green
+- [x] Tests: profile round-trip, demo fallback, grade-label mapping, golden students untouched
+- [x] Tests + ruff green
 
 ---
 

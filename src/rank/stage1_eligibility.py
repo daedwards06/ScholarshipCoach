@@ -6,7 +6,7 @@ Each ineligible row is annotated with the list of reason codes that disqualified
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 import pandas as pd
@@ -25,6 +25,10 @@ class StudentProfile:
     defaults to ``date.today()`` if not set. When ``strict_education_level`` is
     ``True`` the education check requires an exact level match instead of
     allowing adjacency (e.g. high school ↔ undergraduate).
+
+    A restriction axis left at ``None`` means "the student has not answered",
+    which is different from a stated "no": the rules must not disqualify on an
+    unanswered axis.
     """
 
     gpa: float | None = None
@@ -34,6 +38,26 @@ class StudentProfile:
     citizenship: str | None = None
     today: date | None = None
     strict_education_level: bool = False
+
+    student_id: str | None = None
+    graduation_year: int | None = None
+    grade_level: str | None = None
+    county: str | None = None
+    high_school: str | None = None
+    financial_need: bool | None = None
+    first_gen: bool | None = None
+    gender: str | None = None
+    heritage: list[str] = field(default_factory=list)
+    military_family: bool | None = None
+    disability: bool | None = None
+    religion: str | None = None
+    parent_employers: list[str] = field(default_factory=list)
+    memberships: list[str] = field(default_factory=list)
+    service_hours: int | None = None
+    sat: int | None = None
+    act: int | None = None
+    intended_colleges: list[str] = field(default_factory=list)
+    essay_ready: bool = False
 
 
 def _row_reasons(row: pd.Series, profile: StudentProfile, today: date) -> list[str]:

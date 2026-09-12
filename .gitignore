@@ -40,8 +40,9 @@ data/processed/win_model/
 data/processed/embeddings/
 data/processed/llm_extractions/
 
-# Personal data
+# Personal data -- profiles, tracker, essays, outcomes (never committed)
 student_profile.json
+data/private/
 
 # Run-specific logs
 reports/ingest_runs/

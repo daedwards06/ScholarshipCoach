@@ -13,6 +13,22 @@ from app.helpers import explain_ranked_row, format_amount_range, reasons_to_text
 from scripts.run_ingest import get_latest_snapshot_path, run_ingest
 from src.embeddings.cache import ensure_embedding_store_for_df
 from src.eval.golden_students import get_golden_students
+from src.profile.grade_levels import (
+    GRADE_LABELS,
+    grade_label_to_levels,
+    infer_graduation_year,
+    levels_to_grade_label,
+)
+from src.profile.store import (
+    DEFAULT_STUDENT_ID,
+    default_profile,
+    load_profile,
+    load_profile_or_demo,
+    profile_path,
+    save_profile,
+    to_stage1_profile,
+    to_stage2_profile,
+)
 from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
@@ -24,7 +40,7 @@ from src.win_model.train import train_win_model
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
-PROFILE_PATH = PROCESSED_DIR / "student_profile.json"
+PROFILE_PATH = profile_path(DEFAULT_STUDENT_ID)
 BEST_WEIGHTS_LATEST_PATH = PROCESSED_DIR / "best_weights_latest.json"
 WEIGHTS_PROFILE_PATHS = {
     "Latest": BEST_WEIGHTS_LATEST_PATH,
@@ -36,25 +52,65 @@ WEIGHTS_PROFILE_OPTIONS = tuple(WEIGHTS_PROFILE_PATHS.keys()) + ("Custom file pa
 SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 
+PREFER_NOT_TO_SAY = "Prefer not to say"
+TRISTATE_OPTIONS = (PREFER_NOT_TO_SAY, "Yes", "No")
+GENDER_OPTIONS = (PREFER_NOT_TO_SAY, "Female", "Male", "Nonbinary")
 
-def _default_profile() -> dict[str, Any]:
-    return {
-        "name": "",
-        "gpa": 0.0,
-        "state": "",
-        "major": "",
-        "education_level": "",
-        "citizenship": "",
-        "profile_keywords": [],
-        "goals": "",
-        "today_override": date.today().isoformat(),
-        "use_today_override": False,
-    }
+_LIST_WIDGET_FIELDS = (
+    "heritage",
+    "parent_employers",
+    "memberships",
+    "intended_colleges",
+    "extracurriculars",
+)
+
+
+def _tristate_label(value: bool | None) -> str:
+    if value is None:
+        return PREFER_NOT_TO_SAY
+    return "Yes" if value else "No"
+
+
+def _tristate_value(label: str) -> bool | None:
+    if label == "Yes":
+        return True
+    if label == "No":
+        return False
+    return None
+
+
+def _gender_label(value: str | None) -> str:
+    if not value:
+        return PREFER_NOT_TO_SAY
+    return value.capitalize() if value.capitalize() in GENDER_OPTIONS else PREFER_NOT_TO_SAY
+
+
+def _gender_value(label: str) -> str | None:
+    return None if label == PREFER_NOT_TO_SAY else label.casefold()
+
+
+def _csv_text(values: Any) -> str:
+    return ", ".join(str(value) for value in (values or []))
+
+
+def _csv_list(raw: Any) -> list[str]:
+    return [part.strip() for part in str(raw or "").split(",") if part.strip()]
+
+
+def _positive_or_none(value: Any) -> int | None:
+    number = int(value or 0)
+    return number if number > 0 else None
 
 
 def _ensure_session_state() -> None:
     if "profile" not in st.session_state:
-        st.session_state.profile = _default_profile()
+        profile, is_demo = load_profile_or_demo()
+        if is_demo:
+            # Demo data seeds the default slot so Save writes where Load reads.
+            profile["student_id"] = DEFAULT_STUDENT_ID
+        st.session_state.profile = profile
+        st.session_state.profile_is_demo = is_demo
+    st.session_state.setdefault("profile_is_demo", False)
     if "latest_snapshot_path" not in st.session_state:
         st.session_state.latest_snapshot_path = None
     if "latest_delta_summary" not in st.session_state:
@@ -78,39 +134,41 @@ def _ensure_session_state() -> None:
     _sync_widget_defaults_from_profile(st.session_state.profile)
 
 
-def _sync_widget_defaults_from_profile(profile: dict[str, Any]) -> None:
-    st.session_state.setdefault("profile_name", str(profile.get("name") or ""))
-    st.session_state.setdefault("profile_gpa", float(profile.get("gpa") or 0.0))
-    st.session_state.setdefault("profile_state", str(profile.get("state") or ""))
-    st.session_state.setdefault("profile_major", str(profile.get("major") or ""))
-    st.session_state.setdefault(
-        "profile_education_level", str(profile.get("education_level") or "")
-    )
-    st.session_state.setdefault("profile_citizenship", str(profile.get("citizenship") or ""))
-    keywords = profile.get("profile_keywords") or []
-    st.session_state.setdefault(
-        "profile_keywords_csv", ", ".join(str(keyword) for keyword in keywords)
-    )
-    st.session_state.setdefault("profile_goals", str(profile.get("goals") or ""))
+def _widget_values_from_profile(profile: dict[str, Any]) -> dict[str, Any]:
     iso_override = str(profile.get("today_override") or date.today().isoformat())
-    st.session_state.setdefault("profile_today_override", date.fromisoformat(iso_override))
-    st.session_state.setdefault(
-        "profile_use_today_override", bool(profile.get("use_today_override", False))
-    )
+    values: dict[str, Any] = {
+        "profile_name": str(profile.get("name") or ""),
+        "profile_gpa": float(profile.get("gpa") or 0.0),
+        "profile_state": str(profile.get("state") or ""),
+        "profile_county": str(profile.get("county") or ""),
+        "profile_high_school": str(profile.get("high_school") or ""),
+        "profile_major": str(profile.get("major") or ""),
+        "profile_grade_label": levels_to_grade_label(
+            profile.get("education_level"), profile.get("grade_level")
+        ),
+        "profile_graduation_year": int(profile.get("graduation_year") or 0),
+        "profile_citizenship": str(profile.get("citizenship") or ""),
+        "profile_gender": _gender_label(profile.get("gender")),
+        "profile_religion": str(profile.get("religion") or ""),
+        "profile_service_hours": int(profile.get("service_hours") or 0),
+        "profile_sat": int(profile.get("sat") or 0),
+        "profile_act": int(profile.get("act") or 0),
+        "profile_essay_ready": bool(profile.get("essay_ready", False)),
+        "profile_keywords_csv": _csv_text(profile.get("profile_keywords")),
+        "profile_goals": str(profile.get("goals") or ""),
+        "profile_today_override": date.fromisoformat(iso_override),
+        "profile_use_today_override": bool(profile.get("use_today_override", False)),
+    }
+    for field_name in ("financial_need", "first_gen", "military_family", "disability"):
+        values[f"profile_{field_name}"] = _tristate_label(profile.get(field_name))
+    for field_name in _LIST_WIDGET_FIELDS:
+        values[f"profile_{field_name}_csv"] = _csv_text(profile.get(field_name))
+    return values
 
 
-def _load_profile_from_disk() -> dict[str, Any] | None:
-    if not PROFILE_PATH.exists():
-        return None
-    payload = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
-    defaults = _default_profile()
-    defaults.update(payload)
-    return defaults
-
-
-def _save_profile_to_disk(profile: dict[str, Any]) -> None:
-    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    PROFILE_PATH.write_text(json.dumps(profile, indent=2, sort_keys=True), encoding="utf-8")
+def _sync_widget_defaults_from_profile(profile: dict[str, Any]) -> None:
+    for key, value in _widget_values_from_profile(profile).items():
+        st.session_state.setdefault(key, value)
 
 
 def _resolve_weights_profile_path(profile_name: str, custom_path: str = "") -> Path | None:
@@ -189,39 +247,60 @@ def _load_latest_win_model_info() -> dict[str, Any] | None:
 
 
 def _apply_profile_to_widgets(profile: dict[str, Any]) -> None:
-    st.session_state.profile_name = str(profile.get("name") or "")
-    st.session_state.profile_gpa = float(profile.get("gpa") or 0.0)
-    st.session_state.profile_state = str(profile.get("state") or "")
-    st.session_state.profile_major = str(profile.get("major") or "")
-    st.session_state.profile_education_level = str(profile.get("education_level") or "")
-    st.session_state.profile_citizenship = str(profile.get("citizenship") or "")
-    keywords = profile.get("profile_keywords") or []
-    st.session_state.profile_keywords_csv = ", ".join(str(keyword) for keyword in keywords)
-    st.session_state.profile_goals = str(profile.get("goals") or "")
-    st.session_state.profile_use_today_override = bool(profile.get("use_today_override", False))
-    iso_override = str(profile.get("today_override") or date.today().isoformat())
-    st.session_state.profile_today_override = date.fromisoformat(iso_override)
+    for key, value in _widget_values_from_profile(profile).items():
+        st.session_state[key] = value
 
 
 def _profile_from_widgets() -> dict[str, Any]:
-    keywords = [
-        keyword.strip()
-        for keyword in str(st.session_state.get("profile_keywords_csv") or "").split(",")
-        if keyword.strip()
-    ]
     today_override = st.session_state.get("profile_today_override", date.today())
-    return {
-        "name": str(st.session_state.get("profile_name") or ""),
-        "gpa": float(st.session_state.get("profile_gpa") or 0.0),
-        "state": str(st.session_state.get("profile_state") or ""),
-        "major": str(st.session_state.get("profile_major") or ""),
-        "education_level": str(st.session_state.get("profile_education_level") or ""),
-        "citizenship": str(st.session_state.get("profile_citizenship") or ""),
-        "profile_keywords": keywords,
-        "goals": str(st.session_state.get("profile_goals") or ""),
-        "today_override": today_override.isoformat(),
-        "use_today_override": bool(st.session_state.get("profile_use_today_override", False)),
-    }
+    grade_label = str(st.session_state.get("profile_grade_label") or "")
+    education_level, grade_level = grade_label_to_levels(grade_label)
+    graduation_year = _positive_or_none(st.session_state.get("profile_graduation_year"))
+
+    profile = default_profile()
+    profile.update(
+        {
+            "student_id": str(
+                st.session_state.get("profile", {}).get("student_id") or DEFAULT_STUDENT_ID
+            ),
+            "name": str(st.session_state.get("profile_name") or ""),
+            "gpa": float(st.session_state.get("profile_gpa") or 0.0),
+            "state": str(st.session_state.get("profile_state") or ""),
+            "county": str(st.session_state.get("profile_county") or ""),
+            "high_school": str(st.session_state.get("profile_high_school") or ""),
+            "major": str(st.session_state.get("profile_major") or ""),
+            "education_level": education_level or "",
+            "grade_level": grade_level or "",
+            "graduation_year": graduation_year
+            or infer_graduation_year(grade_level, _widget_today()),
+            "citizenship": str(st.session_state.get("profile_citizenship") or ""),
+            "gender": _gender_value(str(st.session_state.get("profile_gender") or "")),
+            "religion": str(st.session_state.get("profile_religion") or "").strip() or None,
+            "service_hours": _positive_or_none(st.session_state.get("profile_service_hours")),
+            "sat": _positive_or_none(st.session_state.get("profile_sat")),
+            "act": _positive_or_none(st.session_state.get("profile_act")),
+            "essay_ready": bool(st.session_state.get("profile_essay_ready", False)),
+            "profile_keywords": _csv_list(st.session_state.get("profile_keywords_csv")),
+            "goals": str(st.session_state.get("profile_goals") or ""),
+            "today_override": today_override.isoformat(),
+            "use_today_override": bool(
+                st.session_state.get("profile_use_today_override", False)
+            ),
+        }
+    )
+    for field_name in ("financial_need", "first_gen", "military_family", "disability"):
+        profile[field_name] = _tristate_value(
+            str(st.session_state.get(f"profile_{field_name}") or PREFER_NOT_TO_SAY)
+        )
+    for field_name in _LIST_WIDGET_FIELDS:
+        profile[field_name] = _csv_list(st.session_state.get(f"profile_{field_name}_csv"))
+    return profile
+
+
+def _widget_today() -> date:
+    if st.session_state.get("profile_use_today_override", False):
+        return st.session_state.get("profile_today_override", date.today())
+    return date.today()
 
 
 def _effective_today(profile: dict[str, Any]) -> date:
@@ -231,24 +310,11 @@ def _effective_today(profile: dict[str, Any]) -> date:
 
 
 def _build_stage1_profile(profile: dict[str, Any]) -> StudentProfile:
-    return StudentProfile(
-        gpa=float(profile.get("gpa") or 0.0),
-        state=profile.get("state"),
-        major=profile.get("major"),
-        education_level=profile.get("education_level"),
-        citizenship=profile.get("citizenship"),
-        today=_effective_today(profile),
-    )
+    return to_stage1_profile(profile, today=_effective_today(profile))
 
 
 def _build_stage2_profile(profile: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "major": profile.get("major"),
-        "keywords": profile.get("profile_keywords") or [],
-        "interests": profile.get("profile_keywords") or [],
-        "goals": profile.get("goals") or "",
-        "extracurriculars": [],
-    }
+    return to_stage2_profile(profile)
 
 
 def _extract_snapshot_date(snapshot_path: Path) -> str | None:
@@ -465,28 +531,75 @@ def main() -> None:
     with st.sidebar:
         st.header("Your Profile")
 
+        if st.session_state.get("profile_is_demo", False):
+            st.info(
+                "Demo profile — fictional data. Edit the fields and press Save Profile to "
+                "store your own under data/private/."
+            )
+
         st.subheader("Academic", divider=False)
         st.text_input("Full Name", key="profile_name", placeholder="Your name (optional)")
         st.number_input("GPA", min_value=0.0, max_value=4.0, step=0.01, key="profile_gpa",
                        help="Your current GPA (0.0-4.0)")
         st.text_input("State", key="profile_state", placeholder="e.g., NC")
+        st.text_input("County", key="profile_county",
+                     placeholder="e.g., Guilford",
+                     help="Many local awards are county-restricted")
+        st.text_input("High School", key="profile_high_school",
+                     placeholder="e.g., Northside High School")
         st.text_input("Intended Major", key="profile_major", placeholder="e.g., Computer Science")
         st.selectbox("Grade Level",
-                    options=["", "High School Senior", "Freshman", "Sophomore", "Junior", "Senior"],
-                    key="profile_education_level",
+                    options=list(GRADE_LABELS),
+                    key="profile_grade_label",
                     help="Your current or upcoming grade level")
-        st.text_input("Citizenship", key="profile_citizenship", placeholder="e.g., U.S. Citizen")
+        st.number_input("Graduation Year", min_value=0, max_value=2100, step=1,
+                       key="profile_graduation_year",
+                       help="Leave at 0 to estimate it from your grade level")
+        st.number_input("SAT", min_value=0, max_value=1600, step=10, key="profile_sat",
+                       help="Leave at 0 if you have not taken it")
+        st.number_input("ACT", min_value=0, max_value=36, step=1, key="profile_act",
+                       help="Leave at 0 if you have not taken it")
 
-        st.subheader("Interests & Goals", divider=False)
+        st.subheader("About you", divider=False)
+        st.caption("Every field here is optional and only used to match restricted awards.")
+        st.text_input("Citizenship", key="profile_citizenship", placeholder="e.g., U.S. Citizen")
+        st.selectbox("Financial need", options=list(TRISTATE_OPTIONS),
+                    key="profile_financial_need",
+                    help="Whether you qualify for need-based aid")
+        st.selectbox("First-generation college student", options=list(TRISTATE_OPTIONS),
+                    key="profile_first_gen")
+        st.selectbox("Gender", options=list(GENDER_OPTIONS), key="profile_gender")
+        st.text_input("Heritage / background", key="profile_heritage_csv",
+                     placeholder="e.g., Hispanic, Cherokee (comma-separated)")
+        st.selectbox("Military family", options=list(TRISTATE_OPTIONS),
+                    key="profile_military_family")
+        st.selectbox("Disability", options=list(TRISTATE_OPTIONS), key="profile_disability")
+        st.text_input("Religion", key="profile_religion", placeholder="Optional")
+        st.text_input("Parent employers", key="profile_parent_employers_csv",
+                     placeholder="e.g., Duke Energy (comma-separated)",
+                     help="Some awards are restricted to employees' children")
+
+        st.subheader("Activities", divider=False)
         st.text_input(
             "Interests / Keywords",
             key="profile_keywords_csv",
             placeholder="e.g., robotics, leadership, community service (comma-separated)",
             help="Topics you're passionate about—we'll match scholarships to these"
         )
+        st.text_input("Extracurriculars", key="profile_extracurriculars_csv",
+                     placeholder="e.g., robotics team, marching band (comma-separated)")
+        st.text_input("Memberships", key="profile_memberships_csv",
+                     placeholder="e.g., 4-H, National Honor Society (comma-separated)")
+        st.number_input("Community service hours", min_value=0, max_value=10000, step=5,
+                       key="profile_service_hours")
+        st.checkbox("I have an essay draft ready", key="profile_essay_ready")
         st.text_area("Your Goals", key="profile_goals", height=120,
                     placeholder="Tell us about your goals, dreams, or what matters to you",
                     help="We use this to find scholarships that align with your aspirations")
+
+        st.subheader("Colleges", divider=False)
+        st.text_input("Intended colleges", key="profile_intended_colleges_csv",
+                     placeholder="e.g., NC State, UNC Charlotte (comma-separated)")
 
         st.subheader("Advanced", divider=False)
         st.checkbox("Use custom date", key="profile_use_today_override", help="Override today's date for testing")
@@ -495,15 +608,17 @@ def main() -> None:
         save_col, load_col = st.columns(2)
         if save_col.button("Save Profile", use_container_width=True):
             profile = _profile_from_widgets()
-            _save_profile_to_disk(profile)
+            saved_path = save_profile(profile)
             st.session_state.profile = profile
-            st.success(f"Saved to {PROFILE_PATH}")
+            st.session_state.profile_is_demo = False
+            st.success(f"Saved to {saved_path}")
         if load_col.button("Load Profile", use_container_width=True):
-            loaded = _load_profile_from_disk()
+            loaded = load_profile()
             if loaded is None:
                 st.warning(f"No profile file found at {PROFILE_PATH}")
             else:
                 st.session_state.profile = loaded
+                st.session_state.profile_is_demo = False
                 _apply_profile_to_widgets(loaded)
                 st.success("Profile loaded.")
                 st.rerun()
