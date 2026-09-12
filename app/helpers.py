@@ -4,6 +4,7 @@ from typing import Any
 
 import pandas as pd
 
+from src.rank.stage1_eligibility import UNVERIFIED_AXIS_LABELS
 from src.text_utils import coerce_text
 
 
@@ -67,6 +68,26 @@ def reasons_to_text(value: Any) -> str:
     if hasattr(value, "tolist") and not isinstance(value, (str, bytes, bytearray)):
         return reasons_to_text(value.tolist())
     return coerce_text(value)
+
+
+def unverified_to_text(value: Any) -> str:
+    """Render Stage 1 ``unverified_axes`` as the text after "Confirm you meet:".
+
+    Unknown axis keys fall back to their own spelling rather than being dropped,
+    so a new rule is visible in the UI before it has a label.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        axes = [str(item).strip() for item in value if str(item).strip()]
+    elif hasattr(value, "tolist") and not isinstance(value, (str, bytes, bytearray)):
+        return unverified_to_text(value.tolist())
+    else:
+        text = coerce_text(value)
+        axes = [text] if text else []
+    return ", ".join(
+        UNVERIFIED_AXIS_LABELS.get(axis, axis.replace("_", " ")) for axis in axes
+    )
 
 
 def _coerce_amount(value: Any) -> float | None:

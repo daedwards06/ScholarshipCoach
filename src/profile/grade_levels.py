@@ -39,6 +39,20 @@ _LEVELS_TO_GRADE_LABEL: dict[str | None, str] = {
     if grade_level is not None
 }
 
+# The school sequence in order. Stage 1 uses it to tell an award the student has
+# already passed (a grade-9 award for a college sophomore) from one still ahead
+# of them (a seniors-only award), which the timeline buckets rather than filters.
+GRADE_SEQUENCE: tuple[str, ...] = (
+    "9",
+    "10",
+    "11",
+    "12",
+    "college_1",
+    "college_2",
+    "college_3",
+    "college_4",
+)
+
 # Years of school remaining after the school year in which the grade is spent.
 _YEARS_TO_GRADUATION: dict[str, int] = {
     "9": 3,
@@ -82,6 +96,19 @@ def levels_to_grade_label(
     if label is not None:
         return label
     return resolve_grade_label(education_level)
+
+
+def grade_level_rank(grade_level: str | None) -> int | None:
+    """Return the position of ``grade_level`` in :data:`GRADE_SEQUENCE`.
+
+    Unrecognized or missing values return ``None`` so callers can treat the
+    grade as unknown instead of guessing a position.
+    """
+    key = (grade_level or "").strip().casefold()
+    try:
+        return GRADE_SEQUENCE.index(key)
+    except ValueError:
+        return None
 
 
 def infer_graduation_year(grade_level: str | None, today: date | None = None) -> int | None:

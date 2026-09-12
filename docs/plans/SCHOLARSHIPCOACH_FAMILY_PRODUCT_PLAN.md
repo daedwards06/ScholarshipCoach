@@ -202,21 +202,36 @@ python scripts/evaluate_golden_students.py --k 10   # still runs; eligibility pr
 ```
 
 **Checklist:**
-- [ ] New reason codes: `STATUS_CLOSED_NONRECURRING`, `COUNTY_NOT_ALLOWED`,
+- [x] New reason codes: `STATUS_CLOSED_NONRECURRING`, `COUNTY_NOT_ALLOWED`,
       `GRADE_LEVEL_MISMATCH`, `NEED_BASED_NOT_MET`, `FIRST_GEN_ONLY`, `GENDER_RESTRICTED`,
       `HERITAGE_RESTRICTED`, `MILITARY_FAMILY_ONLY`, `DISABILITY_RESTRICTED`,
       `RELIGION_RESTRICTED`, `EMPLOYER_RESTRICTED`, `MEMBERSHIP_REQUIRED`,
       `TEST_SCORE_BELOW_MIN`
-- [ ] `status == closed` with `cycle.recurring == false` and no future deadline → ineligible;
+- [x] `status == closed` with `cycle.recurring == false` and no future deadline → ineligible;
       closed-but-recurring passes Stage 1 and is handled by the timeline (Task 1.4)
-- [ ] A restriction the profile cannot answer (value `None`) passes and is appended to a new
+- [x] A restriction the profile cannot answer (value `None`) passes and is appended to a new
       `unverified_axes` list column; `reasons_to_text` gains a companion
       `unverified_to_text`
-- [ ] `apply_eligibility_filter` returns the same `(eligible_df, ineligible_df)` shape; the
+- [x] `apply_eligibility_filter` returns the same `(eligible_df, ineligible_df)` shape; the
       new column is present on both
-- [ ] Tests: each new code fires and clears; unverified path; recurring-closed passes;
+- [x] Tests: each new code fires and clears; unverified path; recurring-closed passes;
       existing tests unchanged
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
+
+**As built — contracts Task 1.4 depends on:**
+- A recurring award (`cycle.recurring`, falling back to `is_recurring`) no longer emits
+  `DEADLINE_PASSED` when its listed deadline is past: that date is a cycle date, not an expiry,
+  so the row survives Stage 1 for the timeline to bucket. Unknown recurrence is unchanged, and
+  only the curated catalog sets recurrence today — every scraper hardcodes `is_recurring: None`.
+- `GRADE_LEVEL_MISMATCH` fires only when **every** value in `grade_levels` is behind the
+  student's current grade. An award aimed at a later grade stays eligible as a future target.
+  Measured on the 5-record catalog: a literal membership check passes a high-school senior on
+  1 of 5 awards, because the 4 `college_1`–`college_4` awards are exactly what a senior applies
+  to for freshman-year money.
+- **Deviation, approved 2026-09-12:** `_compute_urgency_boost` clamped negative days to zero,
+  scoring a past deadline `exp(0) = 1.0` — the maximum boost — while the card rendered
+  "⏰ Passed". The first contract above makes past-deadline rows reachable in Stage 3, so the
+  clamp was fixed here instead of in Task 1.4: a past deadline now scores 0.0 urgency.
 
 ---
 
@@ -227,8 +242,10 @@ junior and senior year, not a list of currently open links. This turns closed li
 noise into future targets and gives the app its core view.
 
 **Preflight Files:**
-- `src/rank/stage3_rerank.py` (`_resolve_deadline`, `_compute_days_to_deadline`, `rerank_stage3`)
-- `src/rank/stage1_eligibility.py` (`StudentProfile.graduation_year`, `grade_level` from Task 1.2)
+- `src/rank/stage3_rerank.py` (`_resolve_deadline`, `_compute_days_to_deadline`,
+  `_compute_urgency_boost`, `rerank_stage3`)
+- `src/rank/stage1_eligibility.py` (`StudentProfile.graduation_year`, `grade_level` from Task 1.2;
+  the recurring and grade-level contracts under Task 1.3 "As built")
 - `data/catalog/schema.json` (`cycle`, `grade_levels`, `status`)
 - `app/main.py` (`_get_urgency_indicator`, `_render_scholarship_card`)
 
@@ -244,9 +261,13 @@ ruff check src/ scripts/ app/ tests/
       `projected_deadline` (from `deadline_month` and the next cycle year when the listed
       deadline has passed and `cycle.recurring` is true)
 - [ ] Bucket rules use `grade_levels` on the award against the student's grade in the cycle
-      year (a "seniors only" award for a current sophomore → `senior_year`)
+      year (a "seniors only" award for a current sophomore → `senior_year`); awards the student
+      has already aged out of never arrive here, since Stage 1 filters them as
+      `GRADE_LEVEL_MISMATCH`, so `not_applicable` need not re-check that case
 - [ ] `rerank_stage3` accepts an optional `timeline_bucket` filter and, by default, ranks the
-      `now` bucket; urgency uses `projected_deadline` when `deadline` is past
+      `now` bucket; urgency uses `projected_deadline` when `deadline` is past — a past deadline
+      already scores 0.0 urgency (Task 1.3 deviation), so what is left here is supplying the
+      projected date so a recurring award is urgent against its *next* cycle rather than zero
 - [ ] Cards show the bucket and projected deadline instead of "Unknown deadline"
 - [ ] Tests: each bucket with hand-built rows; projection math across a year boundary;
       non-recurring closed → `expired`
@@ -583,7 +604,7 @@ deadline, award size, effort, and pool size are the honest signals.
 **Preflight Files:**
 - `app/main.py` (`_render_scholarship_card`, `_topk_win_model_summary`, the `use_win_model`
   checkbox)
-- `app/helpers.py` (`explain_ranked_row`)
+- `app/helpers.py` (`explain_ranked_row`, `unverified_to_text` from Task 1.3)
 - `src/rank/stage3_rerank.py` (`_compute_effort_cost`, `rerank_stage3`)
 - `src/rank/weights.py` (`Stage3Weights`)
 

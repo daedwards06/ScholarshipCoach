@@ -40,13 +40,16 @@ def _compute_days_to_deadline(df: pd.DataFrame, today: date) -> np.ndarray:
 
 def _compute_urgency_boost(days_to_deadline: np.ndarray) -> np.ndarray:
     urgency = np.zeros(days_to_deadline.shape[0], dtype=float)
-    valid_mask = ~np.isnan(days_to_deadline)
-    if not np.any(valid_mask):
+    # A deadline already past is not urgent, it is gone: clamping negative days
+    # to zero would score it exp(0) = 1.0, the maximum boost. Recurring awards
+    # reach Stage 3 with a past deadline because Stage 1 keeps them for the
+    # timeline to bucket, so the past case has to be excluded explicitly.
+    upcoming_mask = ~np.isnan(days_to_deadline) & (days_to_deadline >= 0.0)
+    if not np.any(upcoming_mask):
         return urgency
 
-    bounded_days = np.maximum(days_to_deadline[valid_mask], 0.0)
-    urgency_values = np.exp(-bounded_days / 30.0)
-    urgency[valid_mask] = np.clip(urgency_values, 0.0, 1.0)
+    urgency_values = np.exp(-days_to_deadline[upcoming_mask] / 30.0)
+    urgency[upcoming_mask] = np.clip(urgency_values, 0.0, 1.0)
     return urgency
 
 

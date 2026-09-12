@@ -114,3 +114,41 @@ def test_rerank_stage3_uses_deterministic_tie_breaking() -> None:
     reranked_df = rerank_stage3(df, today=_TODAY)
 
     assert reranked_df["scholarship_id"].tolist() == ["a-id", "b-id", "c-id"]
+
+
+def test_past_deadline_scores_no_urgency_instead_of_maximum() -> None:
+    """A recurring award whose deadline has passed must not outrank a live one.
+
+    Stage 1 keeps recurring awards past their listed deadline so the timeline can
+    bucket them, so Stage 3 sees negative days-to-deadline and must score them as
+    gone rather than as maximally urgent.
+    """
+    df = pd.DataFrame(
+        [
+            {
+                "scholarship_id": "stale-recurring",
+                "stage2_score": 0.80,
+                "deadline": _TODAY - timedelta(days=240),
+                "amount_min": 1000.0,
+                "amount_max": 5000.0,
+                "essay_required": False,
+            },
+            {
+                "scholarship_id": "live-soon",
+                "stage2_score": 0.80,
+                "deadline": _TODAY + timedelta(days=19),
+                "amount_min": 1000.0,
+                "amount_max": 5000.0,
+                "essay_required": False,
+            },
+        ]
+    )
+
+    reranked_df = rerank_stage3(df, today=_TODAY)
+    urgency_by_id = dict(
+        zip(reranked_df["scholarship_id"], reranked_df["urgency_boost"], strict=True)
+    )
+
+    assert urgency_by_id["stale-recurring"] == 0.0
+    assert urgency_by_id["live-soon"] > 0.0
+    assert reranked_df["scholarship_id"].tolist()[0] == "live-soon"
