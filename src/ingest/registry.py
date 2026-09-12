@@ -15,6 +15,7 @@ from typing import Any
 from .base import BaseSource
 from .sources.bold_org import BoldOrgSource
 from .sources.curated_catalog import CuratedCatalogSource
+from .sources.open_scholarships import OpenScholarshipsSource
 from .sources.scholarship_america_live import ScholarshipAmericaLiveSource
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ SOURCES_CONFIG_PATH = Path(__file__).resolve().parents[2] / "data" / "catalog" /
 def _all_sources() -> list[BaseSource]:
     return [
         CuratedCatalogSource(),
+        OpenScholarshipsSource(),
         ScholarshipAmericaLiveSource(),
         BoldOrgSource(),
     ]

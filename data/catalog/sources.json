@@ -4,6 +4,10 @@
       "enabled": true,
       "note": "Hand-curated records in data/catalog/records/. Primary data asset."
     },
+    "open_scholarships": {
+      "enabled": true,
+      "note": "Open Scholarships structured feed (Grudged LLC, CC BY 4.0). Records carry trust=structured_feed."
+    },
     "scholarship_america": {
       "enabled": true,
       "note": "Aggregator scrape. Records carry trust=aggregator and need confirmation."

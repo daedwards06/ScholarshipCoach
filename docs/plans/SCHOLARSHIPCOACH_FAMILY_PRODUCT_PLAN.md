@@ -372,14 +372,42 @@ python scripts/run_ingest.py --max-listing-pages 0 --max-detail-pages 0   # feed
 ```
 
 **Checklist:**
-- [ ] `src/ingest/sources/open_scholarships.py`: fetch `/api/scholarships?state=NC` (and
+- [x] `src/ingest/sources/open_scholarships.py`: fetch `/api/scholarships?state=NC` (and
       national records where the API exposes them), map fields including `availability` →
       `status` and `provenance.source_url`; `trust = structured_feed`
-- [ ] Verify the live endpoint and field names once by hand before writing the mapper; record
+- [x] Verify the live endpoint and field names once by hand before writing the mapper; record
       the verified shape in a fixture JSON under `tests/resources/`
-- [ ] CC BY 4.0 attribution line in README "Data sources" and in the record `provenance`
-- [ ] Tests with the fixture: mapping, empty response, malformed response
-- [ ] Tests + ruff green
+- [x] CC BY 4.0 attribution line in README "Data sources" and in the record `provenance`
+- [x] Tests with the fixture: mapping, empty response, malformed response
+- [x] Tests + ruff green
+
+**As built — contracts later tasks depend on:**
+- Base URL is `https://scholarships.grudged.io` (not `openscholarships.*`). Verified by hand
+  2026-09-12: `/meta` gives the license and the required attribution string, `/healthz` the
+  record count, `/api/scholarships` (also served at `/scholarships`) the query endpoint.
+- Response envelope is `{total, limit, offset, license, attribution, results[]}`; `limit` is
+  capped at 500 (422 above that) and `offset` pages. `?state=NC` returns NC records **plus**
+  national ones — today that is 102 records, all national: the feed carries zero NC-specific
+  awards (only `NV` appears in `/meta.states`), so this connector is national coverage for now.
+- Record shape: `id`, `name`, `sponsor`, `sponsor_type`, `type`, optional `summary`, `award`
+  (`amount_min`, `amount_max`, `currency`, `basis`, `renewable`, `notes`), `deadline` (`type`,
+  `date`, `notes`, optional `opens`), `eligibility` (`residency`, `education_level`,
+  `fields_of_study`, `gpa_min`, `citizenship`, `other`, `tags`), `geo` (`state`, `scope`,
+  `counties`), `links`, `provenance`, `status`, `availability`, optional `review_flags`.
+  Pinned in `tests/resources/open_scholarships_sample.json`.
+- Mapping decisions that later tasks should not re-litigate: `residency = ["US"]` is dropped
+  from `states_allowed` (a national award is not state-restricted, and keeping it would fail
+  every record at Stage 1's state check); `education_level` is set only when the feed's list
+  collapses to one Stage 1 level, otherwise `None`; `need_based` is `True` only for
+  `award.basis == "need"` (`"merit-need"` stays `None`); `is_recurring`/`cycle.recurring` come
+  from `deadline.type` (`annual`/`rolling` → true), not from `award.renewable`, which is a
+  different question.
+- Every record's `provenance` carries `source_url`, `license` and `attribution` alongside the
+  curated-catalog keys, so the CC BY 4.0 credit travels with the data into the snapshot.
+- `OpenScholarshipsSource(state=..., api_url=..., page_limit=..., max_pages=...)` is
+  constructor-configurable so tests can drive it with a stub client and no network.
+- `data/catalog/sources.json` gains `open_scholarships` (enabled). `register_sources()` now
+  returns 4 connectors — `tests/test_source_registry.py` asserts that count.
 
 ---
 

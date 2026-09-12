@@ -243,6 +243,24 @@ python scripts\run_ingest.py \
   --max-runtime-seconds 1800
 ```
 
+#### Data sources
+
+Which connectors run is configuration, not code: `data/catalog/sources.json` carries an
+`enabled` flag and a note per source.
+
+| Source | Trust | License / terms |
+|--------|-------|-----------------|
+| `curated_catalog` — hand-curated records in `data/catalog/records/` | `verified_local` | Project-owned |
+| `open_scholarships` — [Open Scholarships](https://github.com/Grudged/open-scholarships) structured API feed | `structured_feed` | CC BY 4.0 |
+| `scholarship_america` — public listing scrape | `aggregator` | Public web pages; records need confirmation |
+
+Open Scholarships data is used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+and attributed as required:
+
+> Open Scholarships by Grudged LLC - https://github.com/Grudged/open-scholarships (CC BY 4.0)
+
+The same attribution and license travel with every ingested record in its `provenance` field.
+
 ### 3 — Evaluate ranking quality
 
 ```powershell

@@ -1,0 +1,256 @@
+{
+  "total": 4,
+  "limit": 50,
+  "offset": 0,
+  "license": "CC-BY-4.0",
+  "attribution": "Open Scholarships by Grudged LLC - https://github.com/Grudged/open-scholarships (CC BY 4.0)",
+  "results": [
+    {
+      "id": "us-american-welding-society-scholarships",
+      "name": "American Welding Society Scholarships",
+      "sponsor": "American Welding Society Foundation",
+      "sponsor_type": "foundation",
+      "type": "scholarship",
+      "award": {
+        "amount_min": null,
+        "amount_max": 10000,
+        "currency": "USD",
+        "basis": "field",
+        "renewable": null,
+        "notes": null
+      },
+      "deadline": {
+        "type": "annual",
+        "date": "2026-11-30",
+        "notes": "Verify the current cycle's deadline against the source."
+      },
+      "eligibility": {
+        "residency": [
+          "US"
+        ],
+        "education_level": [
+          "vocational",
+          "undergraduate"
+        ],
+        "fields_of_study": [],
+        "gpa_min": null,
+        "citizenship": [],
+        "other": [
+          "Students pursuing welding and welding-engineering education"
+        ],
+        "tags": [
+          "national"
+        ]
+      },
+      "geo": {
+        "state": null,
+        "scope": "national",
+        "counties": []
+      },
+      "links": {
+        "info_url": "https://www.aws.org/foundation/page/scholarships",
+        "apply_url": "https://scholarship.aws.org/applications/"
+      },
+      "provenance": {
+        "source_url": "https://www.aws.org/foundation/page/scholarships",
+        "source_name": "American Welding Society Foundation",
+        "last_verified": "2026-05-27",
+        "verification_method": "manual",
+        "added": "2026-05-27"
+      },
+      "status": "active",
+      "review_flags": [
+        "Source basis looks like 'merit'; stub says 'field' — verify."
+      ],
+      "availability": "open"
+    },
+    {
+      "id": "us-courage-to-grow-scholarship",
+      "name": "Courage to Grow Scholarship",
+      "sponsor": "Courage to Grow",
+      "sponsor_type": "private",
+      "type": "scholarship",
+      "award": {
+        "amount_min": null,
+        "amount_max": 1000,
+        "currency": "USD",
+        "basis": "other",
+        "renewable": null,
+        "notes": null
+      },
+      "deadline": {
+        "type": "annual",
+        "date": "2026-06-30",
+        "notes": "Verify the current cycle's deadline against the source."
+      },
+      "eligibility": {
+        "residency": [
+          "US"
+        ],
+        "education_level": [
+          "high-school-senior",
+          "undergraduate"
+        ],
+        "fields_of_study": [],
+        "gpa_min": 2.5,
+        "citizenship": [],
+        "other": [
+          "Recurring award; short essay, low barrier to entry"
+        ],
+        "tags": [
+          "national"
+        ]
+      },
+      "geo": {
+        "state": null,
+        "scope": "national",
+        "counties": []
+      },
+      "links": {
+        "info_url": "https://couragetogrowscholarship.com/",
+        "apply_url": null
+      },
+      "provenance": {
+        "source_url": "https://couragetogrowscholarship.com/",
+        "source_name": "Courage to Grow",
+        "last_verified": "2026-05-27",
+        "verification_method": "manual",
+        "added": "2026-05-27"
+      },
+      "status": "active",
+      "review_flags": [
+        "No distinct application link on the source page — applicants apply via the info page.",
+        "Geography: \"U.S. citizens only\" — verify scope/counties (stub scope=national).",
+        "Source basis looks like 'merit'; stub says 'other' — verify."
+      ],
+      "availability": "closed"
+    },
+    {
+      "id": "nv-nevada-womens-fund-scholarships",
+      "name": "Nevada Women's Fund Scholarships",
+      "sponsor": "Nevada Women's Fund",
+      "sponsor_type": "foundation",
+      "type": "scholarship",
+      "award": {
+        "amount_min": null,
+        "amount_max": null,
+        "currency": "USD",
+        "basis": "need",
+        "renewable": null,
+        "notes": null
+      },
+      "deadline": {
+        "type": "annual",
+        "date": "2027-01-05",
+        "notes": "Verify the current cycle's deadline against the source.",
+        "opens": "2026-10-01"
+      },
+      "eligibility": {
+        "residency": [
+          "NV"
+        ],
+        "education_level": [
+          "undergraduate",
+          "graduate",
+          "community-college"
+        ],
+        "fields_of_study": [],
+        "gpa_min": 3.0,
+        "citizenship": [],
+        "other": [
+          "Students pursuing education in Nevada, with financial need and Nevada ties"
+        ],
+        "tags": [
+          "nevada"
+        ]
+      },
+      "geo": {
+        "state": "NV",
+        "scope": "statewide",
+        "counties": []
+      },
+      "links": {
+        "info_url": "https://www.nevadawomensfund.org/scholarships",
+        "apply_url": null
+      },
+      "provenance": {
+        "source_url": "https://www.nevadawomensfund.org/scholarships",
+        "source_name": "Nevada Women's Fund",
+        "last_verified": "2026-05-27",
+        "verification_method": "manual",
+        "added": "2026-05-27"
+      },
+      "status": "active",
+      "review_flags": [
+        "No distinct application link on the source page — applicants apply via the info page.",
+        "Geography: \"northern and rural Nevada, excludes Clark County\" — verify scope/counties (stub scope=statewide).",
+        "Source basis looks like 'merit-need'; stub says 'need' — verify."
+      ],
+      "availability": "upcoming"
+    },
+    {
+      "id": "nv-nevada-promise",
+      "name": "Nevada Promise Scholarship",
+      "sponsor": "Nevada System of Higher Education (NSHE)",
+      "sponsor_type": "state",
+      "type": "scholarship",
+      "summary": "Last-dollar scholarship covering up to three years of community college tuition and mandatory fees not met by other gift aid, for recent Nevada high school graduates.",
+      "award": {
+        "amount_min": null,
+        "amount_max": null,
+        "currency": "USD",
+        "basis": "other",
+        "renewable": true,
+        "notes": "Last-dollar: covers tuition and mandatory fees remaining after other gift aid; up to three years at a Nevada community college."
+      },
+      "deadline": {
+        "type": "annual",
+        "date": null,
+        "notes": "August through October (auto-found — verify)"
+      },
+      "eligibility": {
+        "residency": [
+          "NV"
+        ],
+        "education_level": [
+          "high-school-senior"
+        ],
+        "fields_of_study": [],
+        "gpa_min": null,
+        "citizenship": [],
+        "other": [
+          "Recent Nevada high school graduate meeting program age/timing rules",
+          "Attend a participating Nevada community college",
+          "Complete the application, required meetings, FAFSA, and community-service hours (verify current requirements)"
+        ],
+        "tags": [
+          "nevada",
+          "community-college",
+          "last-dollar"
+        ]
+      },
+      "geo": {
+        "state": "NV",
+        "scope": "statewide",
+        "counties": []
+      },
+      "links": {
+        "info_url": "https://nshe.nevada.edu/system-administration/departments/asa/students/financial-aid/",
+        "apply_url": "https://nshe.nevada.edu/system-administration/departments/asa/students/financial-aid/nevada-promise-scholarship/"
+      },
+      "provenance": {
+        "source_url": "https://nshe.nevada.edu/system-administration/departments/asa/students/financial-aid/",
+        "source_name": "NSHE System Administration — State Financial Aid",
+        "last_verified": "2026-05-26",
+        "verification_method": "manual",
+        "added": "2026-05-26"
+      },
+      "status": "active",
+      "review_flags": [
+        "Geography: \"Nevada high school graduates only\" — verify scope/counties (stub scope=statewide).",
+        "Source basis looks like 'merit'; stub says 'other' — verify."
+      ],
+      "availability": "unknown"
+    }
+  ]
+}
