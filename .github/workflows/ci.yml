@@ -22,12 +22,19 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: "pip"
+
+      # sentence-transformers depends on torch, and the PyPI Linux default is
+      # the CUDA build -- roughly 3GB of nvidia-* wheels. Nothing in lint, mypy
+      # or the tests ever loads a model (src/embeddings/model.py imports
+      # sentence_transformers lazily), so the CPU wheel is all CI needs.
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
 
       # Pinned for push/PR so a green local run means a green CI run.
       - name: Install dependencies (pinned)
