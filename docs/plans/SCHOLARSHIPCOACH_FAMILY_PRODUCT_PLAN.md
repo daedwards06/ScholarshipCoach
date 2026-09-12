@@ -108,7 +108,7 @@ python scripts/run_ingest.py --max-listing-pages 0 --max-detail-pages 0   # cura
 ```
 
 **Checklist:**
-- [ ] Create `data/catalog/records/<catalog_id>.json`, one file per award, and
+- [x] Create `data/catalog/records/<catalog_id>.json`, one file per award, and
       `data/catalog/schema.json` (JSON Schema) describing: `catalog_id` (slug), `title`,
       `sponsor`, `source_url`, `description`, `eligibility_text`, `amount_min`, `amount_max`,
       `deadline`, `cycle` (`recurring`, `opens_month`, `deadline_month`), `status`
@@ -120,20 +120,20 @@ python scripts/run_ingest.py --max-listing-pages 0 --max-detail-pages 0   # cura
       `transcript`, `fafsa`, `video_or_portfolio`, `interview`), `renewal_terms`,
       `trust` (`verified_local|structured_feed|aggregator|unverified`), `provenance`
       (`added_on`, `verified_on`, `verified_by`, `source_kind`), `notes`
-- [ ] Add the new optional fields to `NormalizedScholarshipRecord` and confirm
+- [x] Add the new optional fields to `NormalizedScholarshipRecord` and confirm
       `prepare_snapshot_df` / `build_delta` carry them (list and dict columns serialize)
-- [ ] Add a `catalog_id`-based ID path: `generate_scholarship_id` accepts `catalog_id` and, when
+- [x] Add a `catalog_id`-based ID path: `generate_scholarship_id` accepts `catalog_id` and, when
       present, hashes only that (no deadline); scrapers keep current behavior
-- [ ] Replace `StaticFeedSource` with `CuratedCatalogSource` (source name `curated_catalog`)
+- [x] Replace `StaticFeedSource` with `CuratedCatalogSource` (source name `curated_catalog`)
       reading every file in `data/catalog/records/`, validating against the schema, skipping and
       logging invalid files; register it first in `register_sources`
-- [ ] Migrate the 5 static-feed records into catalog files with `cycle`, `status`, `trust`,
+- [x] Migrate the 5 static-feed records into catalog files with `cycle`, `status`, `trust`,
       `requirements`, and `provenance` filled from their listings; delete `data/static_feed/`
-- [ ] `scripts/validate_catalog.py`: validates all records against the schema, checks slug
+- [x] `scripts/validate_catalog.py`: validates all records against the schema, checks slug
       uniqueness and URL shape; exit non-zero on any error; wired into CI
-- [ ] Tests: schema validation (valid, missing required, bad enum), stable ID across a deadline
+- [x] Tests: schema validation (valid, missing required, bad enum), stable ID across a deadline
       change, invalid file skipped without failing the source
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 

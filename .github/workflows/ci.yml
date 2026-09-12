@@ -24,6 +24,9 @@ jobs:
       - name: Lint
         run: ruff check src/ scripts/ app/ tests/
 
+      - name: Validate curated catalog
+        run: python scripts/validate_catalog.py
+
       - name: Type check
         run: python -m mypy src/
 

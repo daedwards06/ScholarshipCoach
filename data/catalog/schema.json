@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholarshipcoach.invalid/catalog/schema.json",
+  "title": "Curated scholarship catalog record",
+  "description": "One hand-curated scholarship award. One file per award under data/catalog/records/, named <catalog_id>.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["catalog_id", "title", "source_url", "status", "trust", "provenance"],
+  "properties": {
+    "catalog_id": {
+      "type": "string",
+      "description": "Stable lowercase slug. Never changes once published; it is the award's identity across cycles.",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 120
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "sponsor": { "type": ["string", "null"] },
+    "source_url": { "type": "string", "pattern": "^https://[^ ]+$" },
+    "description": { "type": ["string", "null"] },
+    "eligibility_text": { "type": ["string", "null"] },
+    "amount_min": { "type": ["number", "null"], "minimum": 0 },
+    "amount_max": { "type": ["number", "null"], "minimum": 0 },
+    "deadline": {
+      "type": ["string", "null"],
+      "description": "Deadline for the current cycle, ISO date. Null when the next cycle is not yet announced.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "cycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recurring": { "type": ["boolean", "null"] },
+        "opens_month": { "type": ["integer", "null"], "minimum": 1, "maximum": 12 },
+        "deadline_month": { "type": ["integer", "null"], "minimum": 1, "maximum": 12 }
+      }
+    },
+    "status": { "enum": ["open", "upcoming", "closed", "unknown"] },
+    "education_level": {
+      "type": ["string", "null"],
+      "description": "Matches the Stage 1 level vocabulary, e.g. 'high school', 'undergraduate', 'graduate'."
+    },
+    "grade_levels": {
+      "type": "array",
+      "items": { "enum": ["9", "10", "11", "12", "college_1", "college_2", "college_3", "college_4"] },
+      "uniqueItems": true
+    },
+    "majors_allowed": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "states_allowed": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Z]{2}$" },
+      "uniqueItems": true
+    },
+    "counties_allowed": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "min_gpa": { "type": ["number", "null"], "minimum": 0, "maximum": 5 },
+    "citizenship": { "type": ["string", "null"] },
+    "need_based": { "type": ["boolean", "null"] },
+    "first_gen_only": { "type": ["boolean", "null"] },
+    "gender": { "enum": [null, "any", "female", "male", "nonbinary"] },
+    "heritage": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "military_family": { "type": ["boolean", "null"] },
+    "disability": { "type": ["boolean", "null"] },
+    "religion": { "type": ["string", "null"] },
+    "employer_restricted": {
+      "type": "array",
+      "description": "Employers whose employees' children are eligible. Empty means no employer restriction.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "membership_required": {
+      "type": "array",
+      "description": "Organizations the applicant (or a parent) must belong to. Empty means none.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "min_test_scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sat": { "type": ["integer", "null"], "minimum": 400, "maximum": 1600 },
+        "act": { "type": ["integer", "null"], "minimum": 1, "maximum": 36 }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "essay": { "type": ["boolean", "null"] },
+        "essay_prompts": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "recommendation_letters": { "type": ["integer", "null"], "minimum": 0, "maximum": 10 },
+        "transcript": { "type": ["boolean", "null"] },
+        "fafsa": { "type": ["boolean", "null"] },
+        "video_or_portfolio": { "type": ["boolean", "null"] },
+        "interview": { "type": ["boolean", "null"] }
+      }
+    },
+    "renewal_terms": { "type": ["string", "null"] },
+    "keywords": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "trust": {
+      "enum": ["verified_local", "structured_feed", "aggregator", "unverified"],
+      "description": "verified_local: a person opened source_url and confirmed the record on verified_on."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added_on", "source_kind"],
+      "properties": {
+        "added_on": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "verified_on": { "type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "verified_by": { "type": ["string", "null"] },
+        "source_kind": {
+          "enum": [
+            "sponsor_site",
+            "school_counselor",
+            "community_foundation",
+            "employer",
+            "membership_org",
+            "structured_feed",
+            "aggregator",
+            "other"
+          ]
+        }
+      }
+    },
+    "notes": { "type": ["string", "null"] }
+  }
+}

@@ -14,6 +14,9 @@ from src.ingest.cache import write_raw_payload
 from src.ingest.http import PoliteHttpClient
 from src.ingest.registry import register_sources
 from src.io.snapshotting import (
+    CATALOG_COLUMNS,
+    CATALOG_DICT_COLUMNS,
+    CATALOG_LIST_COLUMNS,
     LLM_PROVENANCE_COLUMN,
     REQUIRED_COLUMNS,
     build_and_write_snapshot,
@@ -34,6 +37,8 @@ from src.llm.extraction import EXTRACTION_FIELDS, EXTRACTION_PROMPT_VERSION
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
 logger = logging.getLogger("run_ingest")
+
+_NORMALIZED_COLUMNS = [*REQUIRED_COLUMNS, *CATALOG_COLUMNS]
 
 LLM_SOURCE_TEXT_FIELDS = ("title", "description", "eligibility_text")
 LLM_LIST_FIELDS = ("states_allowed", "majors_allowed", "keywords")
@@ -119,11 +124,11 @@ def _normalize_url_for_dedupe(value: Any) -> str:
 
 def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
     if not records:
-        return pd.DataFrame(columns=REQUIRED_COLUMNS)
+        return pd.DataFrame(columns=_NORMALIZED_COLUMNS)
 
     df = pd.DataFrame(records)
 
-    for column in REQUIRED_COLUMNS:
+    for column in _NORMALIZED_COLUMNS:
         if column not in df.columns:
             df[column] = None
 
@@ -131,10 +136,22 @@ def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
         df[numeric_column] = pd.to_numeric(df[numeric_column], errors="coerce")
         df[numeric_column] = df[numeric_column].where(pd.notna(df[numeric_column]), None)
 
-    for list_column in ("states_allowed", "majors_allowed", "keywords"):
+    for list_column in ("states_allowed", "majors_allowed", "keywords", *CATALOG_LIST_COLUMNS):
         df[list_column] = df[list_column].apply(_coerce_list)
 
-    for bool_column in ("is_recurring", "essay_required"):
+    for dict_column in CATALOG_DICT_COLUMNS:
+        df[dict_column] = df[dict_column].apply(
+            lambda value: value if isinstance(value, dict) else None
+        )
+
+    for bool_column in (
+        "is_recurring",
+        "essay_required",
+        "need_based",
+        "first_gen_only",
+        "military_family",
+        "disability",
+    ):
         df[bool_column] = df[bool_column].apply(
             lambda value: value if isinstance(value, bool) or value is None else None
         )
@@ -147,7 +164,7 @@ def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
         df[ts_column] = df[ts_column].fillna(pd.Timestamp(now_utc))
         df[ts_column] = df[ts_column].apply(_format_utc_iso_z)
 
-    return df[REQUIRED_COLUMNS]
+    return df[_NORMALIZED_COLUMNS]
 
 
 def _dedupe_records(df: pd.DataFrame) -> pd.DataFrame:
@@ -392,7 +409,7 @@ def run_ingest(
 
     source_records: list[dict[str, Any]] = []
     source_attempts: list[dict[str, Any]] = []
-    normalized_df = pd.DataFrame(columns=REQUIRED_COLUMNS)
+    normalized_df = pd.DataFrame(columns=_NORMALIZED_COLUMNS)
     guardrail_warnings: list[str] = []
     prior_count: int | None = None
     prior_snapshot_path: Path | None = None

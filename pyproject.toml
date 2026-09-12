@@ -15,6 +15,7 @@ dependencies = [
   "sentence-transformers",
   "streamlit",
   "requests",
+  "jsonschema",
 ]
 
 [project.optional-dependencies]

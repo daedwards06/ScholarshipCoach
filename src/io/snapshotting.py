@@ -52,8 +52,42 @@ TRACKED_DIFF_FIELDS = ("deadline", "amount", "title", "eligibility_text")
 # Provenance for the optional ingest-boundary LLM enrichment pass: the list of
 # fields whose value was filled by the LLM rather than a deterministic parser.
 LLM_PROVENANCE_COLUMN = "llm_enriched_fields"
-OPTIONAL_COLUMNS = [LLM_PROVENANCE_COLUMN]
-SNAPSHOT_COLUMNS = [*REQUIRED_COLUMNS, "embedding_key", LLM_PROVENANCE_COLUMN]
+
+# Curated-catalog columns. Additive and always optional: a scraped source
+# leaves them null and every pre-existing snapshot loads unchanged.
+CATALOG_COLUMNS = [
+    "catalog_id",
+    "status",
+    "cycle",
+    "grade_levels",
+    "counties_allowed",
+    "need_based",
+    "first_gen_only",
+    "gender",
+    "heritage",
+    "military_family",
+    "disability",
+    "religion",
+    "employer_restricted",
+    "membership_required",
+    "min_test_scores",
+    "requirements",
+    "renewal_terms",
+    "trust",
+    "provenance",
+    "notes",
+]
+CATALOG_LIST_COLUMNS = (
+    "grade_levels",
+    "counties_allowed",
+    "heritage",
+    "employer_restricted",
+    "membership_required",
+)
+CATALOG_DICT_COLUMNS = ("cycle", "min_test_scores", "requirements", "provenance")
+
+OPTIONAL_COLUMNS = [LLM_PROVENANCE_COLUMN, *CATALOG_COLUMNS]
+SNAPSHOT_COLUMNS = [*REQUIRED_COLUMNS, "embedding_key", *OPTIONAL_COLUMNS]
 
 
 def _coerce_output_date(run_date: date | str | None) -> date:
@@ -171,13 +205,13 @@ def coerce_provenance_list(value: Any) -> list[str]:
 def prepare_snapshot_df(records: pd.DataFrame) -> pd.DataFrame:
     """Ensure ``records`` has all required columns, then sort by ``scholarship_id``.
 
-    Missing columns are filled with ``None``.  The optional LLM provenance
-    column is normalized to a list per row (empty when enrichment did not run).
-    Returns a clean copy with a stable row order suitable for deterministic
-    delta computation.
+    Missing required and curated-catalog columns are filled with ``None``.  The
+    optional LLM provenance column is normalized to a list per row (empty when
+    enrichment did not run).  Returns a clean copy with a stable row order
+    suitable for deterministic delta computation.
     """
     snapshot_df = records.copy()
-    for column in REQUIRED_COLUMNS:
+    for column in (*REQUIRED_COLUMNS, *CATALOG_COLUMNS):
         if column not in snapshot_df.columns:
             snapshot_df[column] = None
 

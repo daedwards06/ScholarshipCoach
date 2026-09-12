@@ -3,6 +3,10 @@
 ``generate_scholarship_id`` produces a stable SHA-1 hex digest from the
 canonical identity fields (title, sponsor, amounts, deadline, source domain)
 so the same scholarship is assigned the same ID across ingest runs.
+
+Curated catalog records instead carry a ``catalog_id`` slug, which is hashed
+alone.  Because the deadline is excluded, a recurring award keeps one
+``scholarship_id`` across application cycles and can be tracked year to year.
 """
 from __future__ import annotations
 
@@ -69,8 +73,18 @@ def generate_scholarship_id(
     amount_max: Optional[float],
     deadline: Optional[date | datetime | str],
     source_url: Optional[str],
+    catalog_id: Optional[str] = None,
 ) -> str:
-    """Build a deterministic scholarship_id from canonical scholarship identity fields."""
+    """Build a deterministic scholarship_id from canonical scholarship identity fields.
+
+    When ``catalog_id`` is given it is the only input to the hash, so the ID
+    survives deadline, amount, and title revisions between cycles.  Scraped
+    sources omit it and keep the content-hash behavior.
+    """
+
+    slug = _normalize_text(catalog_id)
+    if slug:
+        return hashlib.sha1(f"catalog|{slug}".encode("utf-8")).hexdigest()
 
     payload = "|".join(
         [
