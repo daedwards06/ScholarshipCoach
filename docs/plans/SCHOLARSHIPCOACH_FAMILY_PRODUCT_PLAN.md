@@ -256,22 +256,38 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Add `src/rank/timeline.py` with `classify_timeline(df, profile, today) -> df` adding
+- [x] Add `src/rank/timeline.py` with `classify_timeline(df, profile, today) -> df` adding
       `timeline_bucket` (`now|next_cycle|senior_year|expired|not_applicable`) and
       `projected_deadline` (from `deadline_month` and the next cycle year when the listed
       deadline has passed and `cycle.recurring` is true)
-- [ ] Bucket rules use `grade_levels` on the award against the student's grade in the cycle
+- [x] Bucket rules use `grade_levels` on the award against the student's grade in the cycle
       year (a "seniors only" award for a current sophomore → `senior_year`); awards the student
       has already aged out of never arrive here, since Stage 1 filters them as
       `GRADE_LEVEL_MISMATCH`, so `not_applicable` need not re-check that case
-- [ ] `rerank_stage3` accepts an optional `timeline_bucket` filter and, by default, ranks the
+- [x] `rerank_stage3` accepts an optional `timeline_bucket` filter and, by default, ranks the
       `now` bucket; urgency uses `projected_deadline` when `deadline` is past — a past deadline
       already scores 0.0 urgency (Task 1.3 deviation), so what is left here is supplying the
       projected date so a recurring award is urgent against its *next* cycle rather than zero
-- [ ] Cards show the bucket and projected deadline instead of "Unknown deadline"
-- [ ] Tests: each bucket with hand-built rows; projection math across a year boundary;
+- [x] Cards show the bucket and projected deadline instead of "Unknown deadline"
+- [x] Tests: each bucket with hand-built rows; projection math across a year boundary;
       non-recurring closed → `expired`
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
+
+**As built — contracts later tasks depend on:**
+- `classify_timeline` runs between Stage 1 and Stage 2, so `timeline_bucket` and
+  `projected_deadline` ride through scoring on every row and are available on the ranked frame.
+- Bucket precedence: `expired` (past or closed, not recurring) is terminal; otherwise the grade
+  check overrides the deadline bucket, giving `senior_year` when the student's grade in the
+  cycle year is behind every allowed grade, and `not_applicable` when they will have aged out
+  by the next cycle (a grade-12 award whose next cycle falls after this senior graduates).
+- `project_next_deadline` treats `cycle.deadline_month` as the authority on the month and takes
+  the day from the listed deadline only when the months agree, otherwise the 1st; Feb 29 is
+  clamped to the last day of the month in a common year.
+- `rerank_stage3(timeline_bucket="now")` is the default, but the filter is a no-op on frames
+  without the column, so every pre-timeline caller (tests, `evaluate_golden_students`,
+  `tune_weights`) is unchanged. Pass `timeline_bucket=None` to rank every bucket.
+- The app's new "Timeline" selectbox is read when **Run** is pressed, so switching buckets
+  requires a re-run; the Phase 4 planning surface is expected to replace it.
 
 ---
 

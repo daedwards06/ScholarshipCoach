@@ -26,10 +26,26 @@ def _resolve_deadline(value: Any) -> pd.Timestamp | pd.NaT:
     return pd.Timestamp(value)
 
 
+def _effective_deadline(row: pd.Series, today: date) -> pd.Timestamp | pd.NaT:
+    """Return the date the student would actually apply against.
+
+    A recurring award reaches Stage 3 with its past cycle date still in
+    ``deadline``; the timeline supplies the next cycle in ``projected_deadline``,
+    and urgency has to be measured against that instead.
+    """
+    deadline = _resolve_deadline(row.get("deadline"))
+    if not pd.isna(deadline) and deadline.date() >= today:
+        return deadline
+    projected = _resolve_deadline(row.get("projected_deadline"))
+    if not pd.isna(projected):
+        return projected
+    return deadline
+
+
 def _compute_days_to_deadline(df: pd.DataFrame, today: date) -> np.ndarray:
     values: list[float] = []
     for _, row in df.iterrows():
-        deadline = _resolve_deadline(row.get("deadline"))
+        deadline = _effective_deadline(row, today)
         if pd.isna(deadline):
             values.append(np.nan)
             continue
@@ -90,6 +106,7 @@ def rerank_stage3(
     today: date | None = None,
     *,
     profile: ProfileLike | dict[str, Any] | None = None,
+    timeline_bucket: str | None = "now",
     weights: Stage3Weights | None = None,
     use_win_model: bool = False,
     win_model_path: Path | None = None,
@@ -105,6 +122,8 @@ def rerank_stage3(
         scored_df: DataFrame with a ``stage2_score`` column from Stage 2.
         today: Reference date for urgency computation; defaults to ``date.today()``.
         profile: Student profile required when ``use_win_model=True``.
+        timeline_bucket: Bucket to rank, applied only when the frame carries a
+            ``timeline_bucket`` column; ``None`` ranks every bucket.
         weights: Stage 3 scoring weights; uses ``Stage3Weights.baseline()`` if ``None``.
         use_win_model: Whether to load and run the win probability model.
         win_model_path: Explicit path to a ``.joblib`` model artifact.
@@ -124,6 +143,9 @@ def rerank_stage3(
 
     if "stage2_score" not in reranked_df.columns:
         raise ValueError("Stage 3 rerank requires a 'stage2_score' column.")
+
+    if timeline_bucket is not None and "timeline_bucket" in reranked_df.columns:
+        reranked_df = reranked_df[reranked_df["timeline_bucket"].eq(timeline_bucket)].copy()
 
     days_to_deadline = _compute_days_to_deadline(reranked_df, effective_today)
     urgency_boost = _compute_urgency_boost(days_to_deadline)

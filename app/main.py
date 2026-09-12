@@ -32,6 +32,11 @@ from src.profile.store import (
 from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import rerank_stage3
+from src.rank.timeline import (
+    TIMELINE_BUCKET_LABELS,
+    TIMELINE_BUCKETS,
+    classify_timeline,
+)
 from src.rank.weights import Stage2Weights, Stage3Weights
 from src.text_utils import coerce_text
 from src.win_model.infer import get_latest_model_path, load_model
@@ -449,6 +454,18 @@ def _calculate_days_until_deadline(deadline_str: str, today: date) -> int | None
         return None
 
 
+def _timeline_deadline(row: pd.Series, today: date) -> tuple[str, bool]:
+    """Return the deadline to display and whether it is a projected cycle date."""
+    deadline = coerce_text(row.get("deadline"))
+    days_until = _calculate_days_until_deadline(deadline, today)
+    if deadline and days_until is not None and days_until >= 0:
+        return deadline, False
+    projected = row.get("projected_deadline")
+    if projected is not None and not pd.isna(projected):
+        return pd.Timestamp(projected).date().isoformat(), True
+    return deadline, False
+
+
 def _get_urgency_indicator(days_until_deadline: int | None) -> tuple[str, str]:
     if days_until_deadline is None:
         return ("⚠️ Unknown deadline", "#666666")
@@ -466,7 +483,8 @@ def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
         coerce_text(row.get("title")) or coerce_text(row.get("scholarship_id")) or "Untitled"
     )
     sponsor = coerce_text(row.get("sponsor"))
-    deadline = coerce_text(row.get("deadline"))
+    deadline, deadline_is_projected = _timeline_deadline(row, today_value)
+    bucket = coerce_text(row.get("timeline_bucket"))
     amount_str = format_amount_range(row.get("amount_min"), row.get("amount_max"))
     amount_not_published = pd.isna(row.get("amount_min")) and pd.isna(row.get("amount_max"))
     source_url = coerce_text(row.get("source_url"))
@@ -489,7 +507,13 @@ def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
             if amount_not_published:
                 st.caption("Amount not published — ranked on fit alone")
         with col_deadline:
-            st.text(f"Deadline: {deadline if deadline else 'Unknown'}")
+            if deadline and deadline_is_projected:
+                st.text(f"Next deadline: ~{deadline}")
+                st.caption("Projected from this award's usual cycle")
+            else:
+                st.text(f"Deadline: {deadline if deadline else 'Unknown'}")
+        if bucket:
+            st.caption(f"Timeline: {TIMELINE_BUCKET_LABELS.get(bucket, bucket)}")
 
         st.markdown("**Why this matches you:**")
         for explanation in explain_ranked_row(row):
@@ -796,6 +820,14 @@ def main() -> None:
         )
     top_n = st.slider("Top-N results", min_value=10, max_value=100, value=25, step=5)
     search_term = st.text_input("Search title/sponsor/description")
+    timeline_choice = st.selectbox(
+        "Timeline",
+        ["All", *TIMELINE_BUCKETS],
+        index=1,
+        format_func=lambda bucket: (
+            "All" if bucket == "All" else TIMELINE_BUCKET_LABELS.get(bucket, bucket)
+        ),
+    )
     deadline_within_days = st.slider("Deadline within X days (0 = no filter)", 0, 365, 0, 5)
     min_amount = st.number_input("Minimum amount", min_value=0.0, value=0.0, step=500.0)
     no_essay_only = st.checkbox("Only no-essay scholarships", value=False)
@@ -819,6 +851,7 @@ def main() -> None:
             stage2_profile = _build_stage2_profile(st.session_state.profile)
 
             eligible_df, ineligible_df = apply_eligibility_filter(snapshot_df, stage1_profile)
+            eligible_df = classify_timeline(eligible_df, stage1_profile)
             scored_df = score_stage2(
                 eligible_df,
                 stage2_profile,
@@ -832,6 +865,7 @@ def main() -> None:
                 scored_df,
                 today=stage1_profile.today,
                 profile=stage1_profile,
+                timeline_bucket=None if timeline_choice == "All" else timeline_choice,
                 weights=active_stage3_weights,
                 use_win_model=use_win_model,
             )
