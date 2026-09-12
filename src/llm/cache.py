@@ -136,13 +136,17 @@ def get_or_extract(
     processed_dir: Path | None = None,
     model_name: str | None = None,
     prompt_version: str = EXTRACTION_PROMPT_VERSION,
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """Return validated extracted fields for one listing, using the cache first.
 
     A cache hit returns the stored fields with **no API call**.  On a miss the
     client is called, the validated result is written, and the fields are
     returned.  With ``client=None`` (feature disabled) a miss returns ``{}`` —
     cached extractions still resolve, so a keyless run can reuse prior work.
+
+    A failed provider call returns ``None`` and writes nothing, so a rate limit
+    or an outage never freezes into a cached "no fields" answer that later runs
+    would reuse without retrying.
 
     Args:
         client: The LLM client, or ``None`` when the feature is disabled.
@@ -153,7 +157,8 @@ def get_or_extract(
         prompt_version: Prompt version participating in the cache key.
 
     Returns:
-        A dict of validated fields, possibly empty.
+        A dict of validated fields (possibly empty), or ``None`` when the
+        provider call failed and nothing was cached.
     """
     resolved_model = model_name or (client.model if client is not None else None)
     if not resolved_model:
@@ -180,6 +185,8 @@ def get_or_extract(
         description=record.get("description"),
         eligibility_text=record.get("eligibility_text"),
     )
+    if fields is None:
+        return None
     write_extraction(
         path,
         fields,

@@ -289,12 +289,17 @@ def test_extract_fields_sends_prompts_and_returns_validated_fields() -> None:
     assert "Rural STEM Award" in user
 
 
-def test_extract_fields_returns_empty_on_client_error() -> None:
+def test_extract_fields_returns_none_on_client_error() -> None:
+    """A failed call must be distinguishable from a response holding no fields.
+
+    ``None`` says the provider never answered, so the caller can decline to
+    cache it; ``{}`` is a real answer about the listing and caches normally.
+    """
     client = _CannedClient(LlmError("provider down"))
 
     result = extract_fields(client, title="T", description="D", eligibility_text="E")
 
-    assert result == {}
+    assert result is None
 
 
 def test_extract_fields_returns_empty_on_unusable_response() -> None:

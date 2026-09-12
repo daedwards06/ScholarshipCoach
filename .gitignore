@@ -2,6 +2,7 @@
 .venv/
 venv/
 env/
+.env/
 
 # Python cache/build artifacts
 __pycache__/
@@ -49,6 +50,7 @@ reports/ingest_runs/
 # A curated showcase set is force-committed (git ignores these patterns for
 # already-tracked files); see reports/README.md for what is kept and why.
 reports/golden_eval_*.md
+reports/llm_extraction_eval_*.md
 reports/artifacts/
 reports/weight_tuning/*.md
 reports/weight_tuning/artifacts/

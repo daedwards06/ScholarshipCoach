@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from src.llm import cache as extraction_cache
+from src.llm.client import LlmError
 from src.llm.cache import (
     compute_extraction_key,
     extraction_path,
@@ -134,6 +135,38 @@ def test_empty_extraction_is_cached_so_it_is_not_retried(tmp_path: Path) -> None
     assert get_or_extract(client, _RECORD, processed_dir=tmp_path) == {}
     assert get_or_extract(client, _RECORD, processed_dir=tmp_path) == {}
     assert len(client.calls) == 1
+
+
+class _FailingClient:
+    """Fake client whose calls always fail, as under a rate limit or outage."""
+
+    model = "fake-model/v1"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def complete(self, system: str, user: str) -> str:
+        self.calls += 1
+        raise LlmError("rate limited")
+
+
+def test_failed_call_is_not_cached_and_is_retried_later(tmp_path: Path) -> None:
+    """A throttled run must not freeze into a permanent "no fields" answer.
+
+    Caching the failure would mean one rate-limited ingest silently marks those
+    records as having nothing to extract, and no later run ever retries them.
+    """
+    failing = _FailingClient()
+
+    assert get_or_extract(failing, _RECORD, processed_dir=tmp_path) is None
+    assert failing.calls == 1
+    assert not list((tmp_path / "llm_extractions").rglob("*.json"))
+
+    recovered = _client()
+    fields = get_or_extract(recovered, _RECORD, processed_dir=tmp_path)
+
+    assert len(recovered.calls) == 1, "the retry must actually reach the provider"
+    assert fields["min_gpa"] == 3.0
 
 
 def test_corrupt_cache_entry_is_ignored_and_rewritten(tmp_path: Path) -> None:

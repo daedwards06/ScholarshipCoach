@@ -14,6 +14,7 @@ from scripts.run_ingest import (
     run_ingest,
 )
 from src.io.snapshotting import LLM_PROVENANCE_COLUMN
+from src.llm.client import LlmError
 
 
 @pytest.fixture(autouse=True)
@@ -281,6 +282,40 @@ def test_run_ingest_without_a_key_completes_and_reports_disabled(
 
     snapshot_df = pd.read_parquet(report["artifact_paths"]["snapshot"])
     assert list(snapshot_df.iloc[0][LLM_PROVENANCE_COLUMN]) == []
+
+
+def test_failed_calls_are_counted_and_leave_records_retryable(tmp_path: Path) -> None:
+    """A rate-limited enrichment pass must report failures, not report success.
+
+    Without this the run logs "0 fields filled" whether the listings had nothing
+    to extract or the provider refused every call — and the empty results would
+    be cached, so no later run would retry them.
+    """
+
+    class _FailingClient:
+        model = "fake-model/v1"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def complete(self, system: str, user: str) -> str:
+            self.calls += 1
+            raise LlmError("rate limited")
+
+    client = _FailingClient()
+    enriched, summary = _enrich_records_with_llm(
+        _frame(_raw_record("a1"), _raw_record("a2")),
+        client=client,
+        model_name=client.model,
+        processed_dir=tmp_path,
+        max_calls=10,
+    )
+
+    assert client.calls == 2
+    assert summary["api_failures"] == 2
+    assert summary["fields_filled"] == 0
+    assert all(len(value) == 0 for value in enriched[LLM_PROVENANCE_COLUMN])
+    assert not list(tmp_path.rglob("llm_extractions/**/*.json")), "failures must not cache"
 
 
 def test_run_ingest_without_enrichment_still_writes_the_column(

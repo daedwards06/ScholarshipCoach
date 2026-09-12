@@ -266,25 +266,70 @@ python scripts/evaluate_llm_extraction.py --sample-size 60
 ```
 
 **Checklist:**
-- [ ] Run one uncapped `python scripts/run_ingest.py` first so the latest snapshot is
+- [x] Run one uncapped `python scripts/run_ingest.py` first so the latest snapshot is
       fresh and carries the Task 4 `llm_enriched_fields` column; record the snapshot
       date in the eval report
-- [ ] Create `scripts/evaluate_llm_extraction.py`: sample N snapshot records where the
+      *(Ran 2026-08-13 → `scholarships_snapshot_20260813.parquet`, 35 records. Status
+      `partial`: `bold_org` returned 0 records this run and `scholarship_america` hit
+      its 3-page listing cap, so the catalog is smaller than the prior 51-record
+      snapshot. 34 of the 35 records carry gold + source text.)*
+- [x] Create `scripts/evaluate_llm_extraction.py`: sample N snapshot records where the
       parsers populated at least one target field; run LLM extraction on their raw
       text (cache-aware); compare per field
-- [ ] Metrics per field: exact-match accuracy for scalars (deadline, gpa, amounts
+- [x] Metrics per field: exact-match accuracy for scalars (deadline, gpa, amounts
       within $1, education_level, essay_required); set precision/recall for list
       fields (states, majors, keywords); plus abstention rate (LLM said null where
       gold has a value) and hallucination rate (LLM gave a value where gold is null —
       reported separately and honestly labeled *unverified*, since gold-null may mean
       "parser missed it," not "not stated")
-- [ ] Write `reports/llm_extraction_eval_<timestamp>.md` + JSON artifact with the
+- [x] Write `reports/llm_extraction_eval_<timestamp>.md` + JSON artifact with the
       per-field table, sample size, model, and prompt version
-- [ ] Unit-test the comparison/metric logic with fixture frames (no network); the
+- [x] Unit-test the comparison/metric logic with fixture frames (no network); the
       live run stays manual
 - [ ] Run the live evaluation once with a real key; keep the resulting report as a
       curated artifact (it feeds the README table in Task 6)
-- [ ] Tests + ruff green
+      *(BLOCKED on provider quota, not on code — see "Task 5 live-run status" below.)*
+- [x] Tests + ruff green
+
+### Task 5 live-run status (2026-08-13)
+
+A Gemini API key is configured in `.env` (git-ignored) and the extraction path is
+verified working end to end against the live API. The run is blocked on free-tier
+quota, and two attempts produced findings worth keeping:
+
+**Attempt 1 — `gemini-3.8-flash`, 33 calls.** 13 records returned rich extractions,
+including `education_level`, `majors_allowed`, `min_gpa`, and `citizenship` — all
+fields the parsers never populated, i.e. the enrichment case working. 4 calls hard-
+failed on 429; 17 returned HTTP 200 that validated to nothing. Report discarded as
+untrustworthy (see the failure-caching amendment below).
+
+**Attempt 2 — `gemini-2.5-flash`, 0 usable calls.** Every call 404s: *"no longer
+available to new users … use models/gemini-3.6-flash"*. Note the model **appears in
+the `/models` listing** for this key regardless — a listing entry does not imply the
+model is callable, so model choice must be validated with an actual completion.
+
+**The binding constraint:** the Gemini free tier allows
+`GenerateRequestsPerDayPerProjectPerModel-FreeTier` = **20 requests per day, per
+model**. A single-model run over the 34-record sample needs 34. Options, none yet
+chosen:
+
+1. **Groq key** — free tier well above 20/day; completes in one pass. Needs a signup.
+2. **`gemini-3.6-flash` over two days** — 20 today, 14 tomorrow; the cache resumes
+   automatically and the model stays constant, so the split run is still valid.
+3. **`--sample-size 20`** — finishes in one day; thinner per-field counts
+   (`states_allowed` would fall to roughly 8 records).
+
+**Snapshot caveat for whoever runs it:** the fresh ingest returned `partial` —
+`bold_org` yielded 0 records and `scholarship_america` hit its 3-page listing cap, so
+the catalog fell from 51 records to 35 and the latest-snapshot pointer now resolves to
+the smaller one. That affects the golden-student eval and the app, not just this task.
+Connector repair belongs to the Portfolio plan's Task 2.3-style work; flagged here
+because Task 6 will quote catalog numbers.
+
+**Gold coverage caveat:** this catalog has zero parser gold for `min_gpa`,
+`majors_allowed`, `education_level`, and `citizenship`, so those rows report `n/a`
+agreement and appear only as unverified value-added. See Task 9 for a second, more
+serious gold problem found while diagnosing attempt 1.
 
 ---
 
@@ -364,17 +409,135 @@ streamlit run app/main.py   # visual: toggle off by default; cards unchanged whe
 
 ---
 
+## Amendment (2026-08-13): failed calls must not be cached
+
+**Completed out of band during Task 5, with the project owner's approval.** Task 5's
+first live run surfaced a defect in the Task 2–4 code that was corrupting the
+measurement, and would have quietly corrupted the catalog too.
+
+`extract_fields` returned `{}` both when the provider never answered and when it
+answered with nothing extractable. `get_or_extract` cached that `{}` either way. So a
+single rate-limited run permanently recorded "this listing has no extractable fields"
+for every record it touched, and **no later run would ever retry them** — the cache
+hit would keep resolving. In Task 5 this showed up as 21 poisoned entries and a
+meaningless 0.179 headline; in a Task 4 `--llm-enrich` run it would have silently and
+permanently left records unenriched with no signal that anything went wrong.
+
+Changes made (all tested, `pytest` and `ruff` green):
+
+- [x] `extract_fields` returns `None` when the provider call failed, `{}` when the
+      model answered with nothing usable. The distinction is load-bearing and
+      documented in the docstring.
+- [x] `get_or_extract` writes nothing and returns `None` on a failed call; genuine
+      empty results still cache, preserving the no-retry-storms property.
+- [x] `run_ingest.py` counts `api_failures` in its enrichment summary (and the ingest
+      report JSON) and logs a warning naming how many records were left unenriched
+      and retryable.
+- [x] `evaluate_llm_extraction.py` excludes unanswered records from scoring entirely
+      rather than counting them as abstentions, and the report states how many were
+      dropped and why. A call that never happened is not evidence about the model.
+- [x] Tests: a failed call is not cached and is retried; capped/clientless records
+      read as unanswered; the ingest pass counts failures without writing cache
+      entries.
+
+---
+
+## Task 8: Provider Configuration Repair
+
+**Why:** `DEFAULT_MODEL = "gemini-2.0-flash"` in `src/llm/client.py` points at a
+retired model. Anyone following `docs/llm_extraction.md` — which says to set only the
+API key — gets a 404 on every call, and because extraction is best-effort by design
+the feature degrades to "0 fields filled" with no visible error. Task 6 will document
+this default, and documenting a broken one is worse than the current state.
+
+**Preflight Files:**
+- `src/llm/client.py` (`DEFAULT_MODEL`, `DEFAULT_BASE_URL`, `complete` error handling)
+- `docs/llm_extraction.md` (provider table, configuration table, PowerShell example)
+- `src/llm/extraction.py` (the `None`/`{}` contract from the amendment above)
+
+**Validation Commands:**
+```powershell
+python -m pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+```
+
+**Checklist:**
+- [ ] Point `DEFAULT_MODEL` at a currently-callable model, verified with a real
+      completion rather than a `/models` listing entry (the listing includes models
+      that 404 for new keys)
+- [ ] Do **not** default to a moving alias such as `gemini-flash-latest`: the
+      extraction cache key is built from the model *name*, so an alias would hold the
+      key constant while the model changed, mixing outputs across models in one cache
+- [ ] Surface configuration errors distinctly from transient ones — a 401/404 fails
+      identically on every record and should not look like a listing with nothing to
+      extract; at minimum count and report them separately from `api_failures`
+- [ ] `docs/llm_extraction.md`: record the free-tier reality (Gemini is 20 requests
+      per day *per model*), note that a `/models` entry does not imply callability,
+      and recommend Groq when volume matters
+- [ ] Tests + ruff green
+
+---
+
+## Task 9: Extraction Input Coverage + Fair Abstention
+
+**Why:** While diagnosing Task 5's first run, an offline check found that **9 of the
+28 records with a gold `amount_max` do not contain that amount anywhere in the text
+sent to the model**. The Society of Women Engineers listing has gold `$15,000` and a
+220-character description that never mentions money; the parser scraped the amount
+from a structured HTML field outside `title`/`description`/`eligibility_text`.
+
+Two consequences, one measurement and one product:
+
+- **Measurement:** gold is drawn from a superset of the model's input, so the eval
+  scores the model for declining to invent values it was never shown. The abstention
+  rate is pessimistic by an unknown margin.
+- **Product:** enrichment can only ever fill fields whose values appear in those three
+  text fields. That ceiling belongs in the Task 6 write-up rather than being
+  discovered later by a reader.
+
+**Preflight Files:**
+- `scripts/evaluate_llm_extraction.py` (`run_extractions`, `_scalar_field_metrics`)
+- `src/llm/extraction.py` (`build_user_prompt` — what actually reaches the model)
+- `src/ingest/sources/scholarship_america_live.py` (where parser-only fields come from)
+- `src/normalize/schema.py` (whether a fuller text field could be carried)
+
+**Validation Commands:**
+```powershell
+python -m pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+```
+
+**Checklist:**
+- [ ] Decide and record whether to widen what the prompt receives (an ingest change,
+      carrying more raw page text) or to accept the ceiling and document it
+- [ ] Report abstention split by input visibility: over records where the gold value
+      is actually present in the sent text, alongside the raw rate. Digit matching is
+      reliable for amounts; date and state formats vary, so state the method per field
+      rather than implying a precision the check does not have
+- [ ] Carry the visibility split into the report's "How to read this" section
+- [ ] Unit-test the visibility check with fixture frames (no network)
+- [ ] Tests + ruff green
+
+---
+
 ## Execution Order
 
 ```
-1  Client foundation        (everything depends on it)
-2  Extraction + validation  (depends on 1)
-3  Content-hash cache       (depends on 2 — needs the prompt version)
-4  Ingest enrichment pass   (depends on 3)
+1  Client foundation        (everything depends on it)          DONE
+2  Extraction + validation  (depends on 1)                      DONE
+3  Content-hash cache       (depends on 2 — needs the prompt version)  DONE
+4  Ingest enrichment pass   (depends on 3)                      DONE
 5  Extraction evaluation    (depends on 4; needs one manual keyed run)
-6  Docs + README            (last of core — needs 5's accuracy table)
+                            code DONE + green; live run blocked on quota
+8  Provider config repair   (unblocks 5's live run; do before 6)
+9  Input coverage / fair abstention  (refines 5; feeds 6's caveats)
+6  Docs + README            (last of core — needs 5's accuracy table,
+                             8's corrected defaults, 9's ceiling note)
 7  UI explanations          (optional; any time after 3)
 ```
+
+Tasks 8 and 9 were added on 2026-08-13 from findings during Task 5; see the amendment
+above for the failure-caching defect already fixed.
 
 ## Success Criteria
 

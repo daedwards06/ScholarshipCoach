@@ -136,11 +136,19 @@ def extract_fields(
     title: str | None,
     description: str | None,
     eligibility_text: str | None,
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """Extract validated structured fields from one listing's text.
 
-    Extraction is always best-effort: any client failure yields ``{}`` rather
+    Extraction is always best-effort: a client failure yields ``None`` rather
     than propagating, so a flaky provider can never fail an ingest run.
+
+    The ``None``/``{}`` distinction matters to the caller and must not be
+    collapsed.  ``None`` means *the provider never answered* — a rate limit, an
+    auth error, a timeout — which says nothing about the listing and must not
+    be cached, or one throttled run would permanently record "no fields" for
+    every record it touched.  ``{}`` means the model answered and nothing
+    survived validation, which is a real result about this listing and is safe
+    to cache.
     """
     try:
         raw = client.complete(
@@ -153,7 +161,7 @@ def extract_fields(
         )
     except Exception as exc:  # best-effort: never fail ingest on a provider error
         logger.warning("LLM extraction failed for %r: %s", title, exc)
-        return {}
+        return None
     return parse_extraction(raw)
 
 

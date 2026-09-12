@@ -184,6 +184,7 @@ def _empty_llm_summary(*, requested: bool = False, model_name: str | None = None
         "records_eligible": 0,
         "cache_hits": 0,
         "api_calls": 0,
+        "api_failures": 0,
         "max_calls_reached": False,
         "records_enriched": 0,
         "fields_filled": 0,
@@ -271,6 +272,7 @@ def _enrich_records_with_llm(
     target_fields = [name for name in EXTRACTION_FIELDS if name in enriched.columns]
     by_field: dict[str, int] = {}
     api_calls = 0
+    api_failures = 0
 
     for position, (index, row) in enumerate(list(enriched.iterrows())):
         summary["records_scanned"] += 1
@@ -300,12 +302,16 @@ def _enrich_records_with_llm(
             continue
         else:
             api_calls += 1
-            fields = get_or_extract(
+            extracted = get_or_extract(
                 client,
                 record,
                 processed_dir=processed_dir,
                 model_name=model_name,
             )
+            if extracted is None:
+                api_failures += 1
+                continue
+            fields = extracted
         if not fields:
             continue
 
@@ -325,6 +331,7 @@ def _enrich_records_with_llm(
 
     enriched[LLM_PROVENANCE_COLUMN] = provenance
     summary["api_calls"] = api_calls
+    summary["api_failures"] = api_failures
     summary["fields_filled_by_field"] = dict(sorted(by_field.items()))
     return enriched, summary
 
@@ -486,14 +493,21 @@ def run_ingest(
             )
             logger.info(
                 "LLM enrichment: scanned=%d eligible=%d cache_hits=%d api_calls=%d "
-                "records_enriched=%d fields_filled=%d",
+                "api_failures=%d records_enriched=%d fields_filled=%d",
                 llm_summary["records_scanned"],
                 llm_summary["records_eligible"],
                 llm_summary["cache_hits"],
                 llm_summary["api_calls"],
+                llm_summary["api_failures"],
                 llm_summary["records_enriched"],
                 llm_summary["fields_filled"],
             )
+            if llm_summary["api_failures"]:
+                logger.warning(
+                    "LLM enrichment: %d call(s) failed and were left uncached; "
+                    "those records stay unenriched and will be retried on the next run.",
+                    llm_summary["api_failures"],
+                )
             if llm_summary["max_calls_reached"]:
                 logger.warning(
                     "LLM enrichment hit the --llm-max-calls cap of %d; "
