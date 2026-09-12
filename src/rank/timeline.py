@@ -101,10 +101,13 @@ def project_next_deadline(
     from the listed deadline when the two agree, and otherwise the first of the
     month, since a cycle month alone does not say which day.
     """
-    if deadline is None and deadline_month is None:
+    if deadline_month is not None:
+        month = deadline_month
+    elif deadline is not None:
+        month = deadline.month
+    else:
         return None
 
-    month = deadline_month if deadline_month is not None else deadline.month
     day = deadline.day if deadline is not None and deadline.month == month else 1
 
     candidate = _safe_date(today.year, month, day)
