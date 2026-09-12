@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from app import modes
 from app.helpers import explain_ranked_row, format_amount_range, reasons_to_text
 from scripts.run_ingest import get_latest_snapshot_path, run_ingest
 from src.embeddings.cache import ensure_embedding_store_for_df
@@ -38,6 +39,8 @@ from src.rank.timeline import (
     classify_timeline,
 )
 from src.rank.weights import Stage2Weights, Stage3Weights
+from src.store import repo
+from src.store.db import open_db
 from src.text_utils import coerce_text
 from src.win_model.infer import get_latest_model_path, load_model
 from src.win_model.train import train_win_model
@@ -55,6 +58,19 @@ WEIGHTS_PROFILE_PATHS = {
 }
 WEIGHTS_PROFILE_OPTIONS = tuple(WEIGHTS_PROFILE_PATHS.keys()) + ("Custom file path",)
 SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
+
+# Sections whose surfaces are built by later Phase 3 tasks. Listing them now is
+# deliberate: the nav shows the family the whole product, not just what runs.
+_PENDING_SECTION_NOTES = {
+    "this_week": "Checklist items and deadlines due in the next 14 days.",
+    "applications": "Awards you have saved, with status, notes and checklists.",
+    "essays": "Your essay bank, themed and reused across prompts.",
+    "recommenders": "Who you asked for letters, when, and what is still outstanding.",
+    "catalog_inbox": "Add an award from a URL, and review proposed catalog changes.",
+    "timeline": "Deadlines, milestones and letter due dates by month.",
+    "colleges_money": "College list, net price estimates, and what has been won.",
+    "outcomes": "Results per application: awarded amounts and renewal terms.",
+}
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 
 PREFER_NOT_TO_SAY = "Prefer not to say"
@@ -587,231 +603,226 @@ def _render_scholarship_card(row: pd.Series, today_value: date) -> None:
             st.json(component_values)
 
 
-def main() -> None:
-    st.set_page_config(page_title="Scholarship Coach", layout="wide")
-    st.title("Scholarship Coach")
-    st.caption("Find scholarships matched to your profile")
+def _render_profile_sidebar() -> None:
+    st.header("Your Profile")
 
-    _ensure_session_state()
-
-    with st.sidebar:
-        st.header("Your Profile")
-
-        if st.session_state.get("profile_is_demo", False):
-            st.info(
-                "Demo profile — fictional data. Edit the fields and press Save Profile to "
-                "store your own under data/private/."
-            )
-
-        st.subheader("Academic", divider=False)
-        st.text_input("Full Name", key="profile_name", placeholder="Your name (optional)")
-        st.number_input("GPA", min_value=0.0, max_value=4.0, step=0.01, key="profile_gpa",
-                       help="Your current GPA (0.0-4.0)")
-        st.text_input("State", key="profile_state", placeholder="e.g., NC")
-        st.text_input("County", key="profile_county",
-                     placeholder="e.g., Guilford",
-                     help="Many local awards are county-restricted")
-        st.text_input("High School", key="profile_high_school",
-                     placeholder="e.g., Northside High School")
-        st.text_input("Intended Major", key="profile_major", placeholder="e.g., Computer Science")
-        st.selectbox("Grade Level",
-                    options=list(GRADE_LABELS),
-                    key="profile_grade_label",
-                    help="Your current or upcoming grade level")
-        st.number_input("Graduation Year", min_value=0, max_value=2100, step=1,
-                       key="profile_graduation_year",
-                       help="Leave at 0 to estimate it from your grade level")
-        st.number_input("SAT", min_value=0, max_value=1600, step=10, key="profile_sat",
-                       help="Leave at 0 if you have not taken it")
-        st.number_input("ACT", min_value=0, max_value=36, step=1, key="profile_act",
-                       help="Leave at 0 if you have not taken it")
-
-        st.subheader("About you", divider=False)
-        st.caption("Every field here is optional and only used to match restricted awards.")
-        st.text_input("Citizenship", key="profile_citizenship", placeholder="e.g., U.S. Citizen")
-        st.selectbox("Financial need", options=list(TRISTATE_OPTIONS),
-                    key="profile_financial_need",
-                    help="Whether you qualify for need-based aid")
-        st.selectbox("First-generation college student", options=list(TRISTATE_OPTIONS),
-                    key="profile_first_gen")
-        st.selectbox("Gender", options=list(GENDER_OPTIONS), key="profile_gender")
-        st.text_input("Heritage / background", key="profile_heritage_csv",
-                     placeholder="e.g., Hispanic, Cherokee (comma-separated)")
-        st.selectbox("Military family", options=list(TRISTATE_OPTIONS),
-                    key="profile_military_family")
-        st.selectbox("Disability", options=list(TRISTATE_OPTIONS), key="profile_disability")
-        st.text_input("Religion", key="profile_religion", placeholder="Optional")
-        st.text_input("Parent employers", key="profile_parent_employers_csv",
-                     placeholder="e.g., Duke Energy (comma-separated)",
-                     help="Some awards are restricted to employees' children")
-
-        st.subheader("Activities", divider=False)
-        st.text_input(
-            "Interests / Keywords",
-            key="profile_keywords_csv",
-            placeholder="e.g., robotics, leadership, community service (comma-separated)",
-            help="Topics you're passionate about—we'll match scholarships to these"
+    if st.session_state.get("profile_is_demo", False):
+        st.info(
+            "Demo profile — fictional data. Edit the fields and press Save Profile to "
+            "store your own under data/private/."
         )
-        st.text_input("Extracurriculars", key="profile_extracurriculars_csv",
-                     placeholder="e.g., robotics team, marching band (comma-separated)")
-        st.text_input("Memberships", key="profile_memberships_csv",
-                     placeholder="e.g., 4-H, National Honor Society (comma-separated)")
-        st.number_input("Community service hours", min_value=0, max_value=10000, step=5,
-                       key="profile_service_hours")
-        st.checkbox("I have an essay draft ready", key="profile_essay_ready")
-        st.text_area("Your Goals", key="profile_goals", height=120,
-                    placeholder="Tell us about your goals, dreams, or what matters to you",
-                    help="We use this to find scholarships that align with your aspirations")
 
-        st.subheader("Colleges", divider=False)
-        st.text_input("Intended colleges", key="profile_intended_colleges_csv",
-                     placeholder="e.g., NC State, UNC Charlotte (comma-separated)")
+    st.subheader("Academic", divider=False)
+    st.text_input("Full Name", key="profile_name", placeholder="Your name (optional)")
+    st.number_input("GPA", min_value=0.0, max_value=4.0, step=0.01, key="profile_gpa",
+                   help="Your current GPA (0.0-4.0)")
+    st.text_input("State", key="profile_state", placeholder="e.g., NC")
+    st.text_input("County", key="profile_county",
+                 placeholder="e.g., Guilford",
+                 help="Many local awards are county-restricted")
+    st.text_input("High School", key="profile_high_school",
+                 placeholder="e.g., Northside High School")
+    st.text_input("Intended Major", key="profile_major", placeholder="e.g., Computer Science")
+    st.selectbox("Grade Level",
+                options=list(GRADE_LABELS),
+                key="profile_grade_label",
+                help="Your current or upcoming grade level")
+    st.number_input("Graduation Year", min_value=0, max_value=2100, step=1,
+                   key="profile_graduation_year",
+                   help="Leave at 0 to estimate it from your grade level")
+    st.number_input("SAT", min_value=0, max_value=1600, step=10, key="profile_sat",
+                   help="Leave at 0 if you have not taken it")
+    st.number_input("ACT", min_value=0, max_value=36, step=1, key="profile_act",
+                   help="Leave at 0 if you have not taken it")
 
-        st.subheader("Advanced", divider=False)
-        st.checkbox("Use custom date", key="profile_use_today_override", help="Override today's date for testing")
-        st.date_input("Custom date", key="profile_today_override")
+    st.subheader("About you", divider=False)
+    st.caption("Every field here is optional and only used to match restricted awards.")
+    st.text_input("Citizenship", key="profile_citizenship", placeholder="e.g., U.S. Citizen")
+    st.selectbox("Financial need", options=list(TRISTATE_OPTIONS),
+                key="profile_financial_need",
+                help="Whether you qualify for need-based aid")
+    st.selectbox("First-generation college student", options=list(TRISTATE_OPTIONS),
+                key="profile_first_gen")
+    st.selectbox("Gender", options=list(GENDER_OPTIONS), key="profile_gender")
+    st.text_input("Heritage / background", key="profile_heritage_csv",
+                 placeholder="e.g., Hispanic, Cherokee (comma-separated)")
+    st.selectbox("Military family", options=list(TRISTATE_OPTIONS),
+                key="profile_military_family")
+    st.selectbox("Disability", options=list(TRISTATE_OPTIONS), key="profile_disability")
+    st.text_input("Religion", key="profile_religion", placeholder="Optional")
+    st.text_input("Parent employers", key="profile_parent_employers_csv",
+                 placeholder="e.g., Duke Energy (comma-separated)",
+                 help="Some awards are restricted to employees' children")
 
-        save_col, load_col = st.columns(2)
-        if save_col.button("Save Profile", use_container_width=True):
-            profile = _profile_from_widgets()
-            saved_path = save_profile(profile)
-            st.session_state.profile = profile
+    st.subheader("Activities", divider=False)
+    st.text_input(
+        "Interests / Keywords",
+        key="profile_keywords_csv",
+        placeholder="e.g., robotics, leadership, community service (comma-separated)",
+        help="Topics you're passionate about—we'll match scholarships to these"
+    )
+    st.text_input("Extracurriculars", key="profile_extracurriculars_csv",
+                 placeholder="e.g., robotics team, marching band (comma-separated)")
+    st.text_input("Memberships", key="profile_memberships_csv",
+                 placeholder="e.g., 4-H, National Honor Society (comma-separated)")
+    st.number_input("Community service hours", min_value=0, max_value=10000, step=5,
+                   key="profile_service_hours")
+    st.checkbox("I have an essay draft ready", key="profile_essay_ready")
+    st.text_area("Your Goals", key="profile_goals", height=120,
+                placeholder="Tell us about your goals, dreams, or what matters to you",
+                help="We use this to find scholarships that align with your aspirations")
+
+    st.subheader("Colleges", divider=False)
+    st.text_input("Intended colleges", key="profile_intended_colleges_csv",
+                 placeholder="e.g., NC State, UNC Charlotte (comma-separated)")
+
+    st.subheader("Advanced", divider=False)
+    st.checkbox("Use custom date", key="profile_use_today_override", help="Override today's date for testing")
+    st.date_input("Custom date", key="profile_today_override")
+
+    save_col, load_col = st.columns(2)
+    if save_col.button("Save Profile", use_container_width=True):
+        profile = _profile_from_widgets()
+        saved_path = save_profile(profile)
+        st.session_state.profile = profile
+        st.session_state.profile_is_demo = False
+        st.success(f"Saved to {saved_path}")
+    if load_col.button("Load Profile", use_container_width=True):
+        loaded = load_profile()
+        if loaded is None:
+            st.warning(f"No profile file found at {PROFILE_PATH}")
+        else:
+            st.session_state.profile = loaded
             st.session_state.profile_is_demo = False
-            st.success(f"Saved to {saved_path}")
-        if load_col.button("Load Profile", use_container_width=True):
-            loaded = load_profile()
-            if loaded is None:
-                st.warning(f"No profile file found at {PROFILE_PATH}")
-            else:
-                st.session_state.profile = loaded
-                st.session_state.profile_is_demo = False
-                _apply_profile_to_widgets(loaded)
-                st.success("Profile loaded.")
-                st.rerun()
+            _apply_profile_to_widgets(loaded)
+            st.success("Profile loaded.")
+            st.rerun()
 
-        tuned_weights_payload: dict[str, Any] | None = None
-        tuned_weights_error: str | None = None
 
-        with st.expander("Advanced / Operator", expanded=False):
-            st.subheader("Similarity")
-            similarity_label = st.selectbox(
-                "Similarity mode",
-                options=("TF-IDF", "Embeddings"),
-                index=0 if st.session_state.get("similarity_mode", "tfidf") == "tfidf" else 1,
-            )
-            st.session_state.similarity_mode = "tfidf" if similarity_label == "TF-IDF" else "embeddings"
-            st.session_state.embedding_model_name = st.selectbox(
-                "Model",
-                options=(DEFAULT_MODEL_NAME,),
-                index=0,
-            )
+def _render_operator_sidebar() -> None:
+    tuned_weights_payload: dict[str, Any] | None = None
+    tuned_weights_error: str | None = None
 
-            st.subheader("Ranking Weights")
-            selected_weights_profile = st.selectbox(
-                "Weights profile",
-                options=WEIGHTS_PROFILE_OPTIONS,
-                index=WEIGHTS_PROFILE_OPTIONS.index(st.session_state.get("weights_profile", "Latest")),
-                key="weights_profile",
+    with st.expander("Advanced / Operator", expanded=False):
+        st.subheader("Similarity")
+        similarity_label = st.selectbox(
+            "Similarity mode",
+            options=("TF-IDF", "Embeddings"),
+            index=0 if st.session_state.get("similarity_mode", "tfidf") == "tfidf" else 1,
+        )
+        st.session_state.similarity_mode = "tfidf" if similarity_label == "TF-IDF" else "embeddings"
+        st.session_state.embedding_model_name = st.selectbox(
+            "Model",
+            options=(DEFAULT_MODEL_NAME,),
+            index=0,
+        )
+
+        st.subheader("Ranking Weights")
+        selected_weights_profile = st.selectbox(
+            "Weights profile",
+            options=WEIGHTS_PROFILE_OPTIONS,
+            index=WEIGHTS_PROFILE_OPTIONS.index(st.session_state.get("weights_profile", "Latest")),
+            key="weights_profile",
+        )
+        custom_weights_path = ""
+        if selected_weights_profile == "Custom file path":
+            custom_weights_path = st.text_input(
+                "Custom weights JSON path",
+                key="custom_weights_path",
+                placeholder="data/processed/best_weights_relevance.json",
             )
-            custom_weights_path = ""
-            if selected_weights_profile == "Custom file path":
-                custom_weights_path = st.text_input(
-                    "Custom weights JSON path",
-                    key="custom_weights_path",
-                    placeholder="data/processed/best_weights_relevance.json",
-                )
+        try:
+            tuned_weights_payload = _load_weights_profile(selected_weights_profile, custom_weights_path)
+        except Exception as exc:
+            tuned_weights_error = str(exc)
+
+        if tuned_weights_error:
+            st.warning(f"Could not load selected weights profile: {tuned_weights_error}")
+        elif tuned_weights_payload is None:
+            st.caption("Selected weights profile is unavailable. Baseline weights will be used.")
+        else:
+            objective_label = tuned_weights_payload.get("objective") or "unspecified"
+            st.caption(
+                f"Loaded `{selected_weights_profile}` weights from {tuned_weights_payload['source_name']} "
+                f"(objective: {objective_label})."
+            )
+            if tuned_weights_payload.get("use_win_model"):
+                st.caption("This tuned weights file was generated with the win model enabled.")
+
+        st.subheader("Win Probability Model")
+        latest_win_model_info = _load_latest_win_model_info()
+        if st.button("Train/Refresh Win Model", use_container_width=True):
             try:
-                tuned_weights_payload = _load_weights_profile(selected_weights_profile, custom_weights_path)
+                latest_snapshot = get_latest_snapshot_path()
+                snapshot_df = pd.read_parquet(latest_snapshot)
+                training_info = train_win_model(
+                    snapshot_df,
+                    get_golden_students(),
+                    PROCESSED_DIR / "win_model",
+                    seed=0,
+                )
+                latest_win_model_info = _load_latest_win_model_info()
+                metrics = training_info["metrics"]
+                st.success(
+                    f"Win model trained. AUC={metrics['roc_auc']:.4f} Brier={metrics['brier_score']:.4f}"
+                )
+            except FileNotFoundError:
+                st.warning("No saved snapshot found. Load or ingest a snapshot before training the win model.")
             except Exception as exc:
-                tuned_weights_error = str(exc)
+                st.error(f"Win model training failed: {exc}")
+        st.checkbox("Use Win Model in Ranking", key="use_win_model")
+        if latest_win_model_info is None:
+            st.caption("No trained win model found yet.")
+        else:
+            st.caption(f"Latest model: {latest_win_model_info['timestamp']}")
+            if latest_win_model_info.get("error"):
+                st.warning(f"Could not load win model details: {latest_win_model_info['error']}")
+            st.write(
+                {
+                    "roc_auc": latest_win_model_info.get("roc_auc"),
+                    "brier_score": latest_win_model_info.get("brier_score"),
+                    "log_loss": latest_win_model_info.get("log_loss"),
+                }
+            )
 
-            if tuned_weights_error:
-                st.warning(f"Could not load selected weights profile: {tuned_weights_error}")
-            elif tuned_weights_payload is None:
-                st.caption("Selected weights profile is unavailable. Baseline weights will be used.")
-            else:
-                objective_label = tuned_weights_payload.get("objective") or "unspecified"
-                st.caption(
-                    f"Loaded `{selected_weights_profile}` weights from {tuned_weights_payload['source_name']} "
-                    f"(objective: {objective_label})."
-                )
-                if tuned_weights_payload.get("use_win_model"):
-                    st.caption("This tuned weights file was generated with the win model enabled.")
+        st.subheader("Data Update")
+        update_col, latest_col = st.columns(2)
+        if update_col.button("Run Update (Ingest)", use_container_width=True):
+            try:
+                report = run_ingest(date=None)
+                st.session_state.ingest_report = report
+                st.session_state.latest_snapshot_path = report["artifact_paths"]["snapshot"]
+                st.session_state.latest_delta_summary = report["delta_counts"]
+                st.success("Ingest completed.")
+            except Exception as exc:
+                st.error(f"Ingest failed: {exc}")
 
-            st.subheader("Win Probability Model")
-            latest_win_model_info = _load_latest_win_model_info()
-            if st.button("Train/Refresh Win Model", use_container_width=True):
-                try:
-                    latest_snapshot = get_latest_snapshot_path()
-                    snapshot_df = pd.read_parquet(latest_snapshot)
-                    training_info = train_win_model(
-                        snapshot_df,
-                        get_golden_students(),
-                        PROCESSED_DIR / "win_model",
-                        seed=0,
-                    )
-                    latest_win_model_info = _load_latest_win_model_info()
-                    metrics = training_info["metrics"]
-                    st.success(
-                        f"Win model trained. AUC={metrics['roc_auc']:.4f} Brier={metrics['brier_score']:.4f}"
-                    )
-                except FileNotFoundError:
-                    st.warning("No saved snapshot found. Load or ingest a snapshot before training the win model.")
-                except Exception as exc:
-                    st.error(f"Win model training failed: {exc}")
-            st.checkbox("Use Win Model in Ranking", key="use_win_model")
-            if latest_win_model_info is None:
-                st.caption("No trained win model found yet.")
+        if latest_col.button("Use Latest Snapshot", use_container_width=True):
+            try:
+                latest = get_latest_snapshot_path()
+            except FileNotFoundError:
+                st.warning("No snapshot found. Click 'Run Update (Ingest)' first.")
+                st.session_state.latest_snapshot_path = None
             else:
-                st.caption(f"Latest model: {latest_win_model_info['timestamp']}")
-                if latest_win_model_info.get("error"):
-                    st.warning(f"Could not load win model details: {latest_win_model_info['error']}")
-                st.write(
-                    {
-                        "roc_auc": latest_win_model_info.get("roc_auc"),
-                        "brier_score": latest_win_model_info.get("brier_score"),
-                        "log_loss": latest_win_model_info.get("log_loss"),
+                st.session_state.latest_snapshot_path = str(latest.resolve())
+                delta_path = _changes_path_for_snapshot(latest)
+                if delta_path is not None:
+                    delta_payload = _load_delta_cached(str(delta_path.resolve()))
+                    st.session_state.latest_delta_summary = {
+                        "added": len(delta_payload.get("added", [])),
+                        "removed": len(delta_payload.get("removed", [])),
+                        "changed": len(delta_payload.get("changed", [])),
                     }
-                )
+                st.success(f"Loaded latest snapshot: {latest.name}")
 
-            st.subheader("Data Update")
-            update_col, latest_col = st.columns(2)
-            if update_col.button("Run Update (Ingest)", use_container_width=True):
-                try:
-                    report = run_ingest(date=None)
-                    st.session_state.ingest_report = report
-                    st.session_state.latest_snapshot_path = report["artifact_paths"]["snapshot"]
-                    st.session_state.latest_delta_summary = report["delta_counts"]
-                    st.success("Ingest completed.")
-                except Exception as exc:
-                    st.error(f"Ingest failed: {exc}")
+        if st.session_state.ingest_report:
+            _display_ingest_summary(st.session_state.ingest_report)
+        if st.session_state.latest_delta_summary:
+            st.subheader("Delta Summary")
+            st.write(st.session_state.latest_delta_summary)
 
-            if latest_col.button("Use Latest Snapshot", use_container_width=True):
-                try:
-                    latest = get_latest_snapshot_path()
-                except FileNotFoundError:
-                    st.warning("No snapshot found. Click 'Run Update (Ingest)' first.")
-                    st.session_state.latest_snapshot_path = None
-                else:
-                    st.session_state.latest_snapshot_path = str(latest.resolve())
-                    delta_path = _changes_path_for_snapshot(latest)
-                    if delta_path is not None:
-                        delta_payload = _load_delta_cached(str(delta_path.resolve()))
-                        st.session_state.latest_delta_summary = {
-                            "added": len(delta_payload.get("added", [])),
-                            "removed": len(delta_payload.get("removed", [])),
-                            "changed": len(delta_payload.get("changed", [])),
-                        }
-                    st.success(f"Loaded latest snapshot: {latest.name}")
 
-            if st.session_state.ingest_report:
-                _display_ingest_summary(st.session_state.ingest_report)
-            if st.session_state.latest_delta_summary:
-                st.subheader("Delta Summary")
-                st.write(st.session_state.latest_delta_summary)
-
-    st.session_state.profile = _profile_from_widgets()
-
+def _render_find_section() -> None:
     tuned_weights_payload = None
     try:
         tuned_weights_payload = _load_weights_profile(
@@ -997,6 +1008,62 @@ def main() -> None:
                     st.text(f"Award: {amount_str}")
                 with col_reason:
                     st.text(f"Reason: {reasons_text}")
+
+
+def _operator_enabled() -> bool:
+    try:
+        with open_db() as conn:
+            return repo.get_flag(conn, modes.OPERATOR_ENABLED_SETTING)
+    except Exception:
+        return False
+
+
+def _render_settings_section() -> None:
+    st.subheader(modes.SECTION_LABELS["settings"])
+    try:
+        with open_db() as conn:
+            enabled = repo.get_flag(conn, modes.OPERATOR_ENABLED_SETTING)
+            choice = st.checkbox(
+                "Show operator tools",
+                value=enabled,
+                help="Adds an Operator view with the ranking pipeline, ingest and win model controls.",
+            )
+            if choice != enabled:
+                repo.set_flag(conn, modes.OPERATOR_ENABLED_SETTING, choice)
+                st.rerun()
+    except Exception as exc:
+        st.error(f"Could not open the family database: {exc}")
+
+
+def _render_pending_section(section: str) -> None:
+    st.subheader(modes.SECTION_LABELS[section])
+    st.info(_PENDING_SECTION_NOTES[section])
+
+
+def main() -> None:
+    st.set_page_config(page_title="Scholarship Coach", layout="wide")
+    st.title("Scholarship Coach")
+    st.caption("Find scholarships matched to your profile")
+
+    _ensure_session_state()
+
+    operator_enabled = _operator_enabled()
+    mode = modes.render_mode_selector(operator_enabled=operator_enabled)
+    section = modes.render_section_selector(mode)
+
+    with st.sidebar:
+        _render_profile_sidebar()
+        if modes.show_operator_tools(mode, operator_enabled):
+            _render_operator_sidebar()
+
+    st.session_state.profile = _profile_from_widgets()
+
+    if section == "find":
+        _render_find_section()
+    elif section == "settings":
+        _render_settings_section()
+    else:
+        _render_pending_section(section)
 
 
 if __name__ == "__main__":

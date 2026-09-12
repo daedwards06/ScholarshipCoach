@@ -686,14 +686,14 @@ streamlit run app/main.py   # visual: mode switch; parent-only sections hidden i
 ```
 
 **Checklist:**
-- [ ] `app/modes.py`: `Mode = student|parent|operator`; a sidebar selector; `operator` keeps
+- [x] `app/modes.py`: `Mode = student|parent|operator`; a sidebar selector; `operator` keeps
       today's Advanced expander and is hidden unless `settings.operator_enabled`
 - [ ] Student view: This Week, My Applications, Essays, Recommenders
 - [ ] Parent view: everything in student view read-only for essays, plus Catalog & Inbox,
       Timeline, Colleges & Money, Outcomes, Settings
-- [ ] Optional PIN for parent mode read from `.streamlit/secrets.toml`; absent → no PIN
-- [ ] Tests: mode gating helpers (pure functions), PIN check
-- [ ] Tests + ruff green
+- [x] Optional PIN for parent mode read from `.streamlit/secrets.toml`; absent → no PIN
+- [x] Tests: mode gating helpers (pure functions), PIN check
+- [x] Tests + ruff green
 
 ---
 
