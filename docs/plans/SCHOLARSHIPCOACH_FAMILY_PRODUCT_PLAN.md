@@ -523,17 +523,56 @@ python scripts/catalog_inbox.py list
 ```
 
 **Checklist:**
-- [ ] `data/catalog/inbox/<proposal_id>.json`: a partial record plus `proposal` metadata
+- [x] `data/catalog/inbox/<proposal_id>.json`: a partial record plus `proposal` metadata
       (`kind: prefill|feed|reverify|manual`, `created_on`, `diff` against an existing record
       when applicable)
-- [ ] `src/catalog/inbox.py`: `propose()`, `list_proposals()`, `confirm(proposal_id, edits)`
+- [x] `src/catalog/inbox.py`: `propose()`, `list_proposals()`, `confirm(proposal_id, edits)`
       (validates against the schema, writes to `records/`, removes the proposal),
       `reject(proposal_id, reason)`
-- [ ] `scripts/catalog_inbox.py` CLI: `list`, `show`, `confirm`, `reject`
-- [ ] `CuratedCatalogSource` ignores `inbox/`; ingest never promotes proposals on its own
-- [ ] Tests: propose → confirm round-trip, schema failure on confirm, reject, inbox ignored by
+- [x] `scripts/catalog_inbox.py` CLI: `list`, `show`, `confirm`, `reject`
+- [x] `CuratedCatalogSource` ignores `inbox/`; ingest never promotes proposals on its own
+- [x] Tests: propose → confirm round-trip, schema failure on confirm, reject, inbox ignored by
       the source
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
+
+---
+
+**As built --- contracts later tasks depend on:**
+- `src/catalog/inbox.py` exposes `INBOX_DIR` (`data/catalog/inbox/`), `REJECTED_DIR`
+  (`inbox/rejected/`), `PROPOSAL_KINDS`, `Proposal`, `ProposalError`, `propose`,
+  `list_proposals`, `load_proposal`, `confirm` and `reject`. Every function takes
+  `inbox_dir` / `records_dir` overrides, so tests and the UI never touch the real catalog.
+- A proposal file is `{"proposal": {proposal_id, kind, created_on, diff, notes}, "record": {...}}`.
+  `record` is a *partial* catalog record --- `propose` deliberately does not schema-validate,
+  because automation is allowed to propose something incomplete and a person fills the gaps.
+- `confirm(proposal_id, edits)` is the only path into `records/`. `edits` is merged over the
+  proposed record at the top level (nested objects like `requirements` are replaced whole,
+  not deep-merged), the result must pass `validate_catalog_record`, and on failure nothing is
+  written and the proposal stays in the queue. A `reverify` proposal that carries only the
+  changed fields therefore needs the full record supplied as `edits` at confirm time.
+- Proposal ids are deterministic: `f"{kind}-{slug}"` from `catalog_id`, else `title`, else
+  `source_url`. Re-proposing the same award **replaces** its pending proposal rather than
+  stacking duplicates, which is what makes a monthly re-verification pass safe to re-run.
+  Any id --- supplied or derived --- must match the catalog slug pattern, so a proposal can
+  never be written or read outside the inbox directory.
+- `diff` compares only the fields the proposal carries against the existing record, in the
+  `{field: {"old": ..., "new": ...}}` shape `build_delta` already uses. An empty diff means a
+  brand-new award or a proposal that changes nothing.
+- `reject(proposal_id, reason)` requires a non-empty reason and archives the proposal to
+  `inbox/rejected/<proposal_id>.json` with `rejected_on` and `reason` added, rather than
+  deleting it --- so a later re-verification pass can see a person already said no.
+- `list_proposals` logs and skips an unreadable or malformed file so one bad write never
+  hides the queue.
+- The inbox is a *sibling* of `records/`, and `iter_catalog_files` globs `records/*.json`
+  non-recursively, so `CuratedCatalogSource` and `scripts/validate_catalog.py` never see a
+  proposal. Nothing in the ingest path calls `confirm`.
+- `scripts/catalog_inbox.py` has `main(argv)` (so it is testable) and the subcommands `list`,
+  `show`, `confirm`, `reject`, plus `--inbox-dir` / `--records-dir`. `confirm` takes
+  `--set FIELD=VALUE` (value parsed as JSON when possible, else kept as text) and
+  `--edits <file.json>`; `--set` wins over the file. A `ProposalError` prints `ERROR: ...`
+  and exits 1.
+- `data/catalog/inbox/*.json` and `inbox/rejected/` are git-ignored (the directory is kept by
+  a `.gitkeep`): proposals are local working state, not a committed asset.
 
 ---
 

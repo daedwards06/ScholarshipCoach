@@ -66,3 +66,7 @@ reports/weight_tuning/artifacts/
 # NOTE: the following ARE intentionally committed:
 #   data/processed/best_weights*.json  (versioned tuning results)
 #   data/processed/changes_*.json      (delta reports)
+
+# Catalog inbox proposals -- local working state; confirm or reject them, do not commit
+data/catalog/inbox/*.json
+data/catalog/inbox/rejected/
