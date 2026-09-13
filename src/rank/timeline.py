@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.profile.grade_levels import grade_level_rank
+from src.profile.grade_levels import grade_level_rank, school_year_end
 from src.rank.stage1_eligibility import StudentProfile
 from src.text_utils import normalize_list as _normalize_list
 from src.text_utils import normalize_text as _normalize_text
@@ -116,14 +116,9 @@ def project_next_deadline(
     return candidate
 
 
-def _school_year_end(value: date) -> int:
-    """Return the calendar year the school year containing ``value`` ends in."""
-    return value.year + 1 if value.month >= 7 else value.year
-
-
 def _grade_rank_at(student_rank: int, today: date, when: date) -> int:
     """Advance the student's grade rank by the school years between the two dates."""
-    return student_rank + (_school_year_end(when) - _school_year_end(today))
+    return student_rank + (school_year_end(when) - school_year_end(today))
 
 
 def _row_bucket(

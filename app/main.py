@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import json
 import re
 from collections.abc import Mapping
@@ -17,6 +18,7 @@ from src.embeddings.cache import ensure_embedding_store_for_df
 from src.eval.golden_students import get_golden_students
 from src.profile.grade_levels import (
     GRADE_LABELS,
+    GRADE_SEQUENCE,
     grade_label_to_levels,
     infer_graduation_year,
     levels_to_grade_label,
@@ -40,7 +42,7 @@ from src.rank.timeline import (
     classify_timeline,
 )
 from src.rank.weights import Stage2Weights, Stage3Weights
-from src.store import essays, repo, tracker
+from src.store import calendar_feed, essays, milestones, repo, tracker
 from src.store.db import open_db
 from src.text_utils import coerce_text
 from src.win_model.infer import get_latest_model_path, load_model
@@ -64,11 +66,16 @@ SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
 # deliberate: the nav shows the family the whole product, not just what runs.
 _PENDING_SECTION_NOTES = {
     "catalog_inbox": "Add an award from a URL, and review proposed catalog changes.",
-    "timeline": "Deadlines, milestones and letter due dates by month.",
     "colleges_money": "College list, net price estimates, and what has been won.",
     "outcomes": "Results per application: awarded amounts and renewal terms.",
 }
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
+
+# The timeline shows catalog awards alongside the family's own dates. A whole
+# eligible catalog would bury them, so only the nearest deadlines in each
+# bucket are drawn.
+TIMELINE_AWARDS_PER_BUCKET = 40
+CALENDAR_FILE_NAME = "scholarship_coach.ics"
 
 PREFER_NOT_TO_SAY = "Prefer not to say"
 TRISTATE_OPTIONS = (PREFER_NOT_TO_SAY, "Yes", "No")
@@ -1636,12 +1643,209 @@ def _render_recommenders_section() -> None:
         st.error(f"Could not open the family database: {exc}")
 
 
+def _award_calendar_events(today_value: date) -> list[calendar_feed.CalendarEvent]:
+    """Catalog awards as calendar events, keeping the bucket ranking gave them."""
+    eligible_df = st.session_state.get("eligible_df")
+    if not isinstance(eligible_df, pd.DataFrame) or eligible_df.empty:
+        return []
+
+    per_bucket: dict[str, list[calendar_feed.CalendarEvent]] = {}
+    for _, row in eligible_df.iterrows():
+        bucket = coerce_text(row.get("timeline_bucket")) or "now"
+        if bucket not in calendar_feed.CALENDAR_BUCKETS:
+            continue
+        deadline_text, is_projected = _timeline_deadline(row, today_value)
+        try:
+            starts_on = date.fromisoformat(str(deadline_text)[:10])
+        except ValueError:
+            continue
+        catalog_id = _row_catalog_id(row) or coerce_text(row.get("title"))
+        per_bucket.setdefault(bucket, []).append(
+            calendar_feed.CalendarEvent(
+                uid=f"award-{catalog_id}",
+                kind="award",
+                title=coerce_text(row.get("title")) or catalog_id,
+                starts_on=starts_on,
+                detail=coerce_text(row.get("sponsor")),
+                note="Projected from this award's usual cycle" if is_projected else "",
+                bucket=bucket,
+            )
+        )
+
+    events: list[calendar_feed.CalendarEvent] = []
+    for bucket_events in per_bucket.values():
+        events.extend(
+            calendar_feed.sort_events(bucket_events)[:TIMELINE_AWARDS_PER_BUCKET]
+        )
+    return events
+
+
+def _render_calendar_event(event: calendar_feed.CalendarEvent, today_value: date) -> None:
+    when = event.starts_on.strftime("%a %d")
+    if event.ends_on is not None and event.ends_on != event.starts_on:
+        when = f"{when} – {event.ends_on.strftime('%a %d')}"
+    urgency_text, _ = _get_urgency_indicator(event.days_until(today_value))
+
+    col_when, col_what = st.columns([0.18, 0.82])
+    with col_when:
+        st.markdown(f"**{when}**")
+    with col_what:
+        st.markdown(f"{event.kind_label}: {event.title}")
+        caption = " · ".join(part for part in (event.detail, event.note) if part)
+        if caption:
+            st.caption(caption)
+        if event.bucket == "now":
+            st.caption(urgency_text)
+
+
+def _render_timeline_bucket(
+    events: list[calendar_feed.CalendarEvent], today_value: date
+) -> None:
+    if not events:
+        st.info("Nothing scheduled in this stretch yet.")
+        return
+
+    for year_end, year_events in calendar_feed.group_by_school_year(events).items():
+        st.markdown(f"**{milestones.school_year_label(year_end)} school year**")
+        for (year, month), month_events in calendar_feed.group_by_month(year_events).items():
+            with st.container(border=True):
+                st.markdown(f"##### {calendar.month_name[month]} {year}")
+                for event in month_events:
+                    _render_calendar_event(event, today_value)
+
+
+def _render_timeline_section() -> None:
+    st.subheader(modes.SECTION_LABELS["timeline"])
+    today_value = _effective_today(st.session_state.profile)
+    grade_level = str(st.session_state.profile.get("grade_level") or "")
+
+    try:
+        with open_db() as conn:
+            student_id = _ensure_student(conn)
+            events = calendar_feed.family_events(
+                conn, student_id, grade_level=grade_level or None, today=today_value
+            )
+    except Exception as exc:
+        st.error(f"Could not open the family database: {exc}")
+        return
+
+    family_only = list(events)
+    events = calendar_feed.sort_events([*events, *_award_calendar_events(today_value)])
+
+    st.caption(
+        "Deadlines, tasks, letters and milestones by month. Milestone dates are typical, "
+        "not guaranteed — confirm each one with the college or agency."
+    )
+    if st.session_state.get("eligible_df") is None:
+        st.caption("Run the pipeline under Find Scholarships to add catalog award cycles here.")
+
+    st.download_button(
+        "Download calendar (.ics)",
+        data=calendar_feed.to_ics(family_only),
+        file_name=CALENDAR_FILE_NAME,
+        mime="text/calendar",
+        help="Saved applications, their tasks and letters, and the milestones that apply.",
+    )
+
+    tabs = st.tabs(
+        [
+            TIMELINE_BUCKET_LABELS.get(bucket, bucket)
+            for bucket in calendar_feed.CALENDAR_BUCKETS
+        ]
+    )
+    for tab, bucket in zip(tabs, calendar_feed.CALENDAR_BUCKETS):
+        with tab:
+            _render_timeline_bucket(
+                calendar_feed.events_in_bucket(events, bucket), today_value
+            )
+
+
 def _operator_enabled() -> bool:
     try:
         with open_db() as conn:
             return repo.get_flag(conn, modes.OPERATOR_ENABLED_SETTING)
     except Exception:
         return False
+
+
+def _milestone_window_text(milestone: milestones.Milestone) -> str:
+    start = f"{calendar.month_abbr[milestone.month]} {milestone.day}"
+    if milestone.end_month is None or milestone.end_day is None:
+        return start
+    return f"{start} – {calendar.month_abbr[milestone.end_month]} {milestone.end_day}"
+
+
+def _render_milestone_settings(conn: Any) -> None:
+    st.markdown("**Milestones**")
+    st.caption(
+        "The general planning dates every family shares. Hide the ones that do not apply, "
+        "and add your own — a district scholarship night, a counselor's deadline."
+    )
+
+    overrides = {str(row["id"]): dict(row) for row in milestones.load_overrides(conn)}
+    defaults = milestones.load_default_milestones()
+    default_ids = {milestone.id for milestone in defaults}
+    resolved = milestones.load_milestones(conn)
+    shown_ids = {milestone.id for milestone in resolved}
+    changed = False
+
+    for milestone in defaults:
+        visible = milestone.id in shown_ids
+        choice = st.checkbox(
+            f"{milestone.title} ({_milestone_window_text(milestone)})",
+            value=visible,
+            key=f"milestone_show_{milestone.id}",
+            help=milestone.note or None,
+        )
+        if choice == visible:
+            continue
+        if choice:
+            overrides.pop(milestone.id, None)
+        else:
+            overrides[milestone.id] = {"id": milestone.id, "hidden": True}
+        changed = True
+
+    for milestone in [row for row in resolved if row.id not in default_ids]:
+        col_label, col_remove = st.columns([0.8, 0.2])
+        with col_label:
+            st.text(f"{milestone.title} ({_milestone_window_text(milestone)})")
+        with col_remove:
+            if st.button("Remove", key=f"milestone_remove_{milestone.id}"):
+                overrides.pop(milestone.id, None)
+                changed = True
+
+    if changed:
+        milestones.save_overrides(conn, list(overrides.values()))
+        st.rerun()
+
+    with st.form("new_milestone", clear_on_submit=True):
+        st.caption("Add a family milestone")
+        title = st.text_input("Title", placeholder="e.g. District scholarship night")
+        col_month, col_day = st.columns(2)
+        with col_month:
+            month = st.selectbox(
+                "Month",
+                options=list(range(1, 13)),
+                format_func=lambda number: calendar.month_name[int(number)],
+            )
+        with col_day:
+            day = st.number_input("Day", min_value=1, max_value=31, value=1, step=1)
+        grades = st.multiselect(
+            "Grades it applies to (leave empty for every year)", options=list(GRADE_SEQUENCE)
+        )
+        note = st.text_area("Note", height=68)
+        if st.form_submit_button("Add milestone") and title.strip():
+            identifier = milestones.family_milestone_id(title, taken=shown_ids | set(overrides))
+            overrides[identifier] = {
+                "id": identifier,
+                "title": title.strip(),
+                "month": int(month),
+                "day": int(day),
+                "grade_levels": list(grades),
+                "note": note.strip(),
+            }
+            milestones.save_overrides(conn, list(overrides.values()))
+            st.rerun()
 
 
 def _render_settings_section() -> None:
@@ -1657,6 +1861,9 @@ def _render_settings_section() -> None:
             if choice != enabled:
                 repo.set_flag(conn, modes.OPERATOR_ENABLED_SETTING, choice)
                 st.rerun()
+
+            st.divider()
+            _render_milestone_settings(conn)
     except Exception as exc:
         st.error(f"Could not open the family database: {exc}")
 
@@ -1694,6 +1901,8 @@ def main() -> None:
         _render_essays_section()
     elif section == "recommenders":
         _render_recommenders_section()
+    elif section == "timeline":
+        _render_timeline_section()
     elif section == "settings":
         _render_settings_section()
     else:

@@ -98,6 +98,15 @@ def levels_to_grade_label(
     return resolve_grade_label(education_level)
 
 
+def school_year_end(value: date) -> int:
+    """Return the calendar year the school year containing ``value`` ends in.
+
+    A school year runs July through June, so anything from July on belongs to
+    the year that ends the following spring.
+    """
+    return value.year + 1 if value.month >= 7 else value.year
+
+
 def grade_level_rank(grade_level: str | None) -> int | None:
     """Return the position of ``grade_level`` in :data:`GRADE_SEQUENCE`.
 
@@ -111,6 +120,24 @@ def grade_level_rank(grade_level: str | None) -> int | None:
         return None
 
 
+def grade_level_in_school_year(
+    grade_level: str | None, year_end: int, today: date | None = None
+) -> str | None:
+    """Return the grade the student is in during the school year ending ``year_end``.
+
+    Returns ``None`` when the grade is unknown, when the year is before the
+    student started, or when they have already graduated by then.
+    """
+    rank = grade_level_rank(grade_level)
+    if rank is None:
+        return None
+    reference = today or date.today()
+    rank_then = rank + (year_end - school_year_end(reference))
+    if not 0 <= rank_then < len(GRADE_SEQUENCE):
+        return None
+    return GRADE_SEQUENCE[rank_then]
+
+
 def infer_graduation_year(grade_level: str | None, today: date | None = None) -> int | None:
     """Estimate the graduation year for ``grade_level`` as of ``today``.
 
@@ -121,5 +148,4 @@ def infer_graduation_year(grade_level: str | None, today: date | None = None) ->
     if remaining is None:
         return None
     reference = today or date.today()
-    school_year_end = reference.year + 1 if reference.month >= 7 else reference.year
-    return school_year_end + remaining
+    return school_year_end(reference) + remaining

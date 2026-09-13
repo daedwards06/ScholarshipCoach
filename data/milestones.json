@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "note": "General planning dates, not award deadlines. Windows are typical, not guaranteed -- confirm each date with the college or agency for the year in question. Families override or add to these in Settings.",
+  "milestones": [
+    {
+      "id": "common_app_opens",
+      "title": "College applications open",
+      "month": 8,
+      "day": 1,
+      "grade_levels": ["12"],
+      "note": "The Common App and most college portals open August 1 for students graduating the following spring."
+    },
+    {
+      "id": "psat_window",
+      "title": "PSAT/NMSQT window",
+      "month": 10,
+      "day": 1,
+      "end_month": 10,
+      "end_day": 31,
+      "grade_levels": ["10", "11"],
+      "note": "Schools pick a date inside this window. Only the junior-year score qualifies for National Merit."
+    },
+    {
+      "id": "fafsa_opens",
+      "title": "FAFSA opens",
+      "month": 10,
+      "day": 1,
+      "grade_levels": ["12", "college_1", "college_2", "college_3", "college_4"],
+      "note": "The federal aid form for next school year. The opening date has moved in recent years -- check studentaid.gov before counting on it."
+    },
+    {
+      "id": "css_profile_opens",
+      "title": "CSS Profile opens",
+      "month": 10,
+      "day": 1,
+      "grade_levels": ["12", "college_1", "college_2", "college_3", "college_4"],
+      "note": "Required by some private colleges on top of the FAFSA. Check whether any school on the list asks for it."
+    },
+    {
+      "id": "early_action_window",
+      "title": "Early action and early decision deadlines",
+      "month": 10,
+      "day": 15,
+      "end_month": 11,
+      "end_day": 15,
+      "grade_levels": ["12"],
+      "note": "Most EA and ED deadlines fall in this window, November 1 being the common one. Letters and essays have to be done before it, not during."
+    },
+    {
+      "id": "early_decision_two_window",
+      "title": "Early decision II and priority deadlines",
+      "month": 1,
+      "day": 1,
+      "end_month": 1,
+      "end_day": 15,
+      "grade_levels": ["12"],
+      "note": "A second early round at some colleges, and the priority date for merit consideration at many others."
+    },
+    {
+      "id": "regular_decision_window",
+      "title": "Regular decision deadlines",
+      "month": 1,
+      "day": 1,
+      "end_month": 2,
+      "end_day": 1,
+      "grade_levels": ["12"],
+      "note": "January 1 and February 1 are the common ones."
+    },
+    {
+      "id": "aid_priority_deadline",
+      "title": "State and college aid priority deadlines",
+      "month": 3,
+      "day": 1,
+      "grade_levels": ["12", "college_1", "college_2", "college_3", "college_4"],
+      "note": "Many states and colleges award their own aid first-come. Filing by March 1 is the usual advice."
+    },
+    {
+      "id": "local_scholarship_season",
+      "title": "Local scholarship season",
+      "month": 2,
+      "day": 1,
+      "end_month": 4,
+      "end_day": 15,
+      "grade_levels": ["11", "12"],
+      "note": "Community foundations, civic clubs and employer awards cluster in late winter. Small pools, short applications."
+    },
+    {
+      "id": "college_decision_day",
+      "title": "College decision day",
+      "month": 5,
+      "day": 1,
+      "grade_levels": ["12"],
+      "note": "The usual national deadline to accept an offer and put down a deposit."
+    }
+  ]
+}

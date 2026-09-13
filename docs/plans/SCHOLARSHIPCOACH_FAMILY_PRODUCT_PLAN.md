@@ -830,16 +830,53 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] `data/milestones.json` (committed, general): FAFSA opening, CSS Profile, common early
+- [x] `data/milestones.json` (committed, general): FAFSA opening, CSS Profile, common early
       action / early decision windows, PSAT window, with `grade_level` applicability; editable
       per family in `settings`
-- [ ] Timeline page: month grid by school year with award projected deadlines, application
+- [x] Timeline page: month grid by school year with award projected deadlines, application
       due dates, recommender due dates, and milestones; buckets `now|next_cycle|senior_year`
       as tabs
-- [ ] ICS export of saved applications and milestones (`scripts/export_calendar.py` and a
+- [x] ICS export of saved applications and milestones (`scripts/export_calendar.py` and a
       download button)
-- [ ] Tests: ICS content, milestone applicability by grade
-- [ ] Tests + ruff green
+- [x] Tests: ICS content, milestone applicability by grade
+- [x] Tests + ruff green
+
+**As built --- contracts later tasks depend on:**
+- `data/milestones.json` is a JSON object with a `milestones` array; each row is
+  `id`, `title`, `month`, `day`, optional `end_month`/`end_day` for a window, `grade_levels`
+  (empty means everyone) and `note`. A milestone stores a month and a day, never a date, so
+  one row serves every school year. `src/store/milestones.py` parses it; a malformed row is
+  *dropped*, not raised on, because one bad hand-edited entry must not take the page down.
+- Per-family edits are one JSON overlay in `settings` under `family_milestones`, keyed by
+  milestone id: an entry matching a shipped id edits it, `{"id": ..., "hidden": true}` removes
+  it, and a new id appends the family's own. The shipped file is never rewritten, so a later
+  correction to it reaches families who did not override that row.
+  `milestones.load_milestones(conn)` is the resolved list; `load_default_milestones()` is the
+  shipped one.
+- Milestone applicability is judged against the grade the student will be *in* that school
+  year, not today's grade --- `grade_levels.grade_level_in_school_year`, new in this task
+  alongside `school_year_end`, which replaced the private `_school_year_end` in
+  `timeline.py` and the inline copy inside `infer_graduation_year`. A school year
+  the student has graduated out of yields no milestones; a *blank* profile grade yields all of
+  them, since "no grade recorded" is not "in no grade".
+- `src/store/calendar_feed.py` is the one dated feed: `CalendarEvent` covers kinds
+  `deadline|checklist|letter|milestone|award`, and `family_events(conn, student_id, ...)`
+  returns the family's own dates (open applications only --- a submitted award has nothing
+  left to plan) plus milestone occurrences over `DEFAULT_HORIZON_YEARS` (3) school years.
+- Calendar buckets are *school years*, not listing states: `bucket_for_date` gives `now` for
+  the school year in progress (a past date folds into it, matching This Week's rule that
+  overdue work stays visible), `next_cycle` for the next, `senior_year` beyond. Catalog awards
+  keep the `timeline_bucket` Task 1.4 gave them instead, so ranking and the timeline agree.
+- `to_ics` is stdlib-only and emits all-day `VALUE=DATE` events with an **exclusive** `DTEND`
+  (last day + 1), CRLF line endings and 75-octet folding. Read an exported file as bytes in a
+  test: universal newlines rewrite the CRLF the format requires.
+- `scripts/export_calendar.py --student-id --db --out --today --horizon-years` writes the same
+  feed the app's download button serves (family dates only --- catalog awards are suggestions,
+  not commitments). It runs with no saved profile.
+- `app/main.py` draws Timeline as three bucket tabs, each grouped school year then month;
+  catalog awards come from `st.session_state.eligible_df` (every bucket, unlike `final_df`)
+  and are capped at `TIMELINE_AWARDS_PER_BUCKET`. Settings gained the milestone editor:
+  show/hide each shipped milestone, remove a family one, and a form to add one.
 
 ---
 
