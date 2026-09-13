@@ -155,6 +155,30 @@ class Outcome:
     updated_at: str = ""
 
 
+COLLEGE_DEADLINE_TYPES: tuple[str, ...] = (
+    "",
+    "early_decision",
+    "early_action",
+    "regular",
+    "rolling",
+    "priority",
+)
+
+COLLEGE_DEADLINE_TYPE_LABELS: dict[str, str] = {
+    "": "Not set",
+    "early_decision": "Early decision",
+    "early_action": "Early action",
+    "regular": "Regular decision",
+    "rolling": "Rolling",
+    "priority": "Priority",
+}
+
+
+def normalize_deadline_type(value: object) -> str:
+    text = str(value or "").strip().casefold().replace(" ", "_")
+    return text if text in COLLEGE_DEADLINE_TYPES else ""
+
+
 @dataclass(slots=True)
 class College:
     id: int
@@ -166,6 +190,11 @@ class College:
     notes: str = ""
     created_at: str = ""
     updated_at: str = ""
+    in_state: bool = False
+    net_price_estimate: float | None = None
+    merit_aid_notes: str = ""
+    outside_award_policy: str = ""
+    deadline_type: str = ""
 
 
 def _set(**values: Any) -> dict[str, Any]:
@@ -955,6 +984,7 @@ def delete_outcome(conn: sqlite3.Connection, application_id: int) -> bool:
 def _to_college(row: sqlite3.Row) -> College:
     cost = row["cost_of_attendance"]
     aid = row["aid_offered"]
+    estimate = row["net_price_estimate"]
     return College(
         id=int(row["id"]),
         student_id=str(row["student_id"]),
@@ -965,6 +995,11 @@ def _to_college(row: sqlite3.Row) -> College:
         notes=str(row["notes"]),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
+        in_state=bool(row["in_state"]),
+        net_price_estimate=None if estimate is None else float(estimate),
+        merit_aid_notes=str(row["merit_aid_notes"]),
+        outside_award_policy=str(row["outside_award_policy"]),
+        deadline_type=normalize_deadline_type(row["deadline_type"]),
     )
 
 
@@ -976,8 +1011,15 @@ def create_college(
     cost_of_attendance: float | None = None,
     aid_offered: float | None = None,
     notes: str = "",
+    *,
+    in_state: bool = False,
+    net_price_estimate: float | None = None,
+    merit_aid_notes: str = "",
+    outside_award_policy: str = "",
+    deadline_type: str = "",
 ) -> College:
     now = utc_now()
+    deadline = normalize_deadline_type(deadline_type)
     row_id = _insert(
         conn,
         "colleges",
@@ -990,10 +1032,28 @@ def create_college(
             "notes": notes,
             "created_at": now,
             "updated_at": now,
+            "in_state": int(in_state),
+            "net_price_estimate": net_price_estimate,
+            "merit_aid_notes": merit_aid_notes,
+            "outside_award_policy": outside_award_policy,
+            "deadline_type": deadline,
         },
     )
     return College(
-        row_id, student_id, name, status, cost_of_attendance, aid_offered, notes, now, now
+        row_id,
+        student_id,
+        name,
+        status,
+        cost_of_attendance,
+        aid_offered,
+        notes,
+        now,
+        now,
+        in_state=in_state,
+        net_price_estimate=net_price_estimate,
+        merit_aid_notes=merit_aid_notes,
+        outside_award_policy=outside_award_policy,
+        deadline_type=deadline,
     )
 
 
@@ -1018,6 +1078,11 @@ def update_college(
     cost_of_attendance: float | None = UNSET,
     aid_offered: float | None = UNSET,
     notes: str = UNSET,
+    in_state: bool = UNSET,
+    net_price_estimate: float | None = UNSET,
+    merit_aid_notes: str = UNSET,
+    outside_award_policy: str = UNSET,
+    deadline_type: str = UNSET,
 ) -> bool:
     return _update(
         conn,
@@ -1029,6 +1094,15 @@ def update_college(
             cost_of_attendance=cost_of_attendance,
             aid_offered=aid_offered,
             notes=notes,
+            in_state=in_state if in_state is UNSET else int(in_state),
+            net_price_estimate=net_price_estimate,
+            merit_aid_notes=merit_aid_notes,
+            outside_award_policy=outside_award_policy,
+            deadline_type=(
+                deadline_type
+                if deadline_type is UNSET
+                else normalize_deadline_type(deadline_type)
+            ),
         ),
     )
 
@@ -1038,7 +1112,14 @@ def delete_college(conn: sqlite3.Connection, college_id: int) -> bool:
 
 
 def net_price(college: College) -> float | None:
-    """Cost minus aid, or ``None`` when either side is unknown."""
+    """What this school actually costs, or ``None`` when nothing says.
+
+    A hand-entered estimate from the school's own net price calculator wins:
+    it already accounts for aid no public number predicts.  Otherwise fall
+    back to sticker minus the aid on offer.
+    """
+    if college.net_price_estimate is not None:
+        return college.net_price_estimate
     if college.cost_of_attendance is None or college.aid_offered is None:
         return None
     return college.cost_of_attendance - college.aid_offered

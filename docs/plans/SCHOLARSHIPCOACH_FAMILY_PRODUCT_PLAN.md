@@ -963,14 +963,14 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Colleges table UI: name, in-state flag, sticker price, net price estimate (manual entry
+- [x] Colleges table UI: name, in-state flag, sticker price, net price estimate (manual entry
       from the school's calculator), merit aid notes, outside-award displacement policy note,
       application deadline type
-- [ ] Money summary: total won (from `outcomes`), by year, renewal conditions due, and net
+- [x] Money summary: total won (from `outcomes`), by year, renewal conditions due, and net
       price minus won per college
-- [ ] Parent mode only
-- [ ] Tests: summary math
-- [ ] Tests + ruff green
+- [x] Parent mode only
+- [x] Tests: summary math
+- [x] Tests + ruff green
 
 ---
 
