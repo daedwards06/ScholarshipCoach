@@ -2520,13 +2520,26 @@ def _render_rebuild_snapshot() -> None:
             st.error(
                 report["artifact_notes"]["snapshot_skip_reason"] or "No snapshot was written."
             )
+            if report["artifact_notes"]["snapshot_blocked"]:
+                st.caption(
+                    "The prior snapshot is untouched. Nothing was lost — but the curated "
+                    "records just confirmed are not rankable until this is resolved."
+                )
             return
         st.session_state.ingest_report = report
         st.session_state.latest_snapshot_path = snapshot
         st.session_state.latest_delta_summary = report["delta_counts"]
+        carried = report["records"]["carried_forward"]
+        curated_total = report["records"]["snapshot_total"] - sum(carried.values())
         st.success(
-            f"Snapshot rebuilt with {report['records']['snapshot_total']} curated awards."
+            f"Snapshot rebuilt with {curated_total} curated awards "
+            f"and {report['records']['snapshot_total']} records in total."
         )
+        if carried:
+            st.caption(
+                "Carried forward from the prior snapshot: "
+                + ", ".join(f"{source} ({count})" for source, count in carried.items())
+            )
 
 
 def _render_catalog_inbox_section() -> None:

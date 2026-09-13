@@ -91,18 +91,18 @@ python -c "from scripts.run_ingest import run_ingest; r = run_ingest(only_source
 ```
 
 **Checklist:**
-- [ ] `run_ingest(only_sources=...)`: after normalizing the records that ran, load the prior
+- [x] `run_ingest(only_sources=...)`: after normalizing the records that ran, load the prior
       snapshot and append every prior row whose `source` is not in `only_sources` and whose
       source is still enabled; the report gains `carried_forward: {source: count}`
-- [ ] `_build_guardrail_warnings` result gains a `blocking` flag; a >50% drop is blocking
+- [x] `_build_guardrail_warnings` result gains a `blocking` flag; a >50% drop is blocking
       unless `run_ingest(..., force=True)` (CLI `--force`); a blocked run writes the report and
       raw cache, skips snapshot and delta, and sets `artifact_notes.snapshot_skip_reason`
-- [ ] `_render_rebuild_snapshot` shows the carried-forward counts in its success message and
+- [x] `_render_rebuild_snapshot` shows the carried-forward counts in its success message and
       surfaces a blocked run as an error, not a silent no-op
-- [ ] Tests: curated-only run on a temp `processed_dir` seeded with a two-source prior
+- [x] Tests: curated-only run on a temp `processed_dir` seeded with a two-source prior
       snapshot keeps the other source's rows; disabled source is not carried; >50% drop
       refuses to write; `force=True` writes
-- [ ] All four CI commands green
+- [x] All four CI commands green
 
 ---
 

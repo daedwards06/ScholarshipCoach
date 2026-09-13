@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-runtime-seconds", type=int, default=600)
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Write the snapshot even when a guardrail blocks it (e.g. a >50%% record drop).",
+    )
     parser.add_argument(
         "--llm-enrich",
         action="store_true",
@@ -359,14 +365,68 @@ def _missing_text(series: pd.Series) -> pd.Series:
     return series.isna() | series.astype(str).str.strip().eq("")
 
 
+@dataclass(frozen=True)
+class GuardrailResult:
+    """Guardrail findings for a run, plus whether they block the snapshot write.
+
+    A collapse in record count is blocking: writing it would destroy the prior
+    snapshot's records, which no later run can recover.
+    """
+
+    warnings: list[str]
+    blocking: bool
+
+
+def _carry_forward_prior_records(
+    current_df: pd.DataFrame,
+    prior_df: pd.DataFrame | None,
+    *,
+    only_sources: Sequence[str] | None,
+    enabled_sources: set[str],
+) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Append prior-snapshot rows from sources this run did not attempt.
+
+    A partial run must not delete the records it never re-fetched.  Rows are
+    carried only for sources that are still enabled, so a connector switched
+    off in ``sources.json`` drops out of the catalog as intended.
+    """
+    if only_sources is None or prior_df is None or prior_df.empty:
+        return current_df, {}
+    if "source" not in prior_df.columns:
+        return current_df, {}
+
+    ran = {str(name) for name in only_sources}
+    carry_mask = prior_df["source"].astype(str).isin(enabled_sources - ran)
+    carried = prior_df.loc[carry_mask]
+    if carried.empty:
+        return current_df, {}
+
+    keep_columns = [
+        column
+        for column in (*_NORMALIZED_COLUMNS, LLM_PROVENANCE_COLUMN)
+        if column in carried.columns
+    ]
+    combined = pd.concat([current_df, carried[keep_columns]], ignore_index=True)
+    combined = combined.drop_duplicates(subset=["scholarship_id"], keep="first")
+    combined = combined.reset_index(drop=True)
+
+    counts = {
+        str(source): int(count)
+        for source, count in carried["source"].astype(str).value_counts().items()
+    }
+    return combined, dict(sorted(counts.items()))
+
+
 def _build_guardrail_warnings(
     *,
     prior_count: int | None,
     current_count: int,
     missing_title_or_source_count: int,
-) -> list[str]:
+    force: bool = False,
+) -> GuardrailResult:
     warnings: list[str] = []
-    if prior_count and prior_count > 0 and current_count < (prior_count * 0.5):
+    collapsed = bool(prior_count and prior_count > 0 and current_count < (prior_count * 0.5))
+    if collapsed:
         warnings.append(
             f"Record count dropped by more than 50% vs prior snapshot "
             f"({current_count} vs {prior_count})."
@@ -378,7 +438,7 @@ def _build_guardrail_warnings(
                 f"More than 5% of records are missing title or source_url "
                 f"({missing_title_or_source_count}/{current_count}, {missing_ratio:.1%})."
             )
-    return warnings
+    return GuardrailResult(warnings=warnings, blocking=collapsed and not force)
 
 
 def _exception_summary(exc: Exception) -> dict[str, str]:
@@ -462,6 +522,7 @@ def run_ingest(
     llm_enrich: bool = False,
     llm_max_calls: int = 100,
     only_sources: Sequence[str] | None = None,
+    force: bool = False,
 ) -> dict[str, Any]:
     """Run every enabled connector and write a snapshot, delta and run report.
 
@@ -469,6 +530,9 @@ def run_ingest(
         only_sources: Restrict the run to these connector names. The catalog
             page uses it to rebuild a snapshot from the curated records alone,
             so a just-confirmed award is rankable without waiting on scrapers.
+            Rows from the enabled sources that did not run are carried forward
+            from the prior snapshot rather than dropped.
+        force: Write the snapshot even when a guardrail blocks it.
     """
     started_at = datetime.now(tz=UTC)
     resolved_raw_dir = _resolve_repo_path(raw_dir or (ROOT_DIR / "data" / "raw"))
@@ -482,6 +546,7 @@ def run_ingest(
     source_attempts: list[dict[str, Any]] = []
     normalized_df = pd.DataFrame(columns=_NORMALIZED_COLUMNS)
     guardrail_warnings: list[str] = []
+    carried_forward: dict[str, int] = {}
     prior_count: int | None = None
     prior_snapshot_path: Path | None = None
     snapshot_path: Path | None = None
@@ -489,6 +554,7 @@ def run_ingest(
     delta: dict[str, Any] = {"added": [], "removed": [], "changed": []}
     missing_title_or_source_count = 0
     snapshot_skip_reason: str | None = None
+    snapshot_blocked = False
     run_exception: dict[str, str] | None = None
     llm_summary: dict[str, Any] = _empty_llm_summary(requested=llm_enrich)
     prior_source_counts = _load_prior_source_counts(resolved_report_dir)
@@ -496,6 +562,7 @@ def run_ingest(
 
     try:
         sources = register_sources()
+        enabled_source_names = {source.name for source in sources}
         if only_sources is not None:
             wanted = {str(name) for name in only_sources}
             sources = [source for source in sources if source.name in wanted]
@@ -609,29 +676,55 @@ def run_ingest(
                 )
 
         prior_snapshot_path = find_prior_snapshot(resolved_processed_dir, effective_run_date)
+        prior_df: pd.DataFrame | None = None
         if prior_snapshot_path is not None:
             try:
-                prior_count = len(pd.read_parquet(prior_snapshot_path))
+                prior_df = pd.read_parquet(prior_snapshot_path)
             except Exception:
                 logger.exception("Failed to read prior snapshot at %s", prior_snapshot_path)
+            else:
+                prior_count = len(prior_df)
+
+        normalized_df, carried_forward = _carry_forward_prior_records(
+            normalized_df,
+            prior_df,
+            only_sources=only_sources,
+            enabled_sources=enabled_source_names,
+        )
+        for source_name, carried_count in carried_forward.items():
+            logger.info(
+                "Carried forward %d record(s) from source %s; it did not run.",
+                carried_count,
+                source_name,
+            )
 
         if not normalized_df.empty:
             missing_title_mask = _missing_text(normalized_df["title"])
             missing_source_url_mask = _missing_text(normalized_df["source_url"])
             missing_title_or_source_count = int((missing_title_mask | missing_source_url_mask).sum())
-            guardrail_warnings = _build_guardrail_warnings(
+            guardrail = _build_guardrail_warnings(
                 prior_count=prior_count,
                 current_count=len(normalized_df),
                 missing_title_or_source_count=missing_title_or_source_count,
+                force=force,
             )
-            for warning in guardrail_warnings:
+            guardrail_warnings = guardrail.warnings
+            for warning in guardrail.warnings:
                 logger.warning("Guardrail: %s", warning)
 
-            snapshot_path, changes_path, delta = build_and_write_snapshot(
-                normalized_df,
-                processed_dir=resolved_processed_dir,
-                run_date=effective_run_date,
-            )
+            if guardrail.blocking:
+                snapshot_blocked = True
+                snapshot_skip_reason = (
+                    f"Guardrail blocked the write: {guardrail.warnings[0]} "
+                    "Re-run with --force (force=True) to write it anyway."
+                )
+                logger.error(snapshot_skip_reason)
+            else:
+                snapshot_path, changes_path, delta = build_and_write_snapshot(
+                    normalized_df,
+                    processed_dir=resolved_processed_dir,
+                    run_date=effective_run_date,
+                )
         else:
             snapshot_skip_reason = "No parsed records available; snapshot and delta were skipped."
             logger.warning(snapshot_skip_reason)
@@ -659,7 +752,9 @@ def run_ingest(
         listing_processed = sum(int(entry.get("listing_urls_processed", 0)) for entry in source_attempts)
         cached_files_written = sum(int(entry.get("cached_files_written", 0)) for entry in source_attempts)
 
-        if run_exception is not None:
+        if snapshot_blocked:
+            status = "partial"
+        elif run_exception is not None:
             status = "partial" if not normalized_df.empty or bool(succeeded_sources or partial_sources) else "failed"
         elif failed_sources or partial_sources:
             status = "partial" if not normalized_df.empty or bool(succeeded_sources) else "failed"
@@ -689,6 +784,7 @@ def run_ingest(
                 "llm_enrich": llm_enrich,
                 "llm_max_calls": llm_max_calls,
                 "only_sources": list(only_sources) if only_sources is not None else None,
+                "force": force,
             },
             "sources": {
                 "attempted": attempted_sources,
@@ -715,6 +811,8 @@ def run_ingest(
                 "parsed_total": len(source_records),
                 "snapshot_total": len(normalized_df),
                 "prior_snapshot_total": prior_count,
+                "carried_forward": carried_forward,
+                "carried_forward_total": sum(carried_forward.values()),
                 "missing_title_or_source_url_count": missing_title_or_source_count,
                 "missing_title_or_source_url_pct": (
                     round((missing_title_or_source_count / len(normalized_df)) * 100, 3)
@@ -730,7 +828,10 @@ def run_ingest(
                 "report": str(report_path.resolve()),
                 "prior_snapshot": str(prior_snapshot_path.resolve()) if prior_snapshot_path else None,
             },
-            "artifact_notes": {"snapshot_skip_reason": snapshot_skip_reason},
+            "artifact_notes": {
+                "snapshot_skip_reason": snapshot_skip_reason,
+                "snapshot_blocked": snapshot_blocked,
+            },
             "guardrail_warnings": guardrail_warnings,
             "delta_counts": {
                 "added": len(delta["added"]),
@@ -772,9 +873,14 @@ def main() -> int:
         resume=args.resume,
         llm_enrich=args.llm_enrich,
         llm_max_calls=args.llm_max_calls,
+        force=args.force,
     )
 
     print(f"Run status: {report['status']}")
+    if report["artifact_notes"]["snapshot_blocked"]:
+        print(f"Snapshot NOT written: {report['artifact_notes']['snapshot_skip_reason']}")
+        print(f"Wrote ingest report: {report['artifact_paths']['report']}")
+        return 1
     print(f"Wrote snapshot: {report['artifact_paths']['snapshot']}")
     print(f"Wrote changes: {report['artifact_paths']['delta']}")
     print(f"Wrote ingest report: {report['artifact_paths']['report']}")
