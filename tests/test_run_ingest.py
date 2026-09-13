@@ -176,3 +176,21 @@ def test_report_lists_disabled_sources(monkeypatch, tmp_path: Path) -> None:
     assert report["sources"]["disabled"] == [{"source": "bold_org", "note": "returns 0 records"}]
     assert report["sources"]["disabled_count"] == 1
     assert "bold_org" not in report["sources"]["attempted"]
+
+
+def test_only_sources_runs_the_named_connector_alone(monkeypatch, tmp_path: Path) -> None:
+    sources = [_CountingSource("curated_catalog", 2), _CountingSource("scraper", 3)]
+    monkeypatch.setattr("scripts.run_ingest.register_sources", lambda: list(sources))
+
+    report = run_ingest(
+        date=datetime(2026, 2, 28, tzinfo=UTC).date(),
+        raw_dir=tmp_path / "raw",
+        processed_dir=tmp_path / "processed",
+        report_dir=tmp_path / "reports",
+        only_sources=["curated_catalog"],
+    )
+
+    assert report["sources"]["attempted"] == ["curated_catalog"]
+    assert report["records"]["snapshot_total"] == 2
+    assert report["config"]["only_sources"] == ["curated_catalog"]
+    assert report["artifact_paths"]["snapshot"] is not None

@@ -993,14 +993,42 @@ streamlit run app/main.py   # visual: paste URL → prefilled form → confirm �
 ```
 
 **Checklist:**
-- [ ] Add Award page: URL input → prefill → form with dropdowns for level, grade levels,
+- [x] Add Award page: URL input → prefill → form with dropdowns for level, grade levels,
       major families, states, NC counties, requirement flags, cycle months, trust; date and
       amount candidates offered as choices; manual entry works with no URL
-- [ ] Inbox page: proposals listed by kind with diff view; Confirm (with edits) / Reject
-- [ ] After confirm, a "Rebuild snapshot" button runs the curated source only (no scrapers)
+- [x] Inbox page: proposals listed by kind with diff view; Confirm (with edits) / Reject
+- [x] After confirm, a "Rebuild snapshot" button runs the curated source only (no scrapers)
       so the award is rankable immediately
-- [ ] Tests: form → record validation path (pure function), diff rendering helper
-- [ ] Tests + ruff green
+- [x] Tests: form → record validation path (pure function), diff rendering helper
+- [x] Tests + ruff green
+
+**As built — contracts later tasks depend on:**
+- `src/catalog/entry.py` is the pure form layer: `blank_form()`, `form_from_prefill(payload)`
+  (consumes `PrefillResult.to_form_dict()`), `form_from_record(record)`, `record_from_form`,
+  `validate_form(values) -> (record, errors)`, `diff_rows(diff) -> [DiffRow]`, `render_value`,
+  plus the dropdown vocabularies. `app/main.py` draws widgets and calls `validate_form`;
+  nothing else in the app builds a catalog record.
+- Dropdown options are read from `data/catalog/schema.json` at call time
+  (`status_options`, `trust_options`, `gender_options`, `source_kind_options`), so a schema
+  enum change reaches the form with no code edit. Majors come from the new public
+  `src.rank.taxonomy.known_majors()`, states and counties from `extract_common`, grades from
+  `GRADE_SEQUENCE`. `education_level` stays free text (Stage 1's vocabulary, not a schema enum).
+- The form never guesses: a value with no evidence stays empty, several candidate deadlines or
+  amounts stay in `deadline_candidates`/`amount_candidates` for the person to pick, and a
+  vocabulary hit the dropdown does not offer is dropped rather than typed into the catalog.
+  `states_allowed` is entered as full state names and written as the schema's two-letter codes.
+- Hand entry writes through the inbox (`propose(kind="manual")` then `confirm`), so
+  `confirm()` stays the only writer of `records/`. "Edit and confirm" on a proposal loads the
+  *merged* record (existing catalog record under the proposal's fields — a `reverify` proposal
+  carries only what changed) and submits via `confirm(proposal_id, edits=record)`, so the
+  proposal leaves the queue instead of lingering after its award is in the catalog.
+- `run_ingest(..., only_sources=[...])` restricts a run to named connectors and echoes the
+  list in `report["config"]["only_sources"]`. The "Rebuild snapshot" button passes
+  `["curated_catalog"]`, so the rebuild is offline and deterministic; the resulting snapshot
+  holds the curated records alone.
+- The catalog page's selector key is `catalog_page`; a switch requested from a button goes
+  through `catalog_page_request` and is applied before the radio draws, because Streamlit
+  refuses a write to a widget's own key after that widget exists.
 
 ---
 

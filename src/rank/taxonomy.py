@@ -54,6 +54,15 @@ def _families(major: str) -> frozenset[str]:
     return _MAJOR_FAMILIES.get(major, frozenset())
 
 
+def known_majors() -> tuple[str, ...]:
+    """Return every major and family token the matcher knows, sorted.
+
+    The catalog entry form offers these as its major dropdown so a hand-entered
+    award lands on a spelling :func:`majors_match` can reason about.
+    """
+    return tuple(sorted(_MAJOR_FAMILIES))
+
+
 def majors_match(profile_major: str | None, majors_allowed: Iterable[str] | str | None) -> bool:
     """Return whether a profile major satisfies a scholarship's allowed majors.
 

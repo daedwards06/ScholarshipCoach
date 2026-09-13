@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import os
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -460,7 +461,15 @@ def run_ingest(
     report_dir: Path | None = None,
     llm_enrich: bool = False,
     llm_max_calls: int = 100,
+    only_sources: Sequence[str] | None = None,
 ) -> dict[str, Any]:
+    """Run every enabled connector and write a snapshot, delta and run report.
+
+    Args:
+        only_sources: Restrict the run to these connector names. The catalog
+            page uses it to rebuild a snapshot from the curated records alone,
+            so a just-confirmed award is rankable without waiting on scrapers.
+    """
     started_at = datetime.now(tz=UTC)
     resolved_raw_dir = _resolve_repo_path(raw_dir or (ROOT_DIR / "data" / "raw"))
     resolved_processed_dir = _resolve_repo_path(processed_dir or (ROOT_DIR / "data" / "processed"))
@@ -487,6 +496,9 @@ def run_ingest(
 
     try:
         sources = register_sources()
+        if only_sources is not None:
+            wanted = {str(name) for name in only_sources}
+            sources = [source for source in sources if source.name in wanted]
         client = PoliteHttpClient(
             requests_per_second=requests_per_second,
             timeout_seconds=request_timeout_seconds,
@@ -676,6 +688,7 @@ def run_ingest(
                 "resume": resume,
                 "llm_enrich": llm_enrich,
                 "llm_max_calls": llm_max_calls,
+                "only_sources": list(only_sources) if only_sources is not None else None,
             },
             "sources": {
                 "attempted": attempted_sources,
