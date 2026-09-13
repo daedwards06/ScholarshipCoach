@@ -19,6 +19,11 @@ without Streamlit.  The rules it encodes:
   teenager's laptop should not be permanent.
 * ``won`` and ``lost`` are also outcomes, so the status and the ``outcomes``
   row are written together and cannot disagree.
+* A recommendation request has its own small lifecycle -- planned, asked,
+  received, declined -- because a letter is a second person's work on a second
+  person's schedule.  Its due date lands in This Week alongside the student's
+  own tasks, since the thing a student has to do about an outstanding letter is
+  ask again.
 """
 from __future__ import annotations
 
@@ -68,6 +73,30 @@ ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "skipped": ("saved",),
 }
 
+# A letter has its own small lifecycle, and its own dates: when the student
+# asked, when the teacher owes it, when it landed.  "declined" is a real answer
+# and has to be visible, or the student waits on a letter that is not coming.
+REQUEST_STATUSES: tuple[str, ...] = ("planned", "asked", "received", "declined")
+
+REQUEST_STATUS_LABELS: dict[str, str] = {
+    "planned": "Planned",
+    "asked": "Asked",
+    "received": "Received",
+    "declined": "Declined",
+}
+
+DEFAULT_REQUEST_STATUS = "planned"
+
+# Statuses where the letter is still outstanding; This Week draws from these.
+OPEN_REQUEST_STATUSES: tuple[str, ...] = ("planned", "asked")
+
+ALLOWED_REQUEST_TRANSITIONS: dict[str, tuple[str, ...]] = {
+    "planned": ("asked", "declined"),
+    "asked": ("received", "declined", "planned"),
+    "received": ("asked",),
+    "declined": ("planned",),
+}
+
 THIS_WEEK_DAYS = 14
 
 # Truncating in the label keeps a 300-word prompt out of the checklist row; the
@@ -81,7 +110,7 @@ class TransitionError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class DueItem:
-    """One line in This Week: an award deadline or a dated checklist item."""
+    """One line in This Week: a deadline, a dated checklist item, or a letter."""
 
     kind: str
     due_on: str
@@ -306,6 +335,59 @@ def record_outcome(
     )
 
 
+def normalize_request_status(value: object) -> str:
+    text = str(value or "").strip().casefold().replace(" ", "_")
+    return text if text in REQUEST_STATUSES else DEFAULT_REQUEST_STATUS
+
+
+def can_transition_request(current: object, target: object) -> bool:
+    start = normalize_request_status(current)
+    end = normalize_request_status(target)
+    return end == start or end in ALLOWED_REQUEST_TRANSITIONS[start]
+
+
+def next_request_statuses(current: object) -> tuple[str, ...]:
+    """The request statuses a picker should offer, current first."""
+    start = normalize_request_status(current)
+    return (start, *ALLOWED_REQUEST_TRANSITIONS[start])
+
+
+def set_request_status(
+    conn: Any, request_id: int, status: str, *, today: date | None = None
+) -> repo.RecommendationRequest:
+    """Move a letter request along, stamping the date the move implies.
+
+    Each date is stamped once: a request that goes back to ``asked`` to correct
+    a misclick keeps the day the student actually asked.
+    """
+    request = repo.get_recommendation_request(conn, request_id)
+    if request is None:
+        raise TransitionError(f"No recommendation request {request_id}.")
+
+    current = normalize_request_status(request.status)
+    target = normalize_request_status(status)
+    if not can_transition_request(current, target):
+        raise TransitionError(
+            f"{REQUEST_STATUS_LABELS[current]} cannot become "
+            f"{REQUEST_STATUS_LABELS[target]}."
+        )
+    if target == current:
+        return request
+
+    stamp = (today or date.today()).isoformat()
+    changes: dict[str, Any] = {"status": target}
+    if target == "asked" and not request.asked_on:
+        changes["asked_on"] = stamp
+    if target == "received" and not request.received_on:
+        changes["received_on"] = stamp
+    repo.update_recommendation_request(conn, request_id, **changes)
+
+    updated = repo.get_recommendation_request(conn, request_id)
+    if updated is None:  # pragma: no cover - the update above guarantees a row
+        raise TransitionError(f"Recommendation request {request_id} vanished mid-update.")
+    return updated
+
+
 def _parse_date(value: str) -> date | None:
     try:
         return date.fromisoformat(str(value)[:10])
@@ -346,6 +428,28 @@ def this_week(
                     catalog_id=application.catalog_id,
                     award_title=award_title,
                     label="Application deadline",
+                    status=status,
+                )
+            )
+
+        for request in repo.list_recommendation_requests(conn, application_id=application.id):
+            if normalize_request_status(request.status) not in OPEN_REQUEST_STATUSES:
+                continue
+            due = _parse_date(request.due_on or "")
+            if due is None or due > horizon:
+                continue
+            recommender = repo.get_recommender(conn, request.recommender_id)
+            who = recommender.name if recommender is not None else "a recommender"
+            state = REQUEST_STATUS_LABELS[normalize_request_status(request.status)]
+            items.append(
+                DueItem(
+                    kind="letter",
+                    due_on=due.isoformat(),
+                    days_until=(due - reference).days,
+                    application_id=application.id,
+                    catalog_id=application.catalog_id,
+                    award_title=award_title,
+                    label=f"Letter from {who} ({state.casefold()})",
                     status=status,
                 )
             )

@@ -40,7 +40,7 @@ from src.rank.timeline import (
     classify_timeline,
 )
 from src.rank.weights import Stage2Weights, Stage3Weights
-from src.store import repo, tracker
+from src.store import essays, repo, tracker
 from src.store.db import open_db
 from src.text_utils import coerce_text
 from src.win_model.infer import get_latest_model_path, load_model
@@ -63,8 +63,6 @@ SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
 # Sections whose surfaces are built by later Phase 3 tasks. Listing them now is
 # deliberate: the nav shows the family the whole product, not just what runs.
 _PENDING_SECTION_NOTES = {
-    "essays": "Your essay bank, themed and reused across prompts.",
-    "recommenders": "Who you asked for letters, when, and what is still outstanding.",
     "catalog_inbox": "Add an award from a URL, and review proposed catalog changes.",
     "timeline": "Deadlines, milestones and letter due dates by month.",
     "colleges_money": "College list, net price estimates, and what has been won.",
@@ -1093,8 +1091,56 @@ def _render_find_section() -> None:
                     st.text(f"Reason: {reasons_text}")
 
 
+def _current_mode() -> modes.Mode:
+    return modes.normalize_mode(st.session_state.get(modes.MODE_STATE_KEY))
+
+
+def _essay_choice_labels(entries: list[essays.BankEntry]) -> dict[int, str]:
+    return {
+        entry.essay.id: (
+            f"{entry.essay.title} · {entry.theme_label} · {entry.essay.word_count} words"
+        )
+        for entry in entries
+    }
+
+
+def _render_prompt_slot(
+    conn: Any, slot: essays.PromptSlot, entries: list[essays.BankEntry], can_edit: bool
+) -> None:
+    """The essay picker under an award's essay prompt."""
+    if not entries:
+        st.caption("No essays in the bank yet — write one under Essays.")
+        return
+    if not can_edit:
+        st.caption(slot.essay_title or "No essay linked yet.")
+        return
+
+    labels = _essay_choice_labels(entries)
+    options = [0, *labels]
+    chosen = st.selectbox(
+        "Essay for this prompt",
+        options=options,
+        index=options.index(slot.essay_id) if slot.essay_id in labels else 0,
+        format_func=lambda value: (
+            "— no essay linked —" if value == 0 else labels[int(value)]
+        ),
+        key=f"slot_essay_{slot.item_id}",
+        label_visibility="collapsed",
+    )
+    if int(chosen) == (slot.essay_id or 0):
+        return
+    if int(chosen) == 0:
+        essays.clear_prompt(conn, slot)
+    else:
+        essays.use_essay_for_prompt(conn, int(chosen), slot)
+    st.rerun()
+
+
 def _render_checklist(conn: Any, application: repo.Application) -> None:
     items = repo.list_checklist_items(conn, application.id)
+    slots = {slot.item_id: slot for slot in essays.prompt_slots(conn, application.id)}
+    entries = essays.essay_bank(conn, application.student_id) if slots else []
+    can_edit_essays = modes.can_edit_essays(_current_mode())
     if items:
         for item in items:
             col_done, col_due = st.columns([0.75, 0.25])
@@ -1118,6 +1164,9 @@ def _render_checklist(conn: Any, application: repo.Application) -> None:
             if checked != item.done or new_due != (item.due_on[:10] if item.due_on else None):
                 repo.update_checklist_item(conn, item.id, done=checked, due_on=new_due)
                 st.rerun()
+            slot = slots.get(item.id)
+            if slot is not None:
+                _render_prompt_slot(conn, slot, entries, can_edit_essays)
     else:
         st.caption("No requirements recorded for this award — add what it asks for below.")
 
@@ -1305,6 +1354,288 @@ def _render_this_week_section() -> None:
                 st.caption(f"{urgency_text} · {tracker.STATUS_LABELS[due.status]}")
 
 
+def _render_new_essay_form(conn: Any, student_id: str) -> None:
+    with st.form("new_essay", clear_on_submit=True):
+        title = st.text_input("Title", placeholder="e.g. The summer I rebuilt the robot")
+        theme = st.selectbox(
+            "Theme",
+            options=repo.ESSAY_THEMES,
+            format_func=lambda name: repo.ESSAY_THEME_LABELS[str(name)],
+        )
+        body = st.text_area("Draft", height=160)
+        if st.form_submit_button("Add essay") and title.strip():
+            repo.create_essay(conn, student_id, title.strip(), body, str(theme))
+            st.rerun()
+
+
+def _reuse_caption(count: int) -> str:
+    if not count:
+        return "not used yet"
+    return f"used in {count} application{'s' if count != 1 else ''}"
+
+
+def _render_essay_detail(conn: Any, entry: essays.BankEntry, can_edit: bool) -> None:
+    essay = entry.essay
+    header = (
+        f"{essay.title} · {entry.theme_label} · {essay.word_count} words "
+        f"· {_reuse_caption(entry.reuse_count)}"
+    )
+    with st.expander(header, expanded=False):
+        if entry.used_by:
+            st.caption("Used in: " + ", ".join(entry.used_by))
+
+        if can_edit:
+            title = st.text_input("Title", value=essay.title, key=f"essay_title_{essay.id}")
+            theme = st.selectbox(
+                "Theme",
+                options=repo.ESSAY_THEMES,
+                index=repo.ESSAY_THEMES.index(repo.normalize_theme(essay.theme)),
+                format_func=lambda name: repo.ESSAY_THEME_LABELS[str(name)],
+                key=f"essay_theme_{essay.id}",
+            )
+            body = st.text_area(
+                "Draft", value=essay.body, height=240, key=f"essay_body_{essay.id}"
+            )
+            st.caption(f"{repo.word_count(body)} words")
+            col_save, col_delete = st.columns([0.7, 0.3])
+            with col_save:
+                if st.button("Save draft", key=f"essay_save_{essay.id}"):
+                    repo.update_essay(
+                        conn,
+                        essay.id,
+                        title=title.strip() or essay.title,
+                        body=body,
+                        theme=str(theme),
+                    )
+                    st.rerun()
+            with col_delete:
+                if st.button("Delete essay", key=f"essay_delete_{essay.id}"):
+                    repo.delete_essay(conn, essay.id)
+                    st.rerun()
+        else:
+            st.markdown(essay.body or "_Nothing written yet._")
+
+        earlier = repo.list_essay_versions(conn, essay.id)[1:]
+        if earlier and st.checkbox(
+            f"Earlier drafts ({len(earlier)})", key=f"essay_versions_{essay.id}"
+        ):
+            for version in earlier:
+                st.caption(f"Saved {version.created_at} · {version.word_count} words")
+                st.text_area(
+                    "Earlier draft",
+                    value=version.body,
+                    height=140,
+                    disabled=True,
+                    key=f"essay_version_{version.id}",
+                    label_visibility="collapsed",
+                )
+
+
+def _render_open_prompts(
+    conn: Any, student_id: str, entries: list[essays.BankEntry], can_edit: bool
+) -> None:
+    open_slots: list[tuple[str, essays.PromptSlot]] = []
+    for application in repo.list_applications(conn, student_id):
+        if tracker.normalize_status(application.status) not in tracker.OPEN_STATUSES:
+            continue
+        title = application.title or application.catalog_id
+        open_slots.extend(
+            (title, slot) for slot in essays.open_prompt_slots(conn, application.id)
+        )
+
+    st.markdown("**Prompts waiting for an essay**")
+    if not open_slots:
+        st.caption("Every prompt on your open applications has an essay.")
+        return
+    for award_title, slot in open_slots:
+        with st.container(border=True):
+            st.markdown(f"**{slot.prompt}**")
+            st.caption(award_title)
+            _render_prompt_slot(conn, slot, entries, can_edit)
+
+
+def _render_essays_section() -> None:
+    st.subheader(modes.SECTION_LABELS["essays"])
+    can_edit = modes.can_edit_essays(_current_mode())
+    if not can_edit:
+        st.caption("Parent view reads the essay bank. Switch to Student to edit.")
+    try:
+        with open_db() as conn:
+            student_id = _ensure_student(conn)
+            entries = essays.essay_bank(conn, student_id)
+            if entries:
+                counts = essays.theme_counts(entries)
+                st.caption(
+                    " · ".join(
+                        f"{repo.ESSAY_THEME_LABELS[theme]}: {count}"
+                        for theme, count in counts.items()
+                        if count
+                    )
+                )
+            else:
+                st.info(
+                    "No essays yet. A few themed drafts answer most prompts — start "
+                    "with a challenge story and one on why your major."
+                )
+
+            if can_edit:
+                with st.expander("Add an essay", expanded=not entries):
+                    _render_new_essay_form(conn, student_id)
+
+            for entry in entries:
+                _render_essay_detail(conn, entry, can_edit)
+
+            _render_open_prompts(conn, student_id, entries, can_edit)
+    except Exception as exc:
+        st.error(f"Could not open the family database: {exc}")
+
+
+def _render_new_recommender_form(conn: Any, student_id: str) -> None:
+    with st.form("new_recommender", clear_on_submit=True):
+        name = st.text_input("Name", placeholder="e.g. Ms. Rivera")
+        col_role, col_email = st.columns(2)
+        with col_role:
+            role = st.text_input("Role", placeholder="AP Physics teacher")
+        with col_email:
+            email = st.text_input("Email")
+        if st.form_submit_button("Add recommender") and name.strip():
+            repo.create_recommender(conn, student_id, name.strip(), role, email)
+            st.rerun()
+
+
+def _render_recommendation_request(
+    conn: Any, request: repo.RecommendationRequest, award_title: str, today_value: date
+) -> None:
+    status = tracker.normalize_request_status(request.status)
+    with st.container(border=True):
+        st.markdown(f"**{award_title}**")
+        col_status, col_due = st.columns(2)
+        with col_status:
+            chosen = st.selectbox(
+                "Status",
+                options=tracker.next_request_statuses(status),
+                index=0,
+                format_func=lambda name: tracker.REQUEST_STATUS_LABELS[str(name)],
+                key=f"req_status_{request.id}",
+            )
+        with col_due:
+            due_value = None
+            if request.due_on:
+                try:
+                    due_value = date.fromisoformat(request.due_on[:10])
+                except ValueError:
+                    due_value = None
+            due_choice = st.date_input(
+                "Letter due", value=due_value, key=f"req_due_{request.id}", format="YYYY-MM-DD"
+            )
+        stamps = [
+            text
+            for text in (
+                f"Asked {request.asked_on}" if request.asked_on else "",
+                f"Received {request.received_on}" if request.received_on else "",
+            )
+            if text
+        ]
+        if stamps:
+            st.caption(" · ".join(stamps))
+
+        new_due = due_choice.isoformat() if isinstance(due_choice, date) else None
+        if new_due != (request.due_on[:10] if request.due_on else None):
+            repo.update_recommendation_request(conn, request.id, due_on=new_due)
+            st.rerun()
+        if str(chosen) != status:
+            try:
+                tracker.set_request_status(conn, request.id, str(chosen), today=today_value)
+            except tracker.TransitionError as exc:
+                st.error(str(exc))
+            else:
+                st.rerun()
+        if st.button("Remove request", key=f"req_delete_{request.id}"):
+            repo.delete_recommendation_request(conn, request.id)
+            st.rerun()
+
+
+def _render_recommender_detail(
+    conn: Any,
+    recommender: repo.Recommender,
+    applications: list[repo.Application],
+    today_value: date,
+) -> None:
+    requests = repo.list_recommendation_requests(conn, recommender_id=recommender.id)
+    outstanding = sum(
+        1
+        for request in requests
+        if tracker.normalize_request_status(request.status) in tracker.OPEN_REQUEST_STATUSES
+    )
+    titles = {
+        application.id: application.title or application.catalog_id
+        for application in applications
+    }
+    header = recommender.name
+    if recommender.role:
+        header += f" · {recommender.role}"
+    header += f" · {outstanding} outstanding" if outstanding else " · all in"
+
+    with st.expander(header, expanded=False):
+        col_role, col_email = st.columns(2)
+        with col_role:
+            role = st.text_input("Role", value=recommender.role, key=f"rec_role_{recommender.id}")
+        with col_email:
+            email = st.text_input(
+                "Email", value=recommender.email, key=f"rec_email_{recommender.id}"
+            )
+        if (role, email) != (recommender.role, recommender.email):
+            repo.update_recommender(conn, recommender.id, role=role, email=email)
+
+        for request in requests:
+            _render_recommendation_request(
+                conn, request, titles.get(request.application_id, "This award"), today_value
+            )
+
+        remaining = [
+            application
+            for application in applications
+            if application.id not in {request.application_id for request in requests}
+        ]
+        if remaining:
+            chosen = st.selectbox(
+                "Ask for a letter for",
+                options=[application.id for application in remaining],
+                format_func=lambda value: titles.get(int(value), ""),
+                key=f"rec_new_request_{recommender.id}",
+            )
+            if st.button("Add request", key=f"rec_add_request_{recommender.id}"):
+                repo.create_recommendation_request(conn, recommender.id, int(chosen))
+                st.rerun()
+
+        if st.button("Remove recommender", key=f"rec_delete_{recommender.id}"):
+            repo.delete_recommender(conn, recommender.id)
+            st.rerun()
+
+
+def _render_recommenders_section() -> None:
+    st.subheader(modes.SECTION_LABELS["recommenders"])
+    today_value = _effective_today(st.session_state.profile)
+    try:
+        with open_db() as conn:
+            student_id = _ensure_student(conn)
+            people = repo.list_recommenders(conn, student_id)
+            applications = repo.list_applications(conn, student_id)
+            if not people:
+                st.info(
+                    "No recommenders yet. Ask early — a teacher writing ten letters "
+                    "needs weeks, not days."
+                )
+            with st.expander("Add a recommender", expanded=not people):
+                _render_new_recommender_form(conn, student_id)
+            if people and not applications:
+                st.caption("Save an award first, then ask a recommender for its letter.")
+            for recommender in people:
+                _render_recommender_detail(conn, recommender, applications, today_value)
+    except Exception as exc:
+        st.error(f"Could not open the family database: {exc}")
+
+
 def _operator_enabled() -> bool:
     try:
         with open_db() as conn:
@@ -1359,6 +1690,10 @@ def main() -> None:
         _render_this_week_section()
     elif section == "applications":
         _render_applications_section()
+    elif section == "essays":
+        _render_essays_section()
+    elif section == "recommenders":
+        _render_recommenders_section()
     elif section == "settings":
         _render_settings_section()
     else:

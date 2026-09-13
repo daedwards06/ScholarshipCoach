@@ -55,15 +55,55 @@ class ChecklistItem:
     updated_at: str = ""
 
 
+ESSAY_THEMES: tuple[str, ...] = (
+    "challenge",
+    "leadership",
+    "why_major",
+    "community",
+    "identity",
+    "other",
+)
+
+ESSAY_THEME_LABELS: dict[str, str] = {
+    "challenge": "Challenge",
+    "leadership": "Leadership",
+    "why_major": "Why this major",
+    "community": "Community",
+    "identity": "Identity",
+    "other": "Other",
+}
+
+DEFAULT_ESSAY_THEME = "other"
+
+
+def normalize_theme(value: object) -> str:
+    """Coerce anything to a known essay theme, falling back to ``other``."""
+    text = str(value or "").strip().casefold().replace(" ", "_")
+    return text if text in ESSAY_THEMES else DEFAULT_ESSAY_THEME
+
+
 @dataclass(slots=True)
 class Essay:
     id: int
     student_id: str
     title: str
     body: str = ""
+    theme: str = DEFAULT_ESSAY_THEME
     word_count: int = 0
     created_at: str = ""
     updated_at: str = ""
+
+
+@dataclass(slots=True)
+class EssayVersion:
+    """One saved draft of an essay, kept so earlier text can be read back."""
+
+    id: int
+    essay_id: int
+    title: str
+    body: str = ""
+    word_count: int = 0
+    created_at: str = ""
 
 
 @dataclass(slots=True)
@@ -93,9 +133,9 @@ class RecommendationRequest:
     recommender_id: int
     application_id: int
     status: str = "planned"
-    requested_on: str | None = None
+    asked_on: str | None = None
     due_on: str | None = None
-    submitted_on: str | None = None
+    received_on: str | None = None
     notes: str = ""
     created_at: str = ""
     updated_at: str = ""
@@ -426,9 +466,21 @@ def _to_essay(row: sqlite3.Row) -> Essay:
         student_id=str(row["student_id"]),
         title=str(row["title"]),
         body=str(row["body"]),
+        theme=str(row["theme"]),
         word_count=int(row["word_count"]),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
+    )
+
+
+def _to_essay_version(row: sqlite3.Row) -> EssayVersion:
+    return EssayVersion(
+        id=int(row["id"]),
+        essay_id=int(row["essay_id"]),
+        title=str(row["title"]),
+        body=str(row["body"]),
+        word_count=int(row["word_count"]),
+        created_at=str(row["created_at"]),
     )
 
 
@@ -437,9 +489,32 @@ def word_count(body: str) -> int:
     return len(body.split())
 
 
-def create_essay(conn: sqlite3.Connection, student_id: str, title: str, body: str = "") -> Essay:
+def _record_essay_version(
+    conn: sqlite3.Connection, essay_id: int, title: str, body: str, when: str
+) -> None:
+    _insert(
+        conn,
+        "essay_versions",
+        {
+            "essay_id": essay_id,
+            "title": title,
+            "body": body,
+            "word_count": word_count(body),
+            "created_at": when,
+        },
+    )
+
+
+def create_essay(
+    conn: sqlite3.Connection,
+    student_id: str,
+    title: str,
+    body: str = "",
+    theme: str = DEFAULT_ESSAY_THEME,
+) -> Essay:
     now = utc_now()
     words = word_count(body)
+    tag = normalize_theme(theme)
     row_id = _insert(
         conn,
         "essays",
@@ -447,12 +522,14 @@ def create_essay(conn: sqlite3.Connection, student_id: str, title: str, body: st
             "student_id": student_id,
             "title": title,
             "body": body,
+            "theme": tag,
             "word_count": words,
             "created_at": now,
             "updated_at": now,
         },
     )
-    return Essay(row_id, student_id, title, body, words, now, now)
+    _record_essay_version(conn, row_id, title, body, now)
+    return Essay(row_id, student_id, title, body, tag, words, now, now)
 
 
 def get_essay(conn: sqlite3.Connection, essay_id: int) -> Essay | None:
@@ -474,11 +551,37 @@ def update_essay(
     *,
     title: str = UNSET,
     body: str = UNSET,
+    theme: str = UNSET,
 ) -> bool:
-    changes = _set(title=title, body=body)
+    """Save an edit, recording a version row whenever the text itself changes.
+
+    A theme change is filing, not writing, so it does not add a version.
+    """
+    changes = _set(title=title, body=body, theme=theme)
+    if "theme" in changes:
+        changes["theme"] = normalize_theme(changes["theme"])
     if "body" in changes:
         changes["word_count"] = word_count(str(changes["body"]))
-    return _update(conn, "essays", essay_id, changes)
+
+    current = get_essay(conn, essay_id)
+    if current is None:
+        return False
+    new_title = str(changes.get("title", current.title))
+    new_body = str(changes.get("body", current.body))
+    text_changed = (new_title, new_body) != (current.title, current.body)
+
+    updated = _update(conn, "essays", essay_id, changes)
+    if updated and text_changed:
+        _record_essay_version(conn, essay_id, new_title, new_body, utc_now())
+    return updated
+
+
+def list_essay_versions(conn: sqlite3.Connection, essay_id: int) -> list[EssayVersion]:
+    """Every saved draft of an essay, newest first."""
+    rows = conn.execute(
+        "SELECT * FROM essay_versions WHERE essay_id = ? ORDER BY id DESC", (essay_id,)
+    ).fetchall()
+    return [_to_essay_version(row) for row in rows]
 
 
 def delete_essay(conn: sqlite3.Connection, essay_id: int) -> bool:
@@ -548,6 +651,17 @@ def unlink_essay(conn: sqlite3.Connection, essay_id: int, application_id: int) -
     )
     conn.commit()
     return cursor.rowcount > 0
+
+
+def essay_reuse_counts(conn: sqlite3.Connection, student_id: str) -> dict[int, int]:
+    """How many applications each of a student's essays is linked to."""
+    rows = conn.execute(
+        "SELECT e.id AS essay_id, COUNT(l.id) AS uses "
+        "FROM essays AS e LEFT JOIN essay_links AS l ON l.essay_id = e.id "
+        "WHERE e.student_id = ? GROUP BY e.id",
+        (student_id,),
+    ).fetchall()
+    return {int(row["essay_id"]): int(row["uses"]) for row in rows}
 
 
 # -- recommenders -----------------------------------------------------------
@@ -637,9 +751,9 @@ def _to_recommendation_request(row: sqlite3.Row) -> RecommendationRequest:
         recommender_id=int(row["recommender_id"]),
         application_id=int(row["application_id"]),
         status=str(row["status"]),
-        requested_on=_optional("requested_on"),
+        asked_on=_optional("asked_on"),
         due_on=_optional("due_on"),
-        submitted_on=_optional("submitted_on"),
+        received_on=_optional("received_on"),
         notes=str(row["notes"]),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
@@ -651,7 +765,7 @@ def create_recommendation_request(
     recommender_id: int,
     application_id: int,
     status: str = "planned",
-    requested_on: str | None = None,
+    asked_on: str | None = None,
     due_on: str | None = None,
     notes: str = "",
 ) -> RecommendationRequest:
@@ -663,9 +777,9 @@ def create_recommendation_request(
             "recommender_id": recommender_id,
             "application_id": application_id,
             "status": status,
-            "requested_on": requested_on,
+            "asked_on": asked_on,
             "due_on": due_on,
-            "submitted_on": None,
+            "received_on": None,
             "notes": notes,
             "created_at": now,
             "updated_at": now,
@@ -676,7 +790,7 @@ def create_recommendation_request(
         recommender_id,
         application_id,
         status,
-        requested_on,
+        asked_on,
         due_on,
         None,
         notes,
@@ -713,14 +827,27 @@ def list_recommendation_requests(
     return [_to_recommendation_request(row) for row in rows]
 
 
+def list_student_recommendation_requests(
+    conn: sqlite3.Connection, student_id: str
+) -> list[RecommendationRequest]:
+    """Every request a student has open, across recommenders and applications."""
+    rows = conn.execute(
+        "SELECT r.* FROM recommendation_requests AS r "
+        "JOIN recommenders AS p ON p.id = r.recommender_id "
+        "WHERE p.student_id = ? ORDER BY r.due_on IS NULL, r.due_on, r.id",
+        (student_id,),
+    ).fetchall()
+    return [_to_recommendation_request(row) for row in rows]
+
+
 def update_recommendation_request(
     conn: sqlite3.Connection,
     request_id: int,
     *,
     status: str = UNSET,
-    requested_on: str | None = UNSET,
+    asked_on: str | None = UNSET,
     due_on: str | None = UNSET,
-    submitted_on: str | None = UNSET,
+    received_on: str | None = UNSET,
     notes: str = UNSET,
 ) -> bool:
     return _update(
@@ -729,9 +856,9 @@ def update_recommendation_request(
         request_id,
         _set(
             status=status,
-            requested_on=requested_on,
+            asked_on=asked_on,
             due_on=due_on,
-            submitted_on=submitted_on,
+            received_on=received_on,
             notes=notes,
         ),
     )

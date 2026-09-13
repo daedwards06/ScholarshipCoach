@@ -769,15 +769,47 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] Essays: title, theme tags (`challenge|leadership|why_major|community|identity|other`),
+- [x] Essays: title, theme tags (`challenge|leadership|why_major|community|identity|other`),
       body, word count (computed), version history kept as rows
-- [ ] Award prompts link to essays; a prompt with no linked essay shows as an open checklist
+- [x] Award prompts link to essays; a prompt with no linked essay shows as an open checklist
       item; an essay reused N times shows N
-- [ ] Recommenders: name, role, email; requests per application with `asked_on`,
+- [x] Recommenders: name, role, email; requests per application with `asked_on`,
       `due_on`, `received_on`; This Week includes recommender due dates
-- [ ] Student mode edits essays; parent mode reads them
-- [ ] Tests: word count, link/unlink, reuse count, request lifecycle
-- [ ] Tests + ruff green
+- [x] Student mode edits essays; parent mode reads them
+- [x] Tests: word count, link/unlink, reuse count, request lifecycle
+- [x] Tests + ruff green
+
+**As built --- contracts later tasks depend on:**
+- Migration `0003_essay_bank.sql` adds `essays.theme`, the `essay_versions` table, and
+  renames `recommendation_requests.requested_on` / `submitted_on` to `asked_on` /
+  `received_on` --- a letter is *received*, and `submitted` already means the student sent
+  the application.
+- Themes are a closed set on the column: `repo.ESSAY_THEMES`, `repo.ESSAY_THEME_LABELS` and
+  `repo.normalize_theme` (unknown tags fall back to `other`). `repo.create_essay` and
+  `repo.update_essay` normalize on write.
+- Version history is rows, not a diff log. `create_essay` writes version 1; `update_essay`
+  writes one whenever the title or body changes, and *not* when only the theme changes ---
+  retagging is filing, not writing. `repo.list_essay_versions(conn, essay_id)` is newest
+  first, so `[0]` is the current text and `[1:]` are the earlier drafts.
+- `src/store/essays.py` reads `checklist_items` and `essay_links` together into
+  `PromptSlot`s. `prompt_from_label` parses the `Essay N: <prompt>` labels
+  `tracker.checklist_labels` writes, so the prompt list and the checklist cannot drift.
+  `use_essay_for_prompt` links *and* ticks the item; `clear_prompt` unlinks and unticks ---
+  an answered prompt is a finished task. `essay_links` is unique on
+  `(essay_id, application_id)`, so one essay answers one prompt per award.
+- `essays.essay_bank(conn, student_id)` returns `BankEntry`s carrying the reuse count
+  (`repo.essay_reuse_counts`) and the award titles using each essay; `essays.theme_counts`
+  summarises the bank for the header.
+- Letter requests have their own graph in `tracker.py`: `REQUEST_STATUSES`
+  (`planned|asked|received|declined`), `ALLOWED_REQUEST_TRANSITIONS`,
+  `next_request_statuses`, and `set_request_status`, which stamps `asked_on` and
+  `received_on` once each --- stepping back to correct a misclick keeps the real dates.
+- `tracker.this_week` now emits a third kind, `letter`, for requests in
+  `OPEN_REQUEST_STATUSES` with a `due_on` inside the horizon, labelled
+  `Letter from <name> (<state>)`. Task 3.5 adds milestones to the same surface.
+- `app/main.py` draws Essays and Recommenders; `modes.can_edit_essays` gates every essay
+  write, so parent mode reads the bank (including earlier drafts) without editing it. The
+  essay picker also appears under each essay prompt in the My Applications checklist.
 
 ---
 

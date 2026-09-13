@@ -21,6 +21,7 @@ TABLES = (
     "applications",
     "checklist_items",
     "essays",
+    "essay_versions",
     "essay_links",
     "recommenders",
     "recommendation_requests",
@@ -345,20 +346,20 @@ def test_recommendation_request_crud(
 ) -> None:
     rec = repo.create_recommender(conn, student.student_id, "Ms. Rivera")
     request = repo.create_recommendation_request(
-        conn, rec.id, application.id, requested_on="2026-09-20", due_on="2026-10-15"
+        conn, rec.id, application.id, asked_on="2026-09-20", due_on="2026-10-15"
     )
     assert request.status == "planned"
-    assert request.submitted_on is None
+    assert request.received_on is None
 
     assert (
         repo.update_recommendation_request(
-            conn, request.id, status="submitted", submitted_on="2026-10-02"
+            conn, request.id, status="received", received_on="2026-10-02"
         )
         is True
     )
     stored = repo.get_recommendation_request(conn, request.id)
     assert stored is not None
-    assert (stored.status, stored.submitted_on) == ("submitted", "2026-10-02")
+    assert (stored.status, stored.received_on) == ("received", "2026-10-02")
 
     assert len(repo.list_recommendation_requests(conn, recommender_id=rec.id)) == 1
     assert len(repo.list_recommendation_requests(conn, application_id=application.id)) == 1
