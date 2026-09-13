@@ -1145,13 +1145,13 @@ python scripts/export_outcomes.py
 ```
 
 **Checklist:**
-- [ ] `scripts/export_outcomes.py`: writes `data/private/eval/outcomes.csv` with
+- [x] `scripts/export_outcomes.py`: writes `data/private/eval/outcomes.csv` with
       `student_id`, `catalog_id`, cycle year, submitted flag, result, amount, plus the pair
       features at submission time
-- [ ] `docs/evaluation.md`: "Real outcomes" section — what is logged, minimum count before
+- [x] `docs/evaluation.md`: "Real outcomes" section — what is logged, minimum count before
       any model is trained on it, and how it would replace synthetic labels
-- [ ] Tests: export shape on a temp database
-- [ ] Tests + ruff green
+- [x] Tests: export shape on a temp database
+- [x] Tests + ruff green
 
 ---
 

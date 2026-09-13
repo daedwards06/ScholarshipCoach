@@ -190,3 +190,74 @@ The optional win model uses synthetic labels generated from a transparent heuris
 - `expected_value = p_win * amount_value`
 - When enabled, Stage 3 uses normalized expected value as the `ev` signal
 - Reports add top-K summaries for average and median `p_win` and expected value
+
+## Real Outcomes
+
+The synthetic labels above exist because the project had no real ones. Every application the
+student actually submits produces one: won or lost, on a pair the ranker already scored. Those
+are logged from the first application so the win model, or its replacement, can be judged
+honestly later rather than retrofitted from memory.
+
+### What is logged
+
+The tracker writes an `outcomes` row when the student records a decision (`src/store/repo.py`,
+`src/store/tracker.record_outcome`). `scripts/export_outcomes.py` joins it to the application and
+the snapshot and writes `data/private/eval/outcomes.csv`:
+
+```powershell
+python scripts/export_outcomes.py
+```
+
+One row per **submitted** application -- saved and skipped awards are not trials and are not
+exported. Each row carries:
+
+- `student_id`, `catalog_id`, `title`
+- `cycle_year` -- the award cycle, keyed on the deadline, so repeat applications to the same
+  award in different years stay separate rows
+- `submitted`, `submitted_on`, `status`
+- `result` (`won` / `lost` / `pending`), `amount_awarded`, `decided_on`
+- every column of `FEATURE_COLUMNS` (`src/win_model/features.py`), rebuilt **as of
+  `submitted_on`** rather than today -- a deadline that has since passed was weeks away when the
+  student applied, and using the present-day value would leak the outcome into the features
+- `features_available` -- `False` when the award has dropped out of the snapshot. Those rows keep
+  *empty* feature columns, never zeros: a zero-filled row is a wrong training example, not a
+  missing one, and dropping it silently would hide how much of the history no longer joins.
+
+The file is under `data/private/` and git-ignored, like the profile and the database.
+
+### Minimum count before training on it
+
+Do not train on this file early. `FEATURE_COLUMNS` has 13 features; the usual floor of roughly
+ten decided events per feature puts a fitted win model at **130+ decided outcomes**, and the
+minority class (`won`) has to carry its share of that. One student applying to twenty or thirty
+awards a year will not reach it, and a model fit on twenty rows would be memorizing which essays
+got written that spring.
+
+So the file earns its keep in three stages, in order:
+
+1. **Under ~30 decided outcomes -- description only.** Report the base rate (won / decided) and
+   the realized total awarded. Nothing is fit. This is the state the project is in.
+2. **From ~30 decided outcomes -- an evaluation set, not yet a training set.** Ask whether the
+   ranker put won awards above lost ones: NDCG or simple AUC over the student's own submissions,
+   with `result` as the label. That measures the ranking the family actually used, against
+   outcomes it did not influence, and it is the first defensible answer to "does this thing work".
+3. **At 130+ decided outcomes across students and cycles -- the earliest point a fitted model is
+   defensible**, and even then it is reported against the synthetic baseline rather than instead
+   of it.
+
+### How it would replace synthetic labels
+
+`src/win_model/` trains on a deterministic synthetic logit today. Real outcomes slot into the same
+feature contract, so the swap is a label source change, not a rewrite:
+
+- Feed rows with `features_available = True` and `result` in (`won`, `lost`) as `y`, and the
+  `FEATURE_COLUMNS` values as `X`. Rows with `result = pending` are censored, not negative --
+  exclude them.
+- Hold out by `cycle_year`, not at random. Awards within one cycle share deadlines, essays and the
+  student's effort that season, so a random split leaks.
+- Keep the synthetic model as the baseline to beat. If the real-label model does not beat it on
+  held-out cycles, the honest report is that there is not enough outcome data yet -- which is the
+  expected answer for a long time.
+
+Until then `p_win` stays what the note above says it is: illustrative, operator-mode only, and not
+shown to the family.
