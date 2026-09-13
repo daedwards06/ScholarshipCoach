@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 
 from src.rank.stage1_eligibility import UNVERIFIED_AXIS_LABELS
+from src.rank.stage3_rerank import effort_counts, is_local_award
 from src.text_utils import coerce_text
 
 
@@ -22,7 +23,29 @@ def format_amount_range(amount_min: Any, amount_max: Any) -> str:
     return f"${min_value:,.0f} - ${max_value:,.0f}"
 
 
-def explain_ranked_row(row: pd.Series, *, max_signals: int = 3) -> list[str]:
+def effort_to_text(row: pd.Series) -> str:
+    """Render an award's effort as plain counts, or "" when it asks for nothing.
+
+    A family can act on "2 essays, 1 letter"; it cannot act on an effort
+    penalty of 0.31.
+    """
+    counts = effort_counts(row)
+    parts = [
+        _pluralize(counts["essays"], "essay", "essays"),
+        _pluralize(counts["letters"], "letter", "letters"),
+        _pluralize(counts["extras"], "extra item", "extra items"),
+    ]
+    return ", ".join(part for part in parts if part)
+
+
+def explain_ranked_row(
+    row: pd.Series, *, max_signals: int = 3, operator_mode: bool = False
+) -> list[str]:
+    """Explain a ranked row in signals a student can act on.
+
+    The expected-value line is operator-only: it is a synthetic estimate, and a
+    teen reads it as a promise.
+    """
     text_similarity = (
         _coerce_float(row.get("text_sim"))
         or _coerce_float(row.get("tfidf_sim"))
@@ -46,18 +69,30 @@ def explain_ranked_row(row: pd.Series, *, max_signals: int = 3) -> list[str]:
             float(_coerce_float(row.get("urgency_boost")) or 0.0),
             "Deadline soon, boosted for urgency",
         ),
-        (
-            float(_coerce_float(row.get("expected_value_norm")) or _coerce_float(row.get("ev_proxy_norm")) or 0.0),
-            "Strong expected-value proxy",
-        ),
     ]
+    if operator_mode:
+        signal_scores.append(
+            (
+                float(
+                    _coerce_float(row.get("expected_value_norm"))
+                    or _coerce_float(row.get("ev_proxy_norm"))
+                    or 0.0
+                ),
+                "Strong expected-value proxy",
+            )
+        )
     if not bool(row.get("essay_required")):
         signal_scores.append((0.4, "Lower effort (no essay)"))
 
     ranked = [label for score, label in sorted(signal_scores, key=lambda item: item[0], reverse=True) if score > 0]
-    if not ranked:
-        return ["Balanced profile fit after scoring"]
-    return ranked[:max_signals]
+    lines = ranked[:max_signals] if ranked else ["Balanced profile fit after scoring"]
+
+    if is_local_award(row):
+        lines.append("Local award, smaller applicant pool")
+    effort_text = effort_to_text(row)
+    if effort_text:
+        lines.append(effort_text)
+    return lines
 
 
 def reasons_to_text(value: Any) -> str:
@@ -88,6 +123,12 @@ def unverified_to_text(value: Any) -> str:
     return ", ".join(
         UNVERIFIED_AXIS_LABELS.get(axis, axis.replace("_", " ")) for axis in axes
     )
+
+
+def _pluralize(count: int, singular: str, plural: str) -> str:
+    if count <= 0:
+        return ""
+    return f"{count} {singular if count == 1 else plural}"
 
 
 def _coerce_amount(value: Any) -> float | None:

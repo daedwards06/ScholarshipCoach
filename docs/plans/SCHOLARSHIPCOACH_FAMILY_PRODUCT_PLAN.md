@@ -900,18 +900,50 @@ python scripts/evaluate_golden_students.py --k 10   # ranking still deterministi
 ```
 
 **Checklist:**
-- [ ] `p_win`, `expected_value`, and the Win Model Summary render only in operator mode;
+- [x] `p_win`, `expected_value`, and the Win Model Summary render only in operator mode;
       `use_win_model` defaults off and is operator-only
-- [ ] Effort shown as counts: essays (from `requirements.essay_prompts`), letters, extras;
+- [x] Effort shown as counts: essays (from `requirements.essay_prompts`), letters, extras;
       `_compute_effort_cost` uses those counts when present, falling back to `essay_required`
-- [ ] `Stage3Weights` gains `local_boost` applied to `trust == verified_local` and to
+- [x] `Stage3Weights` gains `local_boost` applied to `trust == verified_local` and to
       `counties_allowed` / `states_allowed` restricted awards (small pools); default small,
       documented
-- [ ] `explain_ranked_row` adds "Local award, smaller applicant pool" and "N essays, M letters"
+- [x] `explain_ranked_row` adds "Local award, smaller applicant pool" and "N essays, M letters"
       lines; drops the expected-value line outside operator mode
-- [ ] Unverified axes from Task 1.3 render as "Confirm you meet: …" on the card
-- [ ] Tests: effort counts, local boost, explanation lines
-- [ ] Tests + ruff green
+- [x] Unverified axes from Task 1.3 render as "Confirm you meet: …" on the card
+- [x] Tests: effort counts, local boost, explanation lines
+- [x] Tests + ruff green
+
+**As built --- contracts later tasks depend on:**
+- `stage3_rerank.effort_counts(row)` is the one place effort is counted, returning
+  `{"essays", "letters", "extras"}`. It reads the curated `requirements` object when the row
+  carries one (`essay_prompts` length, falling back to `essay: true` meaning one;
+  `recommendation_letters`; and `transcript`/`fafsa`/`video_or_portfolio`/`interview` as
+  extras) and falls back to the `essay_required` boolean otherwise. A missing count is *0*,
+  never a guess --- a null is not a requirement.
+- `effort_cost` is now `1.0 + 0.5*essays + 0.25*letters + 0.25*extras` (`ESSAY_EFFORT`,
+  `LETTER_EFFORT`, `EXTRA_EFFORT`). The essay weight is 0.5 deliberately: a row carrying only
+  `essay_required=True` still costs exactly the historic 1.5, so pre-catalog snapshots rank
+  unchanged.
+- `stage3_rerank.is_local_award(row)` is true for `trust == "verified_local"` *or* a non-empty
+  `counties_allowed` / `states_allowed`. An empty list is a national award, not a restriction.
+  `rerank_stage3` writes the result as a boolean `local_award` column.
+- `Stage3Weights.local_boost` (default `0.02`) is **additive and outside** the
+  `stage2 + urgency + ev` budget that must sum to 1.0 --- it breaks ties toward a small
+  applicant pool rather than acting as a fourth objective. `to_dict`/`from_mapping` carry it,
+  so a weights profile written before this task loads with the default.
+  `scripts/tune_weights.py` adds the same term when it rescores a cached component frame, so
+  tuning and `rerank_stage3` agree.
+- `explain_ranked_row(row, *, max_signals=3, operator_mode=False)` ranks the scored signals as
+  before, then *appends* (beyond `max_signals`) "Local award, smaller applicant pool" and the
+  effort line from `helpers.effort_to_text` ("2 essays, 1 letter", "" when nothing is asked).
+  The expected-value line is only a candidate when `operator_mode=True`.
+- Operator gating in `app/main.py` runs off `_current_mode() == "operator"`:
+  `_WIN_MODEL_COLUMNS` (`p_win`, `expected_value`, `expected_value_norm`) join the Signal
+  details JSON only for an operator, the Win Model Summary is skipped entirely, and
+  `use_win_model` is forced off for the pipeline run regardless of the session-state
+  checkbox --- so a student cannot inherit it from an operator's earlier session.
+- The card renders Stage 1's `unverified_axes` as an `st.warning` reading
+  "Confirm you meet: …" via the existing `helpers.unverified_to_text`.
 
 ---
 

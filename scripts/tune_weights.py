@@ -444,6 +444,11 @@ def _rerank_profile_cache(
     )
     reranked_df["stage2_score"] = stage2_score.clip(lower=0.0, upper=1.0)
     ev_column = "expected_value_norm" if use_win_model else "ev_proxy_norm"
+    local_award = (
+        reranked_df["local_award"].astype(bool).astype(float)
+        if "local_award" in reranked_df.columns
+        else 0.0
+    )
     reranked_df["final_score"] = (
         (config.stage3_weights.stage2 * reranked_df["stage2_score"])
         + (
@@ -454,6 +459,7 @@ def _rerank_profile_cache(
             config.stage3_weights.ev
             * pd.to_numeric(reranked_df.get(ev_column), errors="coerce").fillna(0.0)
         )
+        + (config.stage3_weights.local_boost * local_award)
     )
     reranked_df = reranked_df.sort_values(
         by=["final_score", "_deadline_sort", "scholarship_id"],

@@ -12,7 +12,12 @@ import pandas as pd
 import streamlit as st
 
 from app import modes
-from app.helpers import explain_ranked_row, format_amount_range, reasons_to_text
+from app.helpers import (
+    explain_ranked_row,
+    format_amount_range,
+    reasons_to_text,
+    unverified_to_text,
+)
 from scripts.run_ingest import get_latest_snapshot_path, run_ingest
 from src.embeddings.cache import ensure_embedding_store_for_df
 from src.eval.golden_students import get_golden_students
@@ -493,6 +498,11 @@ def _weights_display_payload(
     }
 
 
+# Synthetic win-model outputs. A student reads "52% chance of winning" as a
+# fact, so these stay behind operator mode.
+_WIN_MODEL_COLUMNS = ("p_win", "expected_value", "expected_value_norm")
+
+
 def _topk_win_model_summary(df: pd.DataFrame) -> dict[str, float] | None:
     if "p_win" not in df.columns or "expected_value" not in df.columns:
         return None
@@ -608,7 +618,11 @@ def _save_award_from_card(row: pd.Series, today_value: date) -> None:
 
 
 def _render_scholarship_card(
-    row: pd.Series, today_value: date, saved_ids: set[str] | None = None
+    row: pd.Series,
+    today_value: date,
+    saved_ids: set[str] | None = None,
+    *,
+    operator_mode: bool = False,
 ) -> None:
     title = (
         coerce_text(row.get("title")) or coerce_text(row.get("scholarship_id")) or "Untitled"
@@ -647,8 +661,12 @@ def _render_scholarship_card(
             st.caption(f"Timeline: {TIMELINE_BUCKET_LABELS.get(bucket, bucket)}")
 
         st.markdown("**Why this matches you:**")
-        for explanation in explain_ranked_row(row):
+        for explanation in explain_ranked_row(row, operator_mode=operator_mode):
             st.markdown(f"• {explanation}")
+
+        confirm_text = unverified_to_text(row.get("unverified_axes"))
+        if confirm_text:
+            st.warning(f"Confirm you meet: {confirm_text}")
 
         catalog_id = _row_catalog_id(row)
         already_saved = catalog_id in (saved_ids or set())
@@ -677,11 +695,10 @@ def _render_scholarship_card(
                 "effort_penalty",
                 "urgency_boost",
                 "ev_proxy_norm",
-                "p_win",
-                "expected_value",
-                "expected_value_norm",
                 "final_score",
             ]
+            if operator_mode:
+                component_columns.extend(_WIN_MODEL_COLUMNS)
             component_values = {
                 column: float(row.get(column))
                 for column in component_columns
@@ -953,8 +970,9 @@ def _render_find_section() -> None:
     st.caption(f"Active ranking weights: {active_weights_label}")
     similarity_mode = str(st.session_state.get("similarity_mode") or "tfidf")
     model_name = str(st.session_state.get("embedding_model_name") or DEFAULT_MODEL_NAME)
-    use_win_model = bool(st.session_state.get("use_win_model"))
-    if tuned_weights_payload is not None and tuned_weights_payload.get("use_win_model") and not use_win_model:
+    operator_mode = _current_mode() == "operator"
+    use_win_model = operator_mode and bool(st.session_state.get("use_win_model"))
+    if operator_mode and tuned_weights_payload is not None and tuned_weights_payload.get("use_win_model") and not use_win_model:
         st.warning(
             "The selected weights profile was tuned with the win model enabled, but 'Use Win Model in Ranking' is off."
         )
@@ -1037,7 +1055,7 @@ def _render_find_section() -> None:
         )
 
         st.subheader(f"Top Ranked Scholarships ({len(top_df)} shown)")
-        win_summary = _topk_win_model_summary(top_df)
+        win_summary = _topk_win_model_summary(top_df) if operator_mode else None
         if win_summary is not None:
             with st.expander("📊 Win Model Summary", expanded=False):
                 col1, col2 = st.columns(2)
@@ -1051,7 +1069,9 @@ def _render_find_section() -> None:
         today_for_cards = _effective_today(st.session_state.profile)
         saved_ids = _saved_catalog_ids(_student_id())
         for _, row in top_df.iterrows():
-            _render_scholarship_card(row, today_for_cards, saved_ids)
+            _render_scholarship_card(
+                row, today_for_cards, saved_ids, operator_mode=operator_mode
+            )
 
     ineligible_df: pd.DataFrame | None = st.session_state.ineligible_df
     if isinstance(ineligible_df, pd.DataFrame):

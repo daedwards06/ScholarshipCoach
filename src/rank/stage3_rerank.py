@@ -6,6 +6,7 @@ probability model) before producing the final ranked order.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -16,8 +17,15 @@ import numpy as np
 import pandas as pd
 
 from src.rank.weights import Stage3Weights
+from src.text_utils import coerce_text
 from src.win_model.features import FEATURE_COLUMNS, build_pair_features
 from src.win_model.infer import load_latest_model, load_model, predict_p_win
+
+# Marginal effort cost per requirement, on top of a base cost of 1.0. One essay
+# costs 0.5 so a row carrying only ``essay_required`` keeps its historic 1.5.
+ESSAY_EFFORT = 0.5
+LETTER_EFFORT = 0.25
+EXTRA_EFFORT = 0.25
 
 
 def _resolve_deadline(value: Any) -> pd.Timestamp | pd.NaT:
@@ -69,14 +77,82 @@ def _compute_urgency_boost(days_to_deadline: np.ndarray) -> np.ndarray:
     return urgency
 
 
+def _requirements_mapping(row: pd.Series) -> Mapping[str, Any] | None:
+    raw = row.get("requirements")
+    if isinstance(raw, Mapping) and raw:
+        return raw
+    return None
+
+
+def _count_list(value: Any) -> int:
+    if value is None or isinstance(value, (str, bytes, bytearray)):
+        return 0
+    if hasattr(value, "tolist"):
+        value = value.tolist()
+    if not isinstance(value, (list, tuple)):
+        return 0
+    return sum(1 for item in value if str(item).strip())
+
+
+def _count_int(value: Any) -> int:
+    try:
+        count = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(count, 0)
+
+
+def effort_counts(row: pd.Series) -> dict[str, int]:
+    """Return the ``essays``/``letters``/``extras`` an award asks for.
+
+    Counts come from the curated ``requirements`` object when it is present;
+    a scraped row without one falls back to the ``essay_required`` boolean, so
+    the numbers stay honest instead of implying a count nobody published.
+    """
+    requirements = _requirements_mapping(row)
+    if requirements is None:
+        essays = 1 if bool(row.get("essay_required")) else 0
+        return {"essays": essays, "letters": 0, "extras": 0}
+
+    essays = _count_list(requirements.get("essay_prompts"))
+    if not essays and requirements.get("essay") is True:
+        essays = 1
+    letters = _count_int(requirements.get("recommendation_letters"))
+    extras = sum(
+        1
+        for key in ("transcript", "fafsa", "video_or_portfolio", "interview")
+        if requirements.get(key) is True
+    )
+    return {"essays": essays, "letters": letters, "extras": extras}
+
+
 def _compute_effort_cost(df: pd.DataFrame) -> np.ndarray:
     costs: list[float] = []
     for _, row in df.iterrows():
-        if bool(row.get("essay_required")):
-            costs.append(1.5)
-        else:
-            costs.append(1.0)
+        counts = effort_counts(row)
+        costs.append(
+            1.0
+            + (ESSAY_EFFORT * counts["essays"])
+            + (LETTER_EFFORT * counts["letters"])
+            + (EXTRA_EFFORT * counts["extras"])
+        )
     return np.array(costs, dtype=float)
+
+
+def is_local_award(row: pd.Series) -> bool:
+    """Whether this award draws from a small applicant pool.
+
+    Either a person confirmed it locally, or the sponsor restricts it to named
+    counties or states.  A national award lists no states at all, so an empty
+    list is not a restriction.
+    """
+    if coerce_text(row.get("trust")) == "verified_local":
+        return True
+    return bool(_count_list(row.get("counties_allowed")) or _count_list(row.get("states_allowed")))
+
+
+def _compute_local_award(df: pd.DataFrame) -> np.ndarray:
+    return np.array([is_local_award(row) for _, row in df.iterrows()], dtype=bool)
 
 
 def _resolve_amount_for_ev(row: pd.Series) -> float:
@@ -115,8 +191,9 @@ def rerank_stage3(
     """Rerank Stage 2 results using urgency, expected value, and optional win-probability signals.
 
     Adds ``days_to_deadline``, ``urgency_boost``, ``effort_cost``,
-    ``ev_proxy``, ``ev_proxy_norm``, ``final_score``, and (when win model is
-    active) ``p_win``, ``expected_value``, and ``expected_value_norm`` columns.
+    ``local_award``, ``ev_proxy``, ``ev_proxy_norm``, ``final_score``, and
+    (when win model is active) ``p_win``, ``expected_value``, and
+    ``expected_value_norm`` columns.
 
     Args:
         scored_df: DataFrame with a ``stage2_score`` column from Stage 2.
@@ -150,6 +227,7 @@ def rerank_stage3(
     days_to_deadline = _compute_days_to_deadline(reranked_df, effective_today)
     urgency_boost = _compute_urgency_boost(days_to_deadline)
     effort_cost = _compute_effort_cost(reranked_df)
+    local_award = _compute_local_award(reranked_df)
     amounts = np.array([_resolve_amount_for_ev(row) for _, row in reranked_df.iterrows()], dtype=float)
     ev_proxy = amounts / np.clip(effort_cost, 1e-9, None)
     ev_proxy_norm = _normalize_minmax(ev_proxy)
@@ -184,11 +262,13 @@ def rerank_stage3(
         (active_weights.stage2 * stage2_score)
         + (active_weights.urgency * urgency_boost)
         + (active_weights.ev * ev_signal)
+        + (active_weights.local_boost * local_award.astype(float))
     )
 
     reranked_df["days_to_deadline"] = days_to_deadline
     reranked_df["urgency_boost"] = urgency_boost
     reranked_df["effort_cost"] = effort_cost
+    reranked_df["local_award"] = local_award
     reranked_df["ev_proxy"] = ev_proxy
     reranked_df["ev_proxy_norm"] = ev_proxy_norm
     if use_win_model:

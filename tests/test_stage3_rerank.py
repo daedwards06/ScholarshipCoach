@@ -5,7 +5,8 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
-from src.rank.stage3_rerank import rerank_stage3
+from src.rank.stage3_rerank import effort_counts, is_local_award, rerank_stage3
+from src.rank.weights import Stage3Weights
 
 _TODAY = date(2026, 2, 22)
 
@@ -152,3 +153,119 @@ def test_past_deadline_scores_no_urgency_instead_of_maximum() -> None:
     assert urgency_by_id["stale-recurring"] == 0.0
     assert urgency_by_id["live-soon"] > 0.0
     assert reranked_df["scholarship_id"].tolist()[0] == "live-soon"
+
+
+def _requirements_row(
+    scholarship_id: str, requirements: dict[str, object] | None, **extra: object
+) -> dict[str, object]:
+    row: dict[str, object] = {
+        "scholarship_id": scholarship_id,
+        "stage2_score": 0.80,
+        "deadline": _TODAY + timedelta(days=30),
+        "amount_min": 1000.0,
+        "amount_max": 5000.0,
+        "essay_required": False,
+        "requirements": requirements,
+    }
+    row.update(extra)
+    return row
+
+
+def test_effort_counts_use_requirements_when_present() -> None:
+    row = pd.Series(
+        {
+            "essay_required": False,
+            "requirements": {
+                "essay": True,
+                "essay_prompts": ["Why engineering?", "Describe a setback."],
+                "recommendation_letters": 2,
+                "transcript": True,
+                "fafsa": None,
+                "video_or_portfolio": False,
+                "interview": True,
+            },
+        }
+    )
+
+    assert effort_counts(row) == {"essays": 2, "letters": 2, "extras": 2}
+
+
+@pytest.mark.parametrize(
+    "essay_required,expected",
+    [(True, {"essays": 1, "letters": 0, "extras": 0}), (False, {"essays": 0, "letters": 0, "extras": 0})],
+)
+def test_effort_counts_fall_back_to_essay_required(
+    essay_required: bool, expected: dict[str, int]
+) -> None:
+    row = pd.Series({"essay_required": essay_required, "requirements": None})
+
+    assert effort_counts(row) == expected
+
+
+def test_effort_cost_grows_with_requirement_counts_and_preserves_boolean_fallback() -> None:
+    df = pd.DataFrame(
+        [
+            _requirements_row("no-requirements", None),
+            _requirements_row("essay-boolean-only", None, essay_required=True),
+            _requirements_row("one-essay", {"essay_prompts": ["Why engineering?"]}),
+            _requirements_row(
+                "two-essays-two-letters",
+                {"essay_prompts": ["A", "B"], "recommendation_letters": 2},
+            ),
+        ]
+    )
+
+    reranked_df = rerank_stage3(df, today=_TODAY).set_index("scholarship_id")
+
+    assert reranked_df.loc["no-requirements", "effort_cost"] == pytest.approx(1.0)
+    assert reranked_df.loc["essay-boolean-only", "effort_cost"] == pytest.approx(1.5)
+    assert reranked_df.loc["one-essay", "effort_cost"] == pytest.approx(1.5)
+    assert reranked_df.loc["two-essays-two-letters", "effort_cost"] == pytest.approx(2.5)
+
+
+@pytest.mark.parametrize(
+    "extra,expected",
+    [
+        ({"trust": "verified_local"}, True),
+        ({"counties_allowed": ["Guilford"]}, True),
+        ({"states_allowed": ["NC"]}, True),
+        ({"trust": "aggregator", "counties_allowed": [], "states_allowed": []}, False),
+        ({}, False),
+    ],
+)
+def test_is_local_award_flags_small_pools(extra: dict[str, object], expected: bool) -> None:
+    assert is_local_award(pd.Series(extra)) is expected
+
+
+def test_local_boost_lifts_a_restricted_award_over_an_identical_national_one() -> None:
+    df = pd.DataFrame(
+        [
+            _requirements_row("national", None, states_allowed=[], trust="aggregator"),
+            _requirements_row("local", None, states_allowed=["NC"], trust="verified_local"),
+        ]
+    )
+
+    reranked_df = rerank_stage3(df, today=_TODAY).set_index("scholarship_id")
+
+    assert reranked_df.index.tolist()[0] == "local"
+    assert bool(reranked_df.loc["local", "local_award"]) is True
+    assert bool(reranked_df.loc["national", "local_award"]) is False
+    assert reranked_df.loc["local", "final_score"] - reranked_df.loc[
+        "national", "final_score"
+    ] == pytest.approx(Stage3Weights.baseline().local_boost)
+
+
+def test_local_boost_of_zero_leaves_final_score_unchanged() -> None:
+    df = pd.DataFrame(
+        [
+            _requirements_row("national", None),
+            _requirements_row("local", None, trust="verified_local"),
+        ]
+    )
+    weights = Stage3Weights(stage2=0.80, urgency=0.15, ev=0.05, local_boost=0.0)
+
+    reranked_df = rerank_stage3(df, today=_TODAY, weights=weights).set_index("scholarship_id")
+
+    assert reranked_df.loc["local", "final_score"] == pytest.approx(
+        reranked_df.loc["national", "final_score"]
+    )

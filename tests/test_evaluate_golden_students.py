@@ -15,6 +15,7 @@ from scripts.evaluate_golden_students import (
 from src.eval.golden_students import get_golden_students
 from src.eval.human_labels import load_human_labels
 from src.eval.relevance import RelevanceConfig
+from src.rank.weights import Stage3Weights
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SAMPLE_HUMAN_LABELS = ROOT_DIR / "data" / "eval" / "human_labels_sample.csv"
@@ -58,6 +59,7 @@ def test_load_weight_overrides_reads_best_weights_payload(tmp_path: Path) -> Non
         "stage2": 0.95,
         "urgency": 0.05,
         "ev": 0.0,
+        "local_boost": Stage3Weights.baseline().local_boost,
     }
 
 

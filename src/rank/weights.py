@@ -58,14 +58,22 @@ class Stage2Weights:
 
 @dataclass(frozen=True, slots=True)
 class Stage3Weights:
-    """`ev` weights `expected_value_norm` when the win model is enabled, else `ev_proxy_norm`."""
+    """`ev` weights `expected_value_norm` when the win model is enabled, else `ev_proxy_norm`.
+
+    ``local_boost`` is additive and deliberately outside the ``stage2 +
+    urgency + ev`` budget: it is a small nudge for awards with a small
+    applicant pool (locally verified, or restricted to named counties or
+    states), not a fourth ranking objective.  Keep it small enough that it
+    breaks ties rather than reordering strong matches.
+    """
 
     stage2: float
     urgency: float
     ev: float
+    local_boost: float = 0.02
 
     def __post_init__(self) -> None:
-        for field_name in ("stage2", "urgency", "ev"):
+        for field_name in ("stage2", "urgency", "ev", "local_boost"):
             value = float(getattr(self, field_name))
             if not math.isfinite(value):
                 raise ValueError(f"Stage3 weight '{field_name}' must be finite.")
@@ -93,6 +101,7 @@ class Stage3Weights:
             stage2=float(values.get("stage2", baseline.stage2)),
             urgency=float(values.get("urgency", baseline.urgency)),
             ev=float(values.get("ev", baseline.ev)),
+            local_boost=float(values.get("local_boost", baseline.local_boost)),
         )
 
     def to_dict(self) -> dict[str, float]:
@@ -101,4 +110,5 @@ class Stage3Weights:
             "stage2": self.stage2,
             "urgency": self.urgency,
             "ev": self.ev,
+            "local_boost": self.local_boost,
         }
