@@ -8,6 +8,7 @@ from scripts.make_labeling_worksheet import (
     WORKSHEET_COLUMNS,
     _format_amount,
     build_worksheet,
+    get_stored_student,
 )
 from src.eval.golden_students import GoldenStudent
 from src.rank.stage1_eligibility import StudentProfile
@@ -138,3 +139,33 @@ def test_build_worksheet_empty_when_no_eligible_rows() -> None:
 
     assert worksheet.empty
     assert list(worksheet.columns) == WORKSHEET_COLUMNS
+
+
+def test_build_worksheet_top_ranked_returns_ranked_prefix() -> None:
+    worksheet = build_worksheet(_snapshot(), _student(), n=1, top_ranked=True)
+
+    assert len(worksheet) == 1
+    # The ranked prefix is the pipeline's own order, not a random draw.
+    assert worksheet.iloc[0]["scholarship_id"] in {"sch_a", "sch_b"}
+    assert (worksheet["label"] == "").all()
+
+
+def test_get_stored_student_falls_back_to_demo_profile() -> None:
+    subject, is_demo = get_stored_student("no_such_student")
+
+    assert is_demo is True
+    assert subject.student_id
+    assert isinstance(subject.profile, StudentProfile)
+    assert "major" in subject.as_stage2_profile()
+
+
+def test_stored_student_subject_works_as_worksheet_subject() -> None:
+    subject, _ = get_stored_student("no_such_student")
+    permissive = _snapshot()
+    permissive["min_gpa"] = None
+    permissive["education_level"] = None
+
+    worksheet = build_worksheet(permissive, subject, n=10, seed=0)
+
+    assert list(worksheet.columns) == WORKSHEET_COLUMNS
+    assert (worksheet["profile_id"] == subject.student_id).all()

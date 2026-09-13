@@ -1108,17 +1108,22 @@ python scripts/evaluate_golden_students.py --k 10 --human-labels data/eval/human
 ```
 
 **Checklist:**
-- [ ] Re-run golden eval on the curated catalog once it passes 100 confirmed records; replace
+- [x] Re-run golden eval on the curated catalog once it passes 100 confirmed records; replace
       README metric tables and catalog-size notes; keep the historical rows labeled as such
+      *(107 records counting as eligible per design principle 2 — 5 hand-confirmed
+      `verified_local` + 102 trusted `structured_feed`; only 5 are hand-confirmed)*
 - [ ] Generate a labeling worksheet for the student's real profile and have her label her
       top 20; add to `human_labels.csv`; report human NDCG for her profile
-- [ ] README repositioning: product summary first, architecture second, "Data sources" with
+      *(BLOCKED on the student. `make_labeling_worksheet.py` now takes `--student` and
+      `--top-ranked`; no private profile exists on this machine, so the generated worksheet is
+      for the demo profile. No labels were invented, so there is no current human NDCG.)*
+- [x] README repositioning: product summary first, architecture second, "Data sources" with
       attribution, "Family product vs. portfolio library" section, win model reframed as a
       retired-from-product calibration demo
-- [ ] `docs/decisions.md`: dated log starting with the 2026-09-12 review findings and each
+- [x] `docs/decisions.md`: dated log starting with the 2026-09-12 review findings and each
       scope decision in this plan
-- [ ] `docs/system_design.md`: catalog, inbox, timeline, store, and modes sections
-- [ ] Tests + ruff green
+- [x] `docs/system_design.md`: catalog, inbox, timeline, store, and modes sections
+- [x] Tests + ruff green
 
 ---
 

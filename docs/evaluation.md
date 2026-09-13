@@ -111,6 +111,14 @@ The proxy labels above share features with the ranker (keyword overlap, text sim
 
    This writes `data/eval/labeling_worksheet_nc_cs_rising_sophomore.csv` with `scholarship_id`, `title`, `sponsor`, `amount`, `deadline`, `source_url` (for when the snippet is too thin to judge from), a description snippet, and an empty `label` column.
 
+   To label for the **real student** rather than a golden persona, use `--student` instead of `--profile`. It reads `data/private/students/<student_id>.json` and falls back to the committed demo profile with a printed warning when no private profile exists:
+
+   ```powershell
+   python scripts/make_labeling_worksheet.py --student --top-ranked --n 20
+   ```
+
+   `--top-ranked` takes the ranked top-N the student actually sees (Stage 1 → 2 → 3) instead of a random draw across the eligible set. Twenty ranked rows is a realistic ask of a real person, and it is the right sample for measuring *ordering*. It is the wrong sample for measuring *recall*: a top-N label set cannot reveal a good award the ranker buried. Eligible-set sampling therefore stays the default, and `--top-ranked` is the opt-in.
+
 2. **Label by hand.** Fill the `label` column using the **same 0/1/2 rubric as the proxy**:
    - `2` (high): strong fit — major/field, level, and topic all clearly match.
    - `1` (medium): plausible fit — related field or general-eligibility award worth applying to.
@@ -135,6 +143,34 @@ The proxy labels above share features with the ranker (keyword overlap, text sim
    The report adds a **Human-Labeled NDCG Check** section: NDCG@k is computed over only the labeled scholarships, in ranked order, and shown alongside the proxy NDCG. Because human labels do not share features with the ranker, this is a more defensible headline metric.
 
 `data/eval/human_labels_sample.csv` is a small committed fixture that exercises this path; replace or extend it with a fully labeled worksheet to report a real human-judged NDCG.
+
+### Human labels are pinned to the snapshot they were made on
+
+Human labels join to the ranking on `scholarship_id`, so a label set is only valid against
+catalogs that still contain those ids. Two things break that join: a change to canonical id
+generation, and ordinary catalog turnover.
+
+Both have happened. `data/eval/human_labels.csv` (44 pairs across 2 profiles) was labeled on the
+**51-record 2026-06-27 snapshot**. Task 1.1 then re-keyed curated records to hash `catalog_id`
+alone, and the catalog itself turned over when Bold.org was disabled and the Open Scholarships
+feed was added. Overlap between that label set and the current snapshot is **zero**, and only 5
+of the 44 pairs survive even by title match — far too few to carry an NDCG@10.
+
+So the historical human NDCG is reported against its own snapshot, which reproduces exactly:
+
+```powershell
+python scripts/evaluate_golden_students.py --k 10 `
+  --human-labels data/eval/human_labels.csv `
+  --snapshot data/processed/scholarships_snapshot_20260627.parquet
+```
+
+Run against the current snapshot, the same command correctly reports `Human NDCG@K: N/A` and
+`Profiles with labels: 0` rather than silently scoring a partial join. That is the intended
+behavior: unlabeled rows are excluded, not zero-filled.
+
+**The fix is re-labeling, not re-keying.** Rewriting the committed ids by title match would make
+the number reappear without anyone having judged the current catalog. Generate a fresh worksheet
+against the current snapshot and label it.
 
 ## Limitations with Small Catalogs
 

@@ -5,17 +5,34 @@ avoid ranking bias in the label set) and writes a CSV with an empty ``label``
 column for a human to fill with 0/1/2 relevance judgements. The completed CSV is
 consumed by ``evaluate_golden_students.py --human-labels`` to report a
 human-judged NDCG@k alongside the proxy metric.
+
+``--profile`` targets a golden evaluation persona.  ``--student`` targets the
+real student stored under ``data/private/students/`` (falling back to the
+committed demo profile), so the family's own labels can enter the evaluation
+set.  ``--top-ranked`` samples the ranked prefix the student actually sees
+instead of the eligible set; it is the faster ask of a real person, at the cost
+of a label set that cannot reveal awards the ranker missed.
 """
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Protocol
 
 import pandas as pd
 
 from src.eval.golden_students import GoldenStudent, get_golden_student
 from src.io.snapshotting import get_latest_snapshot_path
-from src.rank.stage1_eligibility import apply_eligibility_filter
+from src.profile.store import (
+    DEFAULT_STUDENT_ID,
+    load_profile_or_demo,
+    to_stage1_profile,
+    to_stage2_profile,
+)
+from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
+from src.rank.stage2_scoring import score_stage2
+from src.rank.stage3_rerank import rerank_stage3
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "data" / "eval"
@@ -34,12 +51,44 @@ WORKSHEET_COLUMNS = [
 ]
 
 
+class WorksheetSubject(Protocol):
+    """The slice of a student a worksheet needs: an id and both stage profiles."""
+
+    student_id: str
+    profile: StudentProfile
+
+    def as_stage2_profile(self) -> dict[str, Any]: ...
+
+
+@dataclass(frozen=True)
+class StoredStudentSubject:
+    """Adapts a stored private/demo profile to the :class:`WorksheetSubject` shape."""
+
+    student_id: str
+    profile: StudentProfile
+    stage2_profile: dict[str, Any]
+
+    def as_stage2_profile(self) -> dict[str, Any]:
+        return dict(self.stage2_profile)
+
+
 def get_student_by_id(profile_id: str) -> GoldenStudent:
     """Return the golden student with ``profile_id`` or exit with a CLI-friendly message."""
     try:
         return get_golden_student(profile_id)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
+
+
+def get_stored_student(student_id: str) -> tuple[StoredStudentSubject, bool]:
+    """Return the stored student subject and whether it fell back to the demo profile."""
+    stored, is_demo = load_profile_or_demo(student_id)
+    subject = StoredStudentSubject(
+        student_id=str(stored.get("student_id") or student_id),
+        profile=to_stage1_profile(stored),
+        stage2_profile=to_stage2_profile(stored),
+    )
+    return subject, is_demo
 
 
 def _format_amount(row: pd.Series) -> str:
@@ -77,18 +126,22 @@ def _description_snippet(text: object) -> str:
 
 def build_worksheet(
     snapshot_df: pd.DataFrame,
-    student: GoldenStudent,
+    student: WorksheetSubject,
     *,
     n: int,
     seed: int = 0,
+    top_ranked: bool = False,
+    similarity_mode: str = "tfidf",
 ) -> pd.DataFrame:
-    """Return a labeling worksheet sampled across ``student``'s eligible set.
+    """Return a labeling worksheet for ``student``.
 
     Args:
         snapshot_df: Full scholarship snapshot DataFrame.
-        student: Golden student whose eligibility set is sampled.
+        student: Subject whose eligibility set is sampled.
         n: Target number of rows; capped at the eligible-set size.
         seed: Deterministic sampling seed.
+        top_ranked: Take the ranked top-``n`` instead of a random eligible sample.
+        similarity_mode: Stage 2 similarity mode used when ``top_ranked`` is set.
 
     Returns:
         DataFrame with :data:`WORKSHEET_COLUMNS`; the ``label`` column is empty.
@@ -98,7 +151,20 @@ def build_worksheet(
         return pd.DataFrame(columns=WORKSHEET_COLUMNS)
 
     sample_n = min(int(n), len(eligible_df))
-    sampled = eligible_df.sample(n=sample_n, random_state=seed).sort_values("scholarship_id")
+    if top_ranked:
+        scored_df = score_stage2(
+            eligible_df,
+            student.as_stage2_profile(),
+            similarity_mode=similarity_mode,
+        )
+        reranked_df = rerank_stage3(
+            scored_df,
+            today=student.profile.today,
+            profile=student.profile,
+        )
+        sampled = reranked_df.head(sample_n)
+    else:
+        sampled = eligible_df.sample(n=sample_n, random_state=seed).sort_values("scholarship_id")
 
     rows: list[dict[str, object]] = []
     for _, row in sampled.iterrows():
@@ -122,11 +188,31 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Emit a human-labeling worksheet CSV for a golden profile."
     )
-    parser.add_argument(
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument(
         "--profile",
         type=str,
-        required=True,
         help="Golden profile id to sample (e.g. nc_cs_rising_sophomore).",
+    )
+    target.add_argument(
+        "--student",
+        type=str,
+        nargs="?",
+        const=DEFAULT_STUDENT_ID,
+        help="Stored student id under data/private/students/ (default: "
+        f"{DEFAULT_STUDENT_ID}). Falls back to the committed demo profile.",
+    )
+    parser.add_argument(
+        "--top-ranked",
+        action="store_true",
+        help="Sample the ranked top-N the student actually sees instead of a random "
+        "draw across the eligible set. Faster to label; cannot reveal missed awards.",
+    )
+    parser.add_argument(
+        "--similarity-mode",
+        choices=("tfidf", "embeddings"),
+        default="tfidf",
+        help="Stage 2 similarity mode used by --top-ranked. Defaults to tfidf.",
     )
     parser.add_argument(
         "--n",
@@ -176,17 +262,36 @@ def main() -> int:
     if args.n <= 0:
         raise SystemExit("--n must be greater than 0.")
 
-    student = get_student_by_id(args.profile)
+    student: WorksheetSubject
+    if args.profile is not None:
+        student = get_student_by_id(args.profile)
+    else:
+        student, is_demo = get_stored_student(args.student)
+        if is_demo:
+            print(
+                f"No private profile for '{args.student}'; using the committed demo profile. "
+                "Labels from this worksheet describe the demo student, not a real one."
+            )
+
     snapshot_path = _resolve_snapshot_path(args.snapshot, args.processed_dir)
     snapshot_df = pd.read_parquet(snapshot_path)
 
-    worksheet = build_worksheet(snapshot_df, student, n=args.n, seed=args.seed)
+    worksheet = build_worksheet(
+        snapshot_df,
+        student,
+        n=args.n,
+        seed=args.seed,
+        top_ranked=args.top_ranked,
+        similarity_mode=args.similarity_mode,
+    )
     if worksheet.empty:
-        raise SystemExit(f"No eligible scholarships for profile '{args.profile}' in '{snapshot_path}'.")
+        raise SystemExit(
+            f"No eligible scholarships for profile '{student.student_id}' in '{snapshot_path}'."
+        )
 
     output_dir = args.output_dir if args.output_dir.is_absolute() else ROOT_DIR / args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"labeling_worksheet_{args.profile}.csv"
+    output_path = output_dir / f"labeling_worksheet_{student.student_id}.csv"
     worksheet.to_csv(output_path, index=False, encoding="utf-8")
 
     print(f"Wrote labeling worksheet ({len(worksheet)} rows): {output_path}")
