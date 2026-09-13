@@ -1077,12 +1077,12 @@ ruff check src/ scripts/ app/ tests/
 ```
 
 **Checklist:**
-- [ ] `src/rank/whatif.py`: `whatif_eligibility(df, profile, overrides) -> summary` returning
+- [x] `src/rank/whatif.py`: `whatif_eligibility(df, profile, overrides) -> summary` returning
       newly eligible awards, newly ineligible, and total award dollars unlocked, by bucket
-- [ ] UI: sliders/inputs for GPA, SAT/ACT, service hours, first-gen/need flags; shows the
+- [x] UI: sliders/inputs for GPA, SAT/ACT, service hours, first-gen/need flags; shows the
       delta list with reasons cleared
-- [ ] Tests: GPA threshold unlock, test-score unlock, no-op override
-- [ ] Tests + ruff green
+- [x] Tests: GPA threshold unlock, test-score unlock, no-op override
+- [x] Tests + ruff green
 
 ---
 

@@ -25,9 +25,16 @@ def test_available_modes_hides_operator_unless_enabled() -> None:
     assert modes.available_modes(True) == ("student", "parent", "operator")
 
 
-def test_student_sections_are_the_four_daily_surfaces_plus_find() -> None:
+def test_student_sections_are_the_daily_surfaces_plus_find_and_what_if() -> None:
     sections = modes.sections_for_mode("student")
-    assert sections == ("this_week", "find", "applications", "essays", "recommenders")
+    assert sections == (
+        "this_week",
+        "find",
+        "applications",
+        "essays",
+        "recommenders",
+        "what_if",
+    )
 
 
 def test_parent_sections_extend_student_sections() -> None:

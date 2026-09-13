@@ -54,6 +54,7 @@ from src.rank.timeline import (
     classify_timeline,
 )
 from src.rank.weights import Stage2Weights, Stage3Weights
+from src.rank.whatif import WHATIF_FIELD_LABELS, WhatIfAward, whatif_eligibility
 from src.store import calendar_feed, essays, milestones, money, repo, tracker
 from src.store.db import open_db
 from src.text_utils import coerce_text
@@ -383,6 +384,22 @@ def _effective_today(profile: dict[str, Any]) -> date:
     if profile.get("use_today_override"):
         return date.fromisoformat(str(profile.get("today_override")))
     return date.today()
+
+
+def _active_snapshot_path() -> str | None:
+    """Return the snapshot the app should read, remembering it for later reruns."""
+    snapshot_path_text = st.session_state.latest_snapshot_path
+    if snapshot_path_text is None:
+        try:
+            latest = get_latest_snapshot_path()
+        except FileNotFoundError:
+            latest = None
+        if latest is not None:
+            snapshot_path_text = str(latest.resolve())
+            st.session_state.latest_snapshot_path = snapshot_path_text
+    if snapshot_path_text is None or not Path(snapshot_path_text).exists():
+        return None
+    return str(snapshot_path_text)
 
 
 def _build_stage1_profile(profile: dict[str, Any]) -> StudentProfile:
@@ -993,19 +1010,9 @@ def _render_find_section() -> None:
         active_amount_utility_mode = "log"
         active_weights_label = "baseline"
 
-    snapshot_path_text = st.session_state.latest_snapshot_path
-    if snapshot_path_text is None:
-        latest = None
-        try:
-            latest = get_latest_snapshot_path()
-        except FileNotFoundError:
-            latest = None
-        if latest is not None:
-            snapshot_path_text = str(latest.resolve())
-            st.session_state.latest_snapshot_path = snapshot_path_text
-
-    has_snapshot = snapshot_path_text is not None and Path(snapshot_path_text).exists()
-    if has_snapshot:
+    snapshot_path_text = _active_snapshot_path()
+    has_snapshot = snapshot_path_text is not None
+    if snapshot_path_text is not None:
         st.info(f"Active snapshot: {Path(snapshot_path_text).name}")
     else:
         st.info(
@@ -2639,6 +2646,138 @@ def _render_milestone_settings(conn: Any) -> None:
             st.rerun()
 
 
+def _render_what_if_award_list(
+    title: str, awards: list[WhatIfAward], *, reason_caption: str
+) -> None:
+    if not awards:
+        return
+    st.markdown(f"**{title}**")
+    for award in awards:
+        with st.container(border=True):
+            st.markdown(f"**{award.title or award.scholarship_id}**")
+            bucket_label = TIMELINE_BUCKET_LABELS.get(
+                award.timeline_bucket, award.timeline_bucket
+            )
+            columns = st.columns(2)
+            with columns[0]:
+                st.caption(f"{_money_text(award.amount)} · {bucket_label}")
+            with columns[1]:
+                if award.reason_text:
+                    st.caption(f"{reason_caption} {award.reason_text}")
+
+
+def _render_what_if_section() -> None:
+    st.subheader(modes.SECTION_LABELS["what_if"])
+    st.caption(
+        "Change one thing about the profile and see which awards open up. "
+        "Nothing here is saved — the stored profile is untouched."
+    )
+
+    snapshot_path_text = _active_snapshot_path()
+    if snapshot_path_text is None:
+        st.info("No snapshot available yet. Run an update under Find Scholarships first.")
+        return
+
+    stage1_profile = _build_stage1_profile(st.session_state.profile)
+
+    col_gpa, col_hours = st.columns(2)
+    with col_gpa:
+        gpa = st.slider(
+            WHATIF_FIELD_LABELS["gpa"],
+            min_value=0.0,
+            max_value=4.0,
+            value=float(stage1_profile.gpa or 0.0),
+            step=0.05,
+        )
+    with col_hours:
+        service_hours = st.slider(
+            WHATIF_FIELD_LABELS["service_hours"],
+            min_value=0,
+            max_value=500,
+            value=int(stage1_profile.service_hours or 0),
+            step=10,
+        )
+
+    col_sat, col_act = st.columns(2)
+    with col_sat:
+        sat = st.number_input(
+            WHATIF_FIELD_LABELS["sat"],
+            min_value=0,
+            max_value=1600,
+            value=int(stage1_profile.sat or 0),
+            step=10,
+            help="0 means no score yet.",
+        )
+    with col_act:
+        act = st.number_input(
+            WHATIF_FIELD_LABELS["act"],
+            min_value=0,
+            max_value=36,
+            value=int(stage1_profile.act or 0),
+            step=1,
+            help="0 means no score yet.",
+        )
+
+    col_first_gen, col_need = st.columns(2)
+    with col_first_gen:
+        first_gen = st.checkbox(
+            WHATIF_FIELD_LABELS["first_gen"], value=bool(stage1_profile.first_gen)
+        )
+    with col_need:
+        financial_need = st.checkbox(
+            WHATIF_FIELD_LABELS["financial_need"], value=bool(stage1_profile.financial_need)
+        )
+
+    overrides: dict[str, Any] = {
+        "gpa": float(gpa),
+        "service_hours": int(service_hours),
+        "sat": int(sat) or None,
+        "act": int(act) or None,
+        "first_gen": bool(first_gen),
+        "financial_need": bool(financial_need),
+    }
+
+    try:
+        snapshot_df = _load_snapshot_cached(snapshot_path_text)
+        summary = whatif_eligibility(snapshot_df, stage1_profile, overrides)
+    except Exception as exc:
+        st.error(f"What-if failed: {exc}")
+        return
+
+    if not summary.overrides:
+        st.info("Nothing changed yet — move a slider or flip a checkbox above.")
+        return
+
+    changed_text = ", ".join(
+        f"{WHATIF_FIELD_LABELS.get(name, name)} → {value}"
+        for name, value in summary.overrides.items()
+    )
+    st.caption(f"Asking: {changed_text}")
+
+    col_opened, col_closed, col_dollars = st.columns(3)
+    col_opened.metric("Newly eligible", len(summary.newly_eligible))
+    col_closed.metric("No longer eligible", len(summary.newly_ineligible))
+    col_dollars.metric("Dollars unlocked", _money_text(summary.dollars_unlocked))
+
+    if summary.is_noop:
+        st.info("That change does not open or close any award in this catalog.")
+        return
+
+    if summary.dollars_by_bucket:
+        st.markdown("**Dollars unlocked by timeline**")
+        for bucket, dollars in summary.dollars_by_bucket.items():
+            st.caption(
+                f"{TIMELINE_BUCKET_LABELS.get(bucket, bucket)}: {_money_text(dollars)}"
+            )
+
+    _render_what_if_award_list(
+        "Opens up", summary.newly_eligible, reason_caption="Clears:"
+    )
+    _render_what_if_award_list(
+        "Closes off", summary.newly_ineligible, reason_caption="Blocked by:"
+    )
+
+
 def _render_settings_section() -> None:
     st.subheader(modes.SECTION_LABELS["settings"])
     try:
@@ -2699,6 +2838,8 @@ def main() -> None:
         _render_colleges_money_section()
     elif section == "catalog_inbox":
         _render_catalog_inbox_section()
+    elif section == "what_if":
+        _render_what_if_section()
     elif section == "settings":
         _render_settings_section()
     else:

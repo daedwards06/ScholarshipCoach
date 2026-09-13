@@ -54,6 +54,7 @@ SECTION_LABELS: dict[str, str] = {
     "applications": "My Applications",
     "essays": "Essays",
     "recommenders": "Recommenders",
+    "what_if": "What If",
     "catalog_inbox": "Catalog & Inbox",
     "timeline": "Timeline",
     "colleges_money": "Colleges & Money",
@@ -62,13 +63,15 @@ SECTION_LABELS: dict[str, str] = {
 }
 
 # "find" is today's ranked-results surface. It sits in the student list because
-# saving an award (Task 3.3) starts from a ranked card.
+# saving an award (Task 3.3) starts from a ranked card.  "what_if" is a student
+# surface too: the record it asks about is the student's to build.
 STUDENT_SECTIONS: tuple[str, ...] = (
     "this_week",
     "find",
     "applications",
     "essays",
     "recommenders",
+    "what_if",
 )
 
 PARENT_ONLY_SECTIONS: tuple[str, ...] = (
