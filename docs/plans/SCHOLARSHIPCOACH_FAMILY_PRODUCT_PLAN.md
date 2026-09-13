@@ -1051,12 +1051,12 @@ streamlit run app/main.py --server.address 0.0.0.0   # reachable from a phone on
 ```
 
 **Checklist:**
-- [ ] Decide and document one of: home PC on the LAN with the parent PIN, or a private
+- [x] Decide and document one of: home PC on the LAN with the parent PIN, or a private
       network overlay (Tailscale) for off-network access; no public deployment
-- [ ] Phone-width pass on student view: cards, This Week, essay editor usable at ~400px
-- [ ] `docs/operations.md`: start on boot, backups of `data/private/` (zip to a second
+- [x] Phone-width pass on student view: cards, This Week, essay editor usable at ~400px
+- [x] `docs/operations.md`: start on boot, backups of `data/private/` (zip to a second
       location weekly), restore steps
-- [ ] Tests + ruff green
+- [x] Tests + ruff green
 
 ---
 

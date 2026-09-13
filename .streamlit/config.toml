@@ -7,3 +7,14 @@ font = "sans serif"
 
 [server]
 headless = true
+# Left unset on purpose: the app binds to localhost unless the family hosting
+# script passes --server.address 0.0.0.0. See docs/operations.md.
+
+[browser]
+# Personal profile and application data live in this app; no telemetry leaves
+# the house.
+gatherUsageStats = false
+
+[client]
+# A student opening this on a phone should not meet the developer toolbar.
+toolbarMode = "minimal"

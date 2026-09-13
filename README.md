@@ -286,7 +286,25 @@ python scripts\tune_weights.py \
 streamlit run app/main.py
 ```
 
-**Deployment note:** The app theme is configured in `.streamlit/config.toml` with a dark palette optimized for readability. No additional setup is required — Streamlit will automatically apply the theme on launch.
+The theme, telemetry opt-out, and minimal toolbar are configured in `.streamlit/config.toml` —
+no additional setup is required on launch.
+
+### 6 — Serve it to the family (optional)
+
+The app is designed to run on one home PC and be opened from a phone on the same Wi-Fi. It
+binds to localhost by default; LAN exposure is opt-in and explicit:
+
+```powershell
+streamlit run app/main.py --server.address 0.0.0.0
+```
+
+Set a `parent_pin` in `.streamlit/secrets.toml` (git-ignored) first — it gates Parent and
+Operator modes while leaving the student's daily view open. **There is no public deployment:**
+`data/private/` holds a real student's profile, essays, and application history, so off-network
+access goes through a private network overlay (Tailscale), never a hosted URL.
+
+See [`docs/operations.md`](docs/operations.md) for the full runbook — start on boot, firewall
+scope, weekly backups of `data/private/`, and restore steps.
 
 ---
 

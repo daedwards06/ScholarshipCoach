@@ -9,6 +9,56 @@ from src.rank.stage3_rerank import effort_counts, is_local_award
 from src.text_utils import coerce_text
 
 
+# Streamlit stacks ``st.columns`` to full width below this width on its own, so
+# the rules below only have to fix what stacking does not: tap targets, the
+# 16px input floor that stops iOS zooming on focus, and page padding.
+PHONE_BREAKPOINT_PX = 640
+
+# 44px is the smallest comfortable tap target on a phone.
+_MIN_TAP_TARGET_REM = 2.75
+
+# Below 16px, mobile Safari zooms the page when an input takes focus and does
+# not zoom back out -- which is how the essay editor becomes unusable.
+_MIN_INPUT_FONT_REM = 1.0
+
+
+def phone_width_css() -> str:
+    """Return the stylesheet that makes the student surfaces usable at ~400px.
+
+    Streamlit class names are not a public API, so every rule here is an
+    improvement on a layout that already works without it: if a selector stops
+    matching, the page degrades to Streamlit's own responsive behaviour.
+    """
+    return f"""<style>
+@media (max-width: {PHONE_BREAKPOINT_PX}px) {{
+  [data-testid="stMainBlockContainer"] {{
+    padding: 1.5rem 1rem 4rem;
+  }}
+  [data-testid="stButton"] button,
+  [data-testid="stFormSubmitButton"] button,
+  [data-testid="stLinkButton"] a,
+  [data-testid="stDownloadButton"] button {{
+    width: 100%;
+    min-height: {_MIN_TAP_TARGET_REM}rem;
+  }}
+  [data-testid="stTextInput"] input,
+  [data-testid="stTextArea"] textarea,
+  [data-testid="stNumberInput"] input,
+  [data-testid="stDateInput"] input {{
+    font-size: {_MIN_INPUT_FONT_REM}rem;
+  }}
+  [data-testid="stExpander"] summary {{
+    min-height: {_MIN_TAP_TARGET_REM}rem;
+  }}
+  [data-testid="stJson"],
+  [data-testid="stMainBlockContainer"] pre {{
+    max-width: 100%;
+    overflow-x: auto;
+  }}
+}}
+</style>"""
+
+
 def format_amount_range(amount_min: Any, amount_max: Any) -> str:
     min_value = _coerce_amount(amount_min)
     max_value = _coerce_amount(amount_max)

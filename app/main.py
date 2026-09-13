@@ -15,6 +15,7 @@ from app import modes
 from app.helpers import (
     explain_ranked_row,
     format_amount_range,
+    phone_width_css,
     reasons_to_text,
     unverified_to_text,
 )
@@ -2665,6 +2666,7 @@ def _render_pending_section(section: str) -> None:
 
 def main() -> None:
     st.set_page_config(page_title="Scholarship Coach", layout="wide")
+    st.markdown(phone_width_css(), unsafe_allow_html=True)
     st.title("Scholarship Coach")
     st.caption("Find scholarships matched to your profile")
 
