@@ -25,7 +25,7 @@ Optional fields cover the eligibility axes Stage 1 reads: `education_level`, `gr
 `majors_allowed`, `states_allowed`, `counties_allowed`, `min_gpa`, `citizenship`, `need_based`,
 `first_gen_only`, `gender`, `heritage`, `military_family`, `disability`, `religion`,
 `employer_restricted`, `membership_required`, `min_test_scores`, plus `requirements`,
-`renewal_terms`, `cycle` and `notes`.
+`renewal_terms`, `cycle`, `notes` and `aliases`.
 
 Schema changes are additive. An older snapshot, an older golden profile, and an older test all
 keep working after a new field is introduced.
@@ -52,6 +52,24 @@ source domain.
 `structured_feed`, `aggregator`, `other`) and carries `verified_on` / `verified_by` once a person
 has checked it. Feed records additionally carry `license` and the `attribution` string that
 license requires, so the credit travels with the row into every snapshot.
+
+### Cross-source dedupe
+
+The same award reaches the snapshot from more than one source, under different ids and often
+different titles. Ingest collapses those rows so the student sees one card, not two.
+
+Two rows are the same award when they share a normalized source URL (host plus path, with the
+scheme, `www.`, query and trailing slash stripped), a normalized `(title, sponsor)` pair (titles
+lose punctuation and the filler words `the`, `program`, `scholarship`), or when one record names
+the other's title in its `aliases` list — the escape hatch for the cases where the two titles
+have no words in common. A bare host with no path never matches: several awards can share a
+sponsor's home page.
+
+The surviving row is the most trusted one, `verified_local` over `structured_feed` over
+`aggregator` over `unverified`, with ties going to the earlier source in `register_sources`
+order. It records what it won out over in `superseded_ids`, the run report counts the drops per
+source under `records.superseded`, and the delta lists each dropped row as `removed` with
+`removed_reason: superseded` and the winner's id, so a merge never reads as a lost award.
 
 ### Source configuration
 

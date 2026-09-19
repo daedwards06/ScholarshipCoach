@@ -120,6 +120,12 @@
         }
       }
     },
-    "notes": { "type": ["string", "null"] }
+    "notes": { "type": ["string", "null"] },
+    "aliases": {
+      "type": "array",
+      "description": "Other titles this award is listed under. A feed row whose title matches an alias is superseded by this record at ingest, for the cases where title normalization alone cannot match them.",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
   }
 }

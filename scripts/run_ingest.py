@@ -22,6 +22,7 @@ from src.io.snapshotting import (
     CATALOG_LIST_COLUMNS,
     LLM_PROVENANCE_COLUMN,
     REQUIRED_COLUMNS,
+    SUPERSEDED_IDS_COLUMN,
     build_and_write_snapshot,
     find_prior_snapshot,
     get_latest_snapshot_path as _get_latest_snapshot_path,
@@ -36,13 +37,18 @@ from src.llm.cache import (
 )
 from src.llm.client import DEFAULT_MODEL, MODEL_ENV, LlmClient, client_from_env
 from src.llm.extraction import EXTRACTION_FIELDS, EXTRACTION_PROMPT_VERSION
-from src.text_utils import coerce_text
+from src.text_utils import coerce_text, normalize_text, normalize_title_for_match
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
 logger = logging.getLogger("run_ingest")
 
 _NORMALIZED_COLUMNS = [*REQUIRED_COLUMNS, *CATALOG_COLUMNS]
+
+# Highest trust wins a cross-source duplicate; anything else ranks below these.
+TRUST_PRECEDENCE = ("verified_local", "structured_feed", "aggregator", "unverified")
+_TRUST_RANK = {value: index for index, value in enumerate(TRUST_PRECEDENCE)}
+_UNKNOWN_TRUST_RANK = len(TRUST_PRECEDENCE)
 
 LLM_SOURCE_TEXT_FIELDS = ("title", "description", "eligibility_text")
 LLM_LIST_FIELDS = ("states_allowed", "majors_allowed", "keywords")
@@ -176,9 +182,27 @@ def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
     return df[_NORMALIZED_COLUMNS]
 
 
-def _dedupe_records(df: pd.DataFrame) -> pd.DataFrame:
+def _url_match_key(value: Any) -> str:
+    """Return ``host + path`` for cross-source matching (``""`` when unusable).
+
+    A bare host with no path is not an award identity — several awards can share
+    a sponsor's home page — so it yields no key.
+    """
+    normalized = _normalize_url_for_dedupe(value)
+    if not normalized:
+        return ""
+    parsed = urlparse(normalized)
+    if not parsed.netloc or parsed.path in ("", "/"):
+        return ""
+    return f"{parsed.netloc}{parsed.path}"
+
+
+def _dedupe_records(
+    df: pd.DataFrame, *, source_order: Sequence[str] | None = None
+) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Collapse duplicate records and return ``(df, {source: superseded_count})``."""
     if df.empty:
-        return df
+        return df, {}
 
     dedupe_df = df.copy()
     dedupe_df["_source_url_normalized"] = dedupe_df["source_url"].apply(_normalize_url_for_dedupe)
@@ -190,7 +214,121 @@ def _dedupe_records(df: pd.DataFrame) -> pd.DataFrame:
     )
     dedupe_df = dedupe_df.drop(columns=["_source_url_normalized"])
     dedupe_df = dedupe_df.drop_duplicates(subset=["scholarship_id"], keep="first")
-    return dedupe_df.reset_index(drop=True)
+    dedupe_df = dedupe_df.reset_index(drop=True)
+    return _collapse_cross_source_duplicates(dedupe_df, source_order=source_order)
+
+
+def _collapse_cross_source_duplicates(
+    df: pd.DataFrame, *, source_order: Sequence[str] | None
+) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Keep one row per award across sources, the most trusted row winning.
+
+    Two rows are the same award when they share a normalized URL (host + path),
+    a normalized ``(title, sponsor)`` pair, or when one record names the other's
+    title in ``aliases``.  The winner ranks first by :data:`TRUST_PRECEDENCE`,
+    then by ``register_sources`` order, then by ``scholarship_id``, so the
+    outcome never depends on the order the sources happened to run in.
+    """
+    order = (
+        list(source_order)
+        if source_order is not None
+        else [source.name for source in register_sources()]
+    )
+    source_rank = {name: index for index, name in enumerate(order)}
+
+    parent = {index: index for index in df.index}
+
+    def find(index: int) -> int:
+        root = index
+        while parent[root] != root:
+            root = parent[root]
+        while parent[index] != root:
+            parent[index], index = root, parent[index]
+        return root
+
+    def union(left: int, right: int) -> None:
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parent[max(left_root, right_root)] = min(left_root, right_root)
+
+    url_groups: dict[str, int] = {}
+    title_groups: dict[tuple[str, str], int] = {}
+    rows_by_title: dict[str, list[int]] = {}
+    alias_claims: list[tuple[int, str]] = []
+    has_aliases = "aliases" in df.columns
+
+    for index in df.index:
+        url_key = _url_match_key(df.at[index, "source_url"])
+        if url_key:
+            if url_key in url_groups:
+                union(url_groups[url_key], index)
+            else:
+                url_groups[url_key] = index
+
+        title_key = normalize_title_for_match(df.at[index, "title"])
+        if title_key:
+            sponsor_key = normalize_text(df.at[index, "sponsor"])
+            if (title_key, sponsor_key) in title_groups:
+                union(title_groups[(title_key, sponsor_key)], index)
+            else:
+                title_groups[(title_key, sponsor_key)] = index
+            rows_by_title.setdefault(title_key, []).append(index)
+
+        if has_aliases:
+            for alias in _coerce_list(df.at[index, "aliases"]) or []:
+                alias_key = normalize_title_for_match(alias)
+                if alias_key:
+                    alias_claims.append((index, alias_key))
+
+    for index, alias_key in alias_claims:
+        for other in rows_by_title.get(alias_key, ()):
+            if other != index:
+                union(index, other)
+
+    groups: dict[int, list[int]] = {}
+    for index in df.index:
+        groups.setdefault(find(index), []).append(index)
+
+    def precedence(index: int) -> tuple[int, int, str]:
+        trust = normalize_text(df.at[index, "trust"])
+        return (
+            _TRUST_RANK.get(trust, _UNKNOWN_TRUST_RANK),
+            source_rank.get(str(df.at[index, "source"]), len(source_rank)),
+            str(df.at[index, "scholarship_id"]),
+        )
+
+    superseded_ids: dict[int, list[str]] = {}
+    superseded_counts: dict[str, int] = {}
+    losing_rows: list[int] = []
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        winner, *losers = sorted(members, key=precedence)
+        superseded_ids[winner] = sorted(str(df.at[index, "scholarship_id"]) for index in losers)
+        for index in losers:
+            source_name = str(df.at[index, "source"])
+            superseded_counts[source_name] = superseded_counts.get(source_name, 0) + 1
+        losing_rows.extend(losers)
+        logger.info(
+            "Record %s from source %s superseded %d duplicate row(s): %s",
+            df.at[winner, "scholarship_id"],
+            df.at[winner, "source"],
+            len(losers),
+            ", ".join(superseded_ids[winner]),
+        )
+
+    prior_column = SUPERSEDED_IDS_COLUMN if SUPERSEDED_IDS_COLUMN in df.columns else None
+    result = df.drop(index=losing_rows)
+    result[SUPERSEDED_IDS_COLUMN] = [
+        sorted(
+            {
+                *(_coerce_list(df.at[index, prior_column]) or [] if prior_column else []),
+                *superseded_ids.get(index, []),
+            }
+        )
+        for index in result.index
+    ]
+    return result.reset_index(drop=True), dict(sorted(superseded_counts.items()))
 
 
 def _resolve_llm_model_name(client: LlmClient | None) -> str:
@@ -403,7 +541,7 @@ def _carry_forward_prior_records(
 
     keep_columns = [
         column
-        for column in (*_NORMALIZED_COLUMNS, LLM_PROVENANCE_COLUMN)
+        for column in (*_NORMALIZED_COLUMNS, LLM_PROVENANCE_COLUMN, SUPERSEDED_IDS_COLUMN)
         if column in carried.columns
     ]
     combined = pd.concat([current_df, carried[keep_columns]], ignore_index=True)
@@ -547,6 +685,7 @@ def run_ingest(
     normalized_df = pd.DataFrame(columns=_NORMALIZED_COLUMNS)
     guardrail_warnings: list[str] = []
     carried_forward: dict[str, int] = {}
+    superseded: dict[str, int] = {}
     prior_count: int | None = None
     prior_snapshot_path: Path | None = None
     snapshot_path: Path | None = None
@@ -563,6 +702,7 @@ def run_ingest(
     try:
         sources = register_sources()
         enabled_source_names = {source.name for source in sources}
+        source_order = [source.name for source in sources]
         if only_sources is not None:
             wanted = {str(name) for name in only_sources}
             sources = [source for source in sources if source.name in wanted]
@@ -635,7 +775,13 @@ def run_ingest(
             client.close()
 
         normalized_df = _normalize_records(source_records)
-        normalized_df = _dedupe_records(normalized_df)
+        normalized_df, superseded = _dedupe_records(normalized_df, source_order=source_order)
+        for source_name, superseded_count in superseded.items():
+            logger.info(
+                "Superseded %d record(s) from source %s; a more trusted source carries them.",
+                superseded_count,
+                source_name,
+            )
 
         if llm_enrich and not normalized_df.empty:
             llm_client = client_from_env()
@@ -813,6 +959,8 @@ def run_ingest(
                 "prior_snapshot_total": prior_count,
                 "carried_forward": carried_forward,
                 "carried_forward_total": sum(carried_forward.values()),
+                "superseded": superseded,
+                "superseded_total": sum(superseded.values()),
                 "missing_title_or_source_url_count": missing_title_or_source_count,
                 "missing_title_or_source_url_pct": (
                     round((missing_title_or_source_count / len(normalized_df)) * 100, 3)
@@ -890,6 +1038,12 @@ def main() -> int:
         f"removed={report['delta_counts']['removed']}, "
         f"changed={report['delta_counts']['changed']}"
     )
+    if report["records"]["superseded_total"]:
+        print(
+            "Superseded duplicates: "
+            f"{report['records']['superseded_total']} "
+            f"({report['records']['superseded']})"
+        )
     if args.llm_enrich:
         llm_report = report["llm_enrichment"]
         print(

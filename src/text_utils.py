@@ -16,9 +16,13 @@ Notable behavioral contract
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Iterable
 
 import pandas as pd
+
+_TITLE_STOPWORDS = frozenset({"the", "program", "scholarship", "scholarships"})
+_NON_ALPHANUMERIC = re.compile(r"[^a-z0-9]+")
 
 
 def normalize_text(value: Any, *, default: str = "") -> str:
@@ -131,3 +135,32 @@ def normalize_list(value: Any) -> list[str]:
     if isinstance(value, Iterable):
         return [item for item in (normalize_text(v) for v in value) if item]
     return []
+
+
+def normalize_title_for_match(value: Any) -> str:
+    """Normalize an award title so the same award matches across sources.
+
+    Lowercases, replaces every run of punctuation with a single space, and
+    drops the filler words that sources add or omit freely (``the``,
+    ``program``, ``scholarship``/``scholarships``).  Intended for identity
+    matching only, never for display.
+
+    Args:
+        value: The title to normalize.  ``None`` and pandas NA yield ``""``.
+
+    Returns:
+        The normalized title, or ``""`` when nothing meaningful remains.
+
+    Examples:
+        >>> normalize_title_for_match("The Dell Scholars Program")
+        'dell scholars'
+        >>> normalize_title_for_match("Dell Scholars")
+        'dell scholars'
+        >>> normalize_title_for_match(None)
+        ''
+    """
+    text = normalize_text(value)
+    if not text:
+        return ""
+    words = [word for word in _NON_ALPHANUMERIC.sub(" ", text).split() if word not in _TITLE_STOPWORDS]
+    return " ".join(words)

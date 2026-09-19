@@ -6,7 +6,33 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.run_ingest import _build_guardrail_warnings, _normalize_records, run_ingest
+from scripts.run_ingest import (
+    _build_guardrail_warnings,
+    _dedupe_records,
+    _normalize_records,
+    run_ingest,
+)
+
+SOURCE_ORDER = ["curated_catalog", "open_scholarships", "scholarship_america_live", "bold_org"]
+
+
+def _dedupe_row(**overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "scholarship_id": "id",
+        "source": "open_scholarships",
+        "source_id": "1",
+        "source_url": "https://example.org/awards/one",
+        "title": "Example Award",
+        "sponsor": "Example Foundation",
+        "trust": "structured_feed",
+        "aliases": [],
+    }
+    row.update(overrides)
+    return row
+
+
+def _dedupe(rows: list[dict[str, object]]):
+    return _dedupe_records(pd.DataFrame(rows), source_order=SOURCE_ORDER)
 
 
 def test_normalize_records_stores_timestamps_as_utc_iso() -> None:
@@ -313,3 +339,173 @@ def test_force_writes_the_snapshot_through_a_collapse(monkeypatch, tmp_path: Pat
     assert report["artifact_notes"]["snapshot_blocked"] is False
     assert report["records"]["snapshot_total"] == 2
     assert any("dropped by more than 50%" in w for w in report["guardrail_warnings"])
+
+
+def test_dedupe_collapses_rows_sharing_a_url_and_keeps_the_curated_row() -> None:
+    deduped, superseded = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="feed-dell",
+                source="open_scholarships",
+                source_url="https://www.dellscholars.org/scholarship/?utm_source=feed",
+                title="Dell Scholars Program",
+                sponsor="Michael & Susan Dell Foundation",
+                trust="structured_feed",
+            ),
+            _dedupe_row(
+                scholarship_id="catalog-dell",
+                source="curated_catalog",
+                source_url="https://dellscholars.org/scholarship",
+                title="Dell Technologies Scholars Program",
+                sponsor="Dell Technologies",
+                trust="verified_local",
+            ),
+        ]
+    )
+
+    assert deduped["scholarship_id"].tolist() == ["catalog-dell"]
+    assert deduped.loc[0, "superseded_ids"] == ["feed-dell"]
+    assert superseded == {"open_scholarships": 1}
+
+
+def test_dedupe_matches_on_normalized_title_and_sponsor() -> None:
+    deduped, superseded = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="feed-row",
+                source="open_scholarships",
+                source_url="https://feed.example.org/listing/99",
+                title="The Tar Heel STEM Scholarship!",
+                sponsor="Tar Heel Foundation",
+            ),
+            _dedupe_row(
+                scholarship_id="catalog-row",
+                source="curated_catalog",
+                source_url="https://sponsor.example.org/apply",
+                title="Tar Heel STEM Program",
+                sponsor="tar heel foundation",
+                trust="verified_local",
+            ),
+        ]
+    )
+
+    assert deduped["scholarship_id"].tolist() == ["catalog-row"]
+    assert deduped.loc[0, "superseded_ids"] == ["feed-row"]
+    assert superseded == {"open_scholarships": 1}
+
+
+def test_dedupe_precedence_prefers_trust_then_registry_order() -> None:
+    deduped, superseded = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="aggregator-row",
+                source="scholarship_america_live",
+                trust="aggregator",
+            ),
+            _dedupe_row(
+                scholarship_id="unverified-row",
+                source="bold_org",
+                trust="unverified",
+            ),
+            _dedupe_row(
+                scholarship_id="feed-row",
+                source="open_scholarships",
+                trust="structured_feed",
+            ),
+        ]
+    )
+
+    assert deduped["scholarship_id"].tolist() == ["feed-row"]
+    assert deduped.loc[0, "superseded_ids"] == ["aggregator-row", "unverified-row"]
+    assert superseded == {"bold_org": 1, "scholarship_america_live": 1}
+
+
+def test_dedupe_tie_on_trust_keeps_the_earlier_source_in_registry_order() -> None:
+    deduped, _ = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="later-source",
+                source="bold_org",
+                trust="aggregator",
+            ),
+            _dedupe_row(
+                scholarship_id="earlier-source",
+                source="scholarship_america_live",
+                trust="aggregator",
+            ),
+        ]
+    )
+
+    assert deduped["scholarship_id"].tolist() == ["earlier-source"]
+
+
+def test_dedupe_matches_a_feed_title_named_in_curated_aliases() -> None:
+    deduped, superseded = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="feed-row",
+                source="open_scholarships",
+                source_url="https://feed.example.org/listing/7",
+                title="Coastal Carolina Engineering Grant",
+                sponsor="Coastal Trust",
+            ),
+            _dedupe_row(
+                scholarship_id="catalog-row",
+                source="curated_catalog",
+                source_url="https://sponsor.example.org/engineering",
+                title="Coastal Carolina Award for Engineers",
+                sponsor="Coastal Carolina Trust",
+                trust="verified_local",
+                aliases=["Coastal Carolina Engineering Grant"],
+            ),
+        ]
+    )
+
+    assert deduped["scholarship_id"].tolist() == ["catalog-row"]
+    assert deduped.loc[0, "superseded_ids"] == ["feed-row"]
+    assert superseded == {"open_scholarships": 1}
+
+
+def test_dedupe_keeps_two_distinct_awards_from_one_sponsor() -> None:
+    deduped, superseded = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="award-stem",
+                source_url="https://sponsor.example.org/awards/stem",
+                title="Acme STEM Scholarship",
+                sponsor="Acme Foundation",
+            ),
+            _dedupe_row(
+                scholarship_id="award-arts",
+                source_url="https://sponsor.example.org/awards/arts",
+                title="Acme Arts Scholarship",
+                sponsor="Acme Foundation",
+            ),
+        ]
+    )
+
+    assert sorted(deduped["scholarship_id"].tolist()) == ["award-arts", "award-stem"]
+    assert deduped["superseded_ids"].tolist() == [[], []]
+    assert superseded == {}
+
+
+def test_dedupe_does_not_merge_awards_sharing_only_a_sponsor_home_page() -> None:
+    deduped, superseded = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="award-one",
+                source_url="https://sponsor.example.org/",
+                title="Acme STEM Scholarship",
+                sponsor="Acme Foundation",
+            ),
+            _dedupe_row(
+                scholarship_id="award-two",
+                source_url="https://sponsor.example.org",
+                title="Acme Arts Scholarship",
+                sponsor="Acme Foundation",
+            ),
+        ]
+    )
+
+    assert len(deduped) == 2
+    assert superseded == {}

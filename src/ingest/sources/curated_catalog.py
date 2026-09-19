@@ -170,6 +170,7 @@ class CuratedCatalogSource(BaseSource):
             "trust": _text_or_none(item.get("trust")),
             "provenance": _fixed_shape(item.get("provenance"), _PROVENANCE_KEYS),
             "notes": _text_or_none(item.get("notes")),
+            "aliases": _string_list(item.get("aliases")),
         }
 
 

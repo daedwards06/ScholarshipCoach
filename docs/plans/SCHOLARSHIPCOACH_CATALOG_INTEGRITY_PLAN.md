@@ -262,19 +262,45 @@ python -c "import pandas as pd; from pathlib import Path; from src.io.snapshotti
 ```
 
 **Checklist:**
-- [ ] Dedupe key becomes `(normalized source host + path)` OR `(normalized title, sponsor)`;
+- [x] Dedupe key becomes `(normalized source host + path)` OR `(normalized title, sponsor)`;
       normalization strips scheme, `www.`, trailing slash, query, and casefolds; title
       normalization strips punctuation, "the", "program", "scholarship(s)"
-- [ ] Precedence by `trust`: `verified_local` > `structured_feed` > `aggregator` > `unverified`;
+      *(2026-09-19: `_collapse_cross_source_duplicates` in `scripts/run_ingest.py` unions rows by
+      `_url_match_key` (host + path off `_normalize_url_for_dedupe`, which already strips scheme,
+      `www.`, query and trailing slash) and by `(normalize_title_for_match(title),
+      normalize_text(sponsor))`. The new `normalize_title_for_match` in `src/text_utils.py`
+      casefolds, collapses punctuation runs to spaces and drops `the`/`program`/`scholarship(s)`.
+      A bare host with no path yields no key, so awards sharing a sponsor home page never merge.)*
+- [x] Precedence by `trust`: `verified_local` > `structured_feed` > `aggregator` > `unverified`;
       ties keep the earlier source in `register_sources` order
-- [ ] The winning row records the losers in a new `superseded_ids` list column; the run report
+      *(2026-09-19: `TRUST_PRECEDENCE` plus a `register_sources` rank map; unknown or empty trust
+      ranks below `unverified`, and the final tiebreak is `scholarship_id` so the winner never
+      depends on the order the sources ran in.)*
+- [x] The winning row records the losers in a new `superseded_ids` list column; the run report
       gains `superseded: {source: count}`
-- [ ] Curated record `notes` or a new optional `aliases` field in the schema lets a record name
+      *(2026-09-19: `SUPERSEDED_IDS_COLUMN` added to `src/io/snapshotting.py` `OPTIONAL_COLUMNS`
+      and coerced to a list per row in `prepare_snapshot_df`; carried-forward rows keep theirs.
+      The report carries `records.superseded` / `records.superseded_total` and the CLI prints them.
+      `build_delta` marks a superseded removal with `removed_reason: superseded` and the winner's
+      id.)*
+- [x] Curated record `notes` or a new optional `aliases` field in the schema lets a record name
       a known feed title it supersedes when normalization cannot match (schema change is
       additive; `validate_catalog.py` accepts it)
-- [ ] Tests: URL match, title match, precedence, alias match, no false merge on two distinct
+      *(2026-09-19: `aliases` added to `data/catalog/schema.json` as an optional unique string
+      array, mapped in `CuratedCatalogSource._map_item`, and added to `CATALOG_COLUMNS` /
+      `CATALOG_LIST_COLUMNS`. `validate_catalog.py` is schema-driven and passes on 3 records.)*
+- [x] Tests: URL match, title match, precedence, alias match, no false merge on two distinct
       awards from one sponsor
-- [ ] All four CI commands green
+      *(2026-09-19: 7 new tests in `tests/test_run_ingest.py` — URL match keeping the curated row,
+      normalized title+sponsor match, trust precedence across three sources, registry-order
+      tiebreak, alias match, two distinct awards from one sponsor left alone, and two awards
+      sharing only a sponsor home page left alone.)*
+- [x] All four CI commands green
+      *(2026-09-19: pytest 675 passed / exit 0 / coverage 89.14%, ruff clean, mypy clean on 62
+      files, validate_catalog passes on 3 records. `run_ingest.py --max-listing-pages 0
+      --max-detail-pages 0` superseded the `open_scholarships` Dell row with the curated record
+      (`superseded: {'open_scholarships': 1}`), and the snapshot now holds one Dell row, from
+      `curated_catalog`.)*
 
 ---
 

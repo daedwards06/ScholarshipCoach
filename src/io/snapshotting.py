@@ -53,6 +53,9 @@ TRACKED_DIFF_FIELDS = ("deadline", "amount", "title", "eligibility_text")
 # fields whose value was filled by the LLM rather than a deterministic parser.
 LLM_PROVENANCE_COLUMN = "llm_enriched_fields"
 
+# Ingest-time cross-source dedupe: the scholarship_ids this row won out over.
+SUPERSEDED_IDS_COLUMN = "superseded_ids"
+
 # Curated-catalog columns. Additive and always optional: a scraped source
 # leaves them null and every pre-existing snapshot loads unchanged.
 CATALOG_COLUMNS = [
@@ -76,6 +79,7 @@ CATALOG_COLUMNS = [
     "trust",
     "provenance",
     "notes",
+    "aliases",
 ]
 CATALOG_LIST_COLUMNS = (
     "grade_levels",
@@ -83,10 +87,11 @@ CATALOG_LIST_COLUMNS = (
     "heritage",
     "employer_restricted",
     "membership_required",
+    "aliases",
 )
 CATALOG_DICT_COLUMNS = ("cycle", "min_test_scores", "requirements", "provenance")
 
-OPTIONAL_COLUMNS = [LLM_PROVENANCE_COLUMN, *CATALOG_COLUMNS]
+OPTIONAL_COLUMNS = [LLM_PROVENANCE_COLUMN, SUPERSEDED_IDS_COLUMN, *CATALOG_COLUMNS]
 SNAPSHOT_COLUMNS = [*REQUIRED_COLUMNS, "embedding_key", *OPTIONAL_COLUMNS]
 
 
@@ -215,12 +220,11 @@ def prepare_snapshot_df(records: pd.DataFrame) -> pd.DataFrame:
         if column not in snapshot_df.columns:
             snapshot_df[column] = None
 
-    if LLM_PROVENANCE_COLUMN in snapshot_df.columns:
-        snapshot_df[LLM_PROVENANCE_COLUMN] = snapshot_df[LLM_PROVENANCE_COLUMN].apply(
-            coerce_provenance_list
-        )
-    else:
-        snapshot_df[LLM_PROVENANCE_COLUMN] = [[] for _ in range(len(snapshot_df))]
+    for list_column in (LLM_PROVENANCE_COLUMN, SUPERSEDED_IDS_COLUMN):
+        if list_column in snapshot_df.columns:
+            snapshot_df[list_column] = snapshot_df[list_column].apply(coerce_provenance_list)
+        else:
+            snapshot_df[list_column] = [[] for _ in range(len(snapshot_df))]
 
     ordered = snapshot_df[[*REQUIRED_COLUMNS, *OPTIONAL_COLUMNS]]
     return ordered.sort_values(by=["scholarship_id"], kind="mergesort").reset_index(drop=True)
@@ -254,7 +258,9 @@ def build_delta(current_df: pd.DataFrame, prior_df: pd.DataFrame | None) -> dict
 
     Returns:
         Dict with ``added`` (list), ``removed`` (list), and ``changed`` (list of
-        ``{scholarship_id, fields_changed}`` dicts).
+        ``{scholarship_id, fields_changed}`` dicts).  A removed record that a
+        surviving row superseded at ingest carries ``removed_reason`` and
+        ``superseded_by`` so the drop reads as a merge, not a loss.
     """
     prior = prior_df if prior_df is not None else pd.DataFrame(columns=current_df.columns)
     current_records = _records_by_id(current_df)
@@ -268,7 +274,20 @@ def build_delta(current_df: pd.DataFrame, prior_df: pd.DataFrame | None) -> dict
     shared_ids = sorted(current_ids & prior_ids)
 
     added = [_jsonable(current_records[scholarship_id]) for scholarship_id in added_ids]
-    removed = [_jsonable(prior_records[scholarship_id]) for scholarship_id in removed_ids]
+
+    superseded_by: dict[str, str] = {}
+    for winner_id, record in current_records.items():
+        for loser_id in coerce_provenance_list(record.get(SUPERSEDED_IDS_COLUMN)):
+            superseded_by[loser_id] = winner_id
+
+    removed: list[dict[str, Any]] = []
+    for scholarship_id in removed_ids:
+        entry = dict(_jsonable(prior_records[scholarship_id]))
+        superseding_id = superseded_by.get(scholarship_id)
+        if superseding_id is not None:
+            entry["removed_reason"] = "superseded"
+            entry["superseded_by"] = superseding_id
+        removed.append(entry)
 
     changed: list[dict[str, Any]] = []
     for scholarship_id in shared_ids:
