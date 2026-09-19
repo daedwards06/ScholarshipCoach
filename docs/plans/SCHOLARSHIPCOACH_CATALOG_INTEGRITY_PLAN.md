@@ -322,6 +322,64 @@ streamlit run app/main.py   # visual: Find shows Now with only dated awards; "Ne
 
 ---
 
+## Task 1.7: Split the AFCEA Umbrella Into Per-Award Records
+
+**Why:** `afcea-stem-scholarship` is not one award. The Educational Foundation listing carries
+**13 separately-named awards** behind their own detail pages, and the single record averages
+them into eligibility that is true of no individual award: `amount 1500–5000`, no GPA floor,
+all four college years, `status: unknown`, no deadline. Stage 1 acts on that. Two pages read on
+2026-09-19 show what the umbrella hides:
+
+- `/stem-majors-scholarships` — **"Sophomores or juniors only. Minimum 3.0 GPA."** US citizen,
+  full-time, four-year, STEM major. STEM Major $2,500 · Cyber Security $5,000 · Student Member
+  $2,500. Status on the page: **"Applications closed!"**
+- `/oracle-women-leadership-scholarship` — requires **active-duty military service**, 2.8 GPA,
+  $1,500. A hard no for a civilian undergraduate, and today it inflates the umbrella's range.
+
+The first of those matches the real student line for line; the second cannot apply to her. One
+record cannot express both, so the umbrella is a correctness defect, not just missing detail.
+The detail pages also publish a **status** even where they publish no date, so splitting moves
+records off `unknown` without inventing anything.
+
+**Depends on:** nothing hard. Task 1.6 is a read-time classification, so records created before
+it are bucketed correctly once it lands; running 1.3 first means the new records are confirmed
+once, under the trust rule, rather than confirmed and then re-reasoned about.
+
+**Preflight Files:**
+- `data/catalog/records/afcea-stem-scholarship.json` (the umbrella being replaced)
+- `src/catalog/inbox.py` (`propose`, `confirm`), `scripts/catalog_inbox.py`
+- `data/catalog/schema.json` (`catalog_id` is identity — a split mints new ids, it does not rename)
+- `src/rank/stage1_eligibility.py` (which axes actually filter: `grade_levels`, `min_gpa`,
+  `military_family`, `citizenship`)
+- `app/main.py` (`_render_add_award_page`, `_render_proposal`)
+
+**Validation Commands:**
+```powershell
+python scripts/validate_catalog.py
+python -m pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+python -m mypy src/
+python -c "import json,glob; rs=[json.load(open(f)) for f in glob.glob('data/catalog/records/*.json')]; nodate=[r for r in rs if not r.get('deadline') and not (r.get('cycle') or {}).get('deadline_month')]; print(len(rs),'records;',sum(1 for r in rs if r['trust']=='verified_local'),'verified_local;',len(nodate),'with no date')"
+```
+
+**Checklist:**
+- [ ] Claude: fetch all 13 AFCEA detail pages; for each, draft a `prefill` proposal with its own
+      `catalog_id`, real `amount_min`/`amount_max`, `grade_levels`, `min_gpa`, `citizenship`,
+      `military_family`, `status`, and requirements; note which pages publish no date
+- [ ] Skip, with the reason recorded, the awards that cannot apply to an undergraduate student
+      (STEM Teachers, Shrader Graduate, chapter-administered programs) rather than adding
+      records the family will never act on
+- [ ] Owner: confirm or reject each proposal on the Inbox page; `trust: verified_local` only
+      for a page the owner opened
+- [ ] Retire `afcea-stem-scholarship`: delete it once its awards exist as records, so the
+      averaged eligibility stops ranking. Its `catalog_id` is never reused
+- [ ] Verify against the real profile that the STEM Major award is eligible and the
+      military-only and teacher-only awards are rejected with a reason code
+- [ ] Rebuild the snapshot; confirm the record count rises and the guardrail does not fire
+- [ ] All four CI commands green
+
+---
+
 # Phase 2 — A Catalog With Local Awards
 
 ## Task 2.1: Scholarship America — Decide and Quiet the Alarm
@@ -582,14 +640,17 @@ python -c "import json,pandas as pd,dataclasses; from pathlib import Path; from 
 ## Execution Order
 
 ```
-Phase 1  1.1 rebuild + guardrail → 1.2 confirm the five → 1.3 trust rule → 1.4 dedupe
-         → 1.5 blocked vs dead → 1.6 needs_date
+Phase 1  1.1 rebuild + guardrail → 1.2 confirm the five → 1.3 trust rule → 1.7 AFCEA split
+         → 1.4 dedupe → 1.5 blocked vs dead → 1.6 needs_date
 Phase 2  2.1 Scholarship America → 2.2 seed NC local awards → 2.3 onboard the student
 Phase 3  3.1 outcomes page → 3.2 split main.py → 3.3 bookkeeping + screenshots → 3.4 re-measure
 ```
 
 Task 1.1 first, alone, before anything else touches the snapshot. Task 1.2 before 1.3 so
-enforcement lands on a catalog with confirmed rows. Task 2.2 after 1.6 so seeded records are
+enforcement lands on a catalog with confirmed rows. Task 1.7 (added 2026-09-19) after 1.3 so the
+records it mints are confirmed once under the trust rule, and before 1.4 so dedupe is exercised
+against the real per-award catalog rather than one umbrella row; it has no hard dependency on
+1.6, whose bucketing is applied at read time. Task 2.2 after 1.6 so seeded records are
 checked against the `needs_date` rule as they land. Task 3.2 after 3.1 so the split does not
 carry a placeholder. Task 3.4 last.
 
