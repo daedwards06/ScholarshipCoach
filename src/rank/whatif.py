@@ -16,7 +16,11 @@ from typing import Any
 
 import pandas as pd
 
-from src.rank.stage1_eligibility import StudentProfile, apply_eligibility_filter
+from src.rank.stage1_eligibility import (
+    TRUST_UNCONFIRMED_CODE,
+    StudentProfile,
+    apply_eligibility_filter,
+)
 from src.rank.timeline import TIMELINE_BUCKETS, classify_timeline
 
 # The profile attributes the what-if view offers, and the wording it uses.
@@ -70,6 +74,7 @@ class WhatIfSummary:
     newly_eligible: list[WhatIfAward] = field(default_factory=list)
     newly_ineligible: list[WhatIfAward] = field(default_factory=list)
     dollars_by_bucket: dict[str, float] = field(default_factory=dict)
+    needs_confirmation: int = 0
 
     @property
     def dollars_unlocked(self) -> float:
@@ -138,6 +143,15 @@ def _reason_codes(row: pd.Series | None) -> list[str]:
     return [str(reasons)] if str(reasons).strip() else []
 
 
+def _needs_confirmation(ineligible_df: pd.DataFrame) -> int:
+    """Count awards the profile otherwise clears and only trust holds back."""
+    return sum(
+        1
+        for _, row in ineligible_df.iterrows()
+        if _reason_codes(row) == [TRUST_UNCONFIRMED_CODE]
+    )
+
+
 def _award(row: pd.Series, reasons: list[str]) -> WhatIfAward:
     return WhatIfAward(
         scholarship_id=_text(row.get("scholarship_id")) or _text(row.get("canonical_id")),
@@ -167,8 +181,12 @@ def whatif_eligibility(
     Returns:
         A :class:`WhatIfSummary` whose ``newly_eligible`` awards carry the
         reason codes the overrides cleared, ``newly_ineligible`` awards carry
-        the codes the overrides introduced, and ``dollars_by_bucket`` totals the
-        newly eligible dollars per timeline bucket.
+        the codes the overrides introduced, ``dollars_by_bucket`` totals the
+        newly eligible dollars per timeline bucket, and ``needs_confirmation``
+        counts the awards the overridden profile clears on every axis except
+        ``TRUST_UNCONFIRMED``.  A trust rejection is a gap in the catalog, not
+        an axis the student can move, so it is reported as its own count and
+        never as a reason an override could clear.
     """
     applied = applied_overrides(profile, overrides)
     if not applied:
@@ -212,4 +230,5 @@ def whatif_eligibility(
             for bucket in TIMELINE_BUCKETS
             if bucket in dollars_by_bucket
         },
+        needs_confirmation=_needs_confirmation(what_if_ineligible),
     )

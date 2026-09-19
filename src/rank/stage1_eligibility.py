@@ -1,11 +1,12 @@
 """Hard eligibility filtering with reason codes.
 
-Applies deadline, status, GPA, geography, major, education and grade level,
-citizenship, and the curated restriction axes (need, first generation, gender,
-heritage, military family, disability, religion, employer, membership, test
-scores) to a scholarship DataFrame, splitting it into eligible and ineligible
-sets.  Each ineligible row is annotated with the reason codes that disqualified
-it; each eligible row carries the axes its profile could not answer.
+Applies record trust, deadline, status, GPA, geography, major, education and
+grade level, citizenship, and the curated restriction axes (need, first
+generation, gender, heritage, military family, disability, religion, employer,
+membership, test scores) to a scholarship DataFrame, splitting it into eligible
+and ineligible sets.  Each ineligible row is annotated with the reason codes
+that disqualified it; each eligible row carries the axes its profile could not
+answer.
 """
 from __future__ import annotations
 
@@ -19,6 +20,13 @@ from src.profile.grade_levels import grade_level_rank
 from src.rank.taxonomy import education_level_matches, majors_match
 from src.text_utils import normalize_list as _normalize_list
 from src.text_utils import normalize_text as _normalize_text
+
+# Only a confirmed record, or one from a trusted structured feed, counts as
+# eligible: an aggregator scrape is a lead, not an award a family should apply
+# to.  A missing or null ``trust`` passes, because pre-catalog snapshots and
+# test fixtures carry no such column.
+TRUST_UNCONFIRMED_CODE = "TRUST_UNCONFIRMED"
+UNCONFIRMED_TRUST_VALUES: frozenset[str] = frozenset({"unverified", "aggregator"})
 
 # Restriction axes a profile may leave unanswered, and the phrasing the app uses
 # after "Confirm you meet:".  An axis listed here passes Stage 1 when the profile
@@ -179,11 +187,20 @@ def _tristate_reason(
 
 
 def _row_reasons(
-    row: pd.Series, profile: StudentProfile, today: date
+    row: pd.Series,
+    profile: StudentProfile,
+    today: date,
+    *,
+    include_unconfirmed: bool = False,
 ) -> tuple[list[str], list[str]]:
     """Return ``(reason_codes, unverified_axes)`` for one scholarship row."""
     reasons: list[str] = []
     unverified: list[str] = []
+
+    if not include_unconfirmed:
+        trust = _normalize_text(row.get("trust"))
+        if trust in UNCONFIRMED_TRUST_VALUES:
+            reasons.append(TRUST_UNCONFIRMED_CODE)
 
     deadline_date = _row_deadline(row)
     recurring = _row_recurring(row)
@@ -360,24 +377,28 @@ def _row_reasons(
 
 
 def apply_eligibility_filter(
-    df: pd.DataFrame, profile: StudentProfile
+    df: pd.DataFrame, profile: StudentProfile, *, include_unconfirmed: bool = False
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split scholarships into eligible and ineligible sets based on hard filters.
 
-    Applies the deadline, status, GPA, geography, major, education and grade
-    level, citizenship, restriction-axis, test-score, and amount checks.  Each
-    ineligible scholarship is tagged with all applicable reason codes; a
+    Applies the trust, deadline, status, GPA, geography, major, education and
+    grade level, citizenship, restriction-axis, test-score, and amount checks.
+    Each ineligible scholarship is tagged with all applicable reason codes; a
     restriction the profile cannot answer never disqualifies a row, it is
     recorded on ``unverified_axes`` for the student to confirm.
 
     Args:
         df: Scholarship DataFrame with normalized columns.
         profile: Student profile with eligibility attributes.
+        include_unconfirmed: When ``True``, skip the trust check so an
+            unconfirmed or aggregator record can be inspected in the pipeline.
+            Operator-only: the family-facing path always enforces it.
 
     Returns:
         Tuple of ``(eligible_df, ineligible_df)``.  Both frames carry a
         ``reasons`` column with lists of reason codes such as
-        ``"GPA_BELOW_MIN"`` and ``"STATE_NOT_ALLOWED"``, and an
+        ``"GPA_BELOW_MIN"``, ``"STATE_NOT_ALLOWED"`` and
+        ``"TRUST_UNCONFIRMED"``, and an
         ``unverified_axes`` column with lists of axis keys such as
         ``"financial_need"`` (see :data:`UNVERIFIED_AXIS_LABELS`).
     """
@@ -385,7 +406,12 @@ def apply_eligibility_filter(
 
     with_reasons_df = df.copy()
     evaluations = [
-        _row_reasons(row=row, profile=profile, today=effective_today)
+        _row_reasons(
+            row=row,
+            profile=profile,
+            today=effective_today,
+            include_unconfirmed=include_unconfirmed,
+        )
         for _, row in with_reasons_df.iterrows()
     ]
     with_reasons_df["reasons"] = pd.Series(

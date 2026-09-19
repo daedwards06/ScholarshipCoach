@@ -626,3 +626,83 @@ def test_unverified_to_text_renders_labels_and_handles_missing() -> None:
     assert unverified_to_text(None) == ""
     # An axis with no label yet still shows, spelled out rather than dropped.
     assert unverified_to_text(["future_axis"]) == "future axis"
+
+
+@pytest.mark.parametrize(
+    "trust,expected_eligible",
+    [
+        ("verified_local", True),
+        ("structured_feed", True),
+        ("aggregator", False),
+        ("unverified", False),
+        ("Aggregator", False),
+        (None, True),
+        ("", True),
+    ],
+    ids=[
+        "verified_local",
+        "structured_feed",
+        "aggregator",
+        "unverified",
+        "mixed-case",
+        "null",
+        "empty",
+    ],
+)
+def test_trust_rule_admits_only_confirmed_or_trusted_feed_records(
+    sample_profile: StudentProfile, trust: str | None, expected_eligible: bool
+) -> None:
+    """Only `verified_local` and `structured_feed` rank; a missing trust still passes."""
+    df = pd.DataFrame([_axis_row(trust=trust)])
+
+    eligible_df, ineligible_df = apply_eligibility_filter(df=df, profile=sample_profile)
+
+    if expected_eligible:
+        assert ineligible_df.empty
+        assert eligible_df.iloc[0]["reasons"] == []
+    else:
+        assert eligible_df.empty
+        assert ineligible_df.iloc[0]["reasons"] == ["TRUST_UNCONFIRMED"]
+
+
+def test_missing_trust_column_passes_every_row(sample_profile: StudentProfile) -> None:
+    """Pre-catalog snapshots and fixtures carry no `trust` column at all."""
+    df = pd.DataFrame([_row(scholarship_id="legacy")])
+    assert "trust" not in df.columns
+
+    eligible_df, ineligible_df = apply_eligibility_filter(df=df, profile=sample_profile)
+
+    assert ineligible_df.empty
+    assert eligible_df.iloc[0]["reasons"] == []
+
+
+def test_include_unconfirmed_override_restores_unconfirmed_rows(
+    sample_profile: StudentProfile,
+) -> None:
+    """The operator override drops the trust rule and nothing else."""
+    df = pd.DataFrame(
+        [
+            _axis_row(scholarship_id="scraped", trust="aggregator"),
+            _axis_row(scholarship_id="scraped-and-broke", trust="aggregator", min_gpa=3.9),
+        ]
+    )
+
+    eligible_df, ineligible_df = apply_eligibility_filter(
+        df=df, profile=sample_profile, include_unconfirmed=True
+    )
+
+    assert eligible_df["scholarship_id"].tolist() == ["scraped"]
+    assert ineligible_df.iloc[0]["reasons"] == ["GPA_BELOW_MIN"]
+
+
+def test_trust_reason_leads_the_reason_sequence(sample_profile: StudentProfile) -> None:
+    """A row can fail on trust and on the student's profile at the same time."""
+    df = pd.DataFrame([_axis_row(trust="unverified", min_gpa=3.9, states_allowed=["NV"])])
+
+    _, ineligible_df = apply_eligibility_filter(df=df, profile=sample_profile)
+
+    assert ineligible_df.iloc[0]["reasons"] == [
+        "TRUST_UNCONFIRMED",
+        "GPA_BELOW_MIN",
+        "STATE_NOT_ALLOWED",
+    ]

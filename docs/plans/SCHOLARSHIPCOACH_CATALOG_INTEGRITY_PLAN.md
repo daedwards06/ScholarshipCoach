@@ -198,18 +198,44 @@ python scripts/evaluate_golden_students.py --k 10 --similarity-mode embeddings -
 ```
 
 **Checklist:**
-- [ ] New reason code `TRUST_UNCONFIRMED`: fires when `trust` is `unverified` or `aggregator`;
+- [x] New reason code `TRUST_UNCONFIRMED`: fires when `trust` is `unverified` or `aggregator`;
       `verified_local` and `structured_feed` pass; a missing or null `trust` passes (pre-catalog
       fixtures and golden snapshots)
-- [ ] `whatif_eligibility` lists trust rejections under a separate "needs confirmation" count,
+      *(2026-09-19: fires first in the `_row_reasons` sequence — it is a record-quality gate, not
+      a student axis, so it reads before anything profile-dependent. `UNCONFIRMED_TRUST_VALUES`
+      and `TRUST_UNCONFIRMED_CODE` live in `src/rank/stage1_eligibility.py`; the check goes
+      through `normalize_text`, so a mixed-case `Aggregator` is caught too.)*
+- [x] `whatif_eligibility` lists trust rejections under a separate "needs confirmation" count,
       not as a profile-changeable axis
-- [ ] Operator sidebar gains an "Include unconfirmed records" toggle (operator mode only) that
+      *(2026-09-19: `WhatIfSummary.needs_confirmation` counts awards the overridden profile clears
+      on every axis except `TRUST_UNCONFIRMED`. Note a trust rejection can never reach an award's
+      `reasons`: trust is profile-independent, so a trust-blocked row is ineligible in both the
+      base and the what-if run and therefore appears in neither `newly_eligible` nor
+      `newly_ineligible`. Filtering the code out of the reason lists would have been unreachable
+      code, so the count is the whole mechanism. The What If page renders it as a caption.)*
+- [x] Operator sidebar gains an "Include unconfirmed records" toggle (operator mode only) that
       disables the rule for pipeline inspection
-- [ ] README "Data sources" table: trust column reads what the records say after Task 1.2, and
+      *(2026-09-19: `apply_eligibility_filter(..., include_unconfirmed=)`, keyword-only, default
+      `False`. The app gates it on `operator_mode` at the call site as well as hiding the widget,
+      so a stale session-state value cannot leak the rule off in student or parent mode.)*
+- [x] README "Data sources" table: trust column reads what the records say after Task 1.2, and
       the sentence "Only confirmed records, or records from a trusted structured feed, count as
       eligible" names the reason code
-- [ ] Tests: each trust value; missing column; operator override
-- [ ] All four CI commands green
+      *(2026-09-19: curated count 5 -> 3 and the snapshot reference moved to
+      `scholarships_snapshot_20260919.parquet` (105 records). The paragraph about the 0912 run's
+      zero listing pages was rewritten, since the 0919 snapshot is a curated-only rebuild with
+      102 rows carried forward, not that run.)*
+- [x] Tests: each trust value; missing column; operator override
+      *(2026-09-19: 4 tests in `tests/test_eligibility_rules.py` (7 parametrized trust values
+      including mixed case and empty string, absent column, operator override, and trust leading a
+      multi-code sequence) and 3 in `tests/test_whatif.py`.)*
+- [x] All four CI commands green
+      *(2026-09-19: pytest 668 passed / 0 failed / exit 0 / coverage 89.17%, ruff clean, mypy
+      clean on 62 files, validate_catalog passes on 3 records. Golden eval re-run at k=10
+      embeddings/hybrid: no `TRUST_UNCONFIRMED` in the ineligible reason breakdown, and the Stage 1
+      eligible set is byte-identical with the rule on and off for all 9 golden students — the
+      snapshot holds 102 `structured_feed` + 3 `verified_local` and zero unconfirmed rows, so the
+      rule is a no-op on today's data, as the task predicted.)*
 
 ---
 

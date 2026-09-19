@@ -204,6 +204,8 @@ def _ensure_session_state() -> None:
         st.session_state.ineligible_df = None
     if "use_win_model" not in st.session_state:
         st.session_state.use_win_model = False
+    if "include_unconfirmed" not in st.session_state:
+        st.session_state.include_unconfirmed = False
     st.session_state.setdefault("similarity_mode", "tfidf")
     st.session_state.setdefault("embedding_model_name", DEFAULT_MODEL_NAME)
     st.session_state.setdefault("weights_profile", "Latest")
@@ -884,6 +886,14 @@ def _render_operator_sidebar() -> None:
             index=0,
         )
 
+        st.subheader("Catalog Trust")
+        st.checkbox("Include unconfirmed records", key="include_unconfirmed")
+        st.caption(
+            "Off: only confirmed records and trusted structured feeds are eligible "
+            "(`TRUST_UNCONFIRMED`). On: unconfirmed and aggregator records rank too, "
+            "for pipeline inspection only."
+        )
+
         st.subheader("Ranking Weights")
         selected_weights_profile = st.selectbox(
             "Weights profile",
@@ -1025,6 +1035,7 @@ def _render_find_section() -> None:
     model_name = str(st.session_state.get("embedding_model_name") or DEFAULT_MODEL_NAME)
     operator_mode = _current_mode() == "operator"
     use_win_model = operator_mode and bool(st.session_state.get("use_win_model"))
+    include_unconfirmed = operator_mode and bool(st.session_state.get("include_unconfirmed"))
     if operator_mode and tuned_weights_payload is not None and tuned_weights_payload.get("use_win_model") and not use_win_model:
         st.warning(
             "The selected weights profile was tuned with the win model enabled, but 'Use Win Model in Ranking' is off."
@@ -1061,7 +1072,9 @@ def _render_find_section() -> None:
             stage1_profile = _build_stage1_profile(st.session_state.profile)
             stage2_profile = _build_stage2_profile(st.session_state.profile)
 
-            eligible_df, ineligible_df = apply_eligibility_filter(snapshot_df, stage1_profile)
+            eligible_df, ineligible_df = apply_eligibility_filter(
+                snapshot_df, stage1_profile, include_unconfirmed=include_unconfirmed
+            )
             eligible_df = classify_timeline(eligible_df, stage1_profile)
             scored_df = score_stage2(
                 eligible_df,
@@ -2771,6 +2784,12 @@ def _render_what_if_section() -> None:
     col_opened.metric("Newly eligible", len(summary.newly_eligible))
     col_closed.metric("No longer eligible", len(summary.newly_ineligible))
     col_dollars.metric("Dollars unlocked", _money_text(summary.dollars_unlocked))
+
+    if summary.needs_confirmation:
+        st.caption(
+            f"{summary.needs_confirmation} more award(s) fit this profile but are waiting "
+            "on confirmation — nothing you can change opens them."
+        )
 
     if summary.is_noop:
         st.info("That change does not open or close any award in this catalog.")

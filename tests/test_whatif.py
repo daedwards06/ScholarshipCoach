@@ -162,3 +162,40 @@ def test_apply_overrides_leaves_the_original_profile_untouched() -> None:
     assert updated.gpa == 3.9
     assert profile.gpa == 3.25
     assert updated.sat is None
+
+
+def test_trust_rejection_is_counted_separately_not_offered_as_a_change() -> None:
+    """An unconfirmed award the profile otherwise clears is a catalog gap, not a goal."""
+    df = _frame(
+        _row(scholarship_id="honors", title="Honors Award", min_gpa=3.5),
+        _row(scholarship_id="scraped", title="Scraped Award", trust="aggregator"),
+    )
+
+    summary = whatif_eligibility(df, _profile(), {"gpa": 3.5})
+
+    assert [award.scholarship_id for award in summary.newly_eligible] == ["honors"]
+    assert summary.needs_confirmation == 1
+
+
+def test_award_blocked_on_trust_and_profile_is_not_waiting_on_confirmation() -> None:
+    """Confirming the record alone would not open it, so it is not counted."""
+    df = _frame(
+        _row(scholarship_id="scraped", min_gpa=3.9, trust="unverified"),
+        _row(scholarship_id="honors", min_gpa=3.5),
+    )
+
+    summary = whatif_eligibility(df, _profile(), {"gpa": 3.5})
+
+    assert [award.scholarship_id for award in summary.newly_eligible] == ["honors"]
+    assert summary.needs_confirmation == 0
+
+
+def test_trusted_records_need_no_confirmation() -> None:
+    df = _frame(
+        _row(scholarship_id="honors", min_gpa=3.5, trust="verified_local"),
+        _row(scholarship_id="feed", trust="structured_feed"),
+    )
+
+    summary = whatif_eligibility(df, _profile(), {"gpa": 3.5})
+
+    assert summary.needs_confirmation == 0

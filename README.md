@@ -103,16 +103,18 @@ flag and a dated note per source.
 
 | Source | Trust | Records | License / terms |
 |---|---|---:|---|
-| `curated_catalog` — hand-curated records in `data/catalog/records/` | `verified_local` | 5 | Project-owned |
+| `curated_catalog` — hand-curated records in `data/catalog/records/` | `verified_local` | 3 | Project-owned |
 | `open_scholarships` — [Open Scholarships](https://github.com/Grudged/open-scholarships) structured API feed | `structured_feed` | 102 | CC BY 4.0 |
-| `scholarship_america` — public listing scrape | `aggregator` | 0 | Public web pages; records need confirmation |
+| `scholarship_america` — public listing scrape | `aggregator` | 0 | Public web pages; ineligible until confirmed |
 | `bold_org` | — | disabled | Client-rendered listing; returned 0 records since June 2026 |
 
-*Counts are from `scholarships_snapshot_20260912.parquet` (107 records).* That run was configured
-with zero listing pages, so `scholarship_america` contributed nothing — and the health check said
-so out loud: `Source 'scholarship_america' returned 0 records but returned 13 on the prior run`.
-A silent `succeeded` on exactly that condition is how the catalog collapsed from 166 records to 35
-without anyone noticing.
+*Counts are from `scholarships_snapshot_20260919.parquet` (105 records)*, a curated-only rebuild:
+the three catalog records were re-parsed and the 102 `open_scholarships` rows were carried forward
+from the prior snapshot. `scholarship_america` has contributed nothing since it was configured with
+zero listing pages, and the health check said so out loud rather than reporting success:
+`Source 'scholarship_america' returned 0 records but returned 13 on the prior run`. A silent
+`succeeded` on exactly that condition is how the catalog collapsed from 166 records to 35 without
+anyone noticing.
 
 Open Scholarships data is used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 and attributed as required:
@@ -126,7 +128,10 @@ every snapshot built from it.
 proposals into `data/catalog/inbox/` with a field-level diff against the record they would replace.
 `confirm()` is the only path into `data/catalog/records/`, and it validates against
 `data/catalog/schema.json` first. Only confirmed records, or records from a trusted structured
-feed, count as eligible.
+feed, count as eligible: Stage 1 rejects `trust: unverified` and `trust: aggregator` with the
+reason code `TRUST_UNCONFIRMED`. A record with no `trust` at all passes, so pre-catalog snapshots
+still rank. Operator mode's "Include unconfirmed records" toggle disables the rule for pipeline
+inspection; the family-facing path always enforces it.
 
 ---
 
