@@ -15,6 +15,7 @@ from app import modes
 from app.helpers import (
     explain_ranked_row,
     format_amount_range,
+    needs_date_awards,
     phone_width_css,
     reasons_to_text,
     unverified_to_text,
@@ -720,8 +721,11 @@ def _render_scholarship_card(
             if deadline and deadline_is_projected:
                 st.text(f"Next deadline: ~{deadline}")
                 st.caption("Projected from this award's usual cycle")
+            elif deadline:
+                st.text(f"Deadline: {deadline}")
             else:
-                st.text(f"Deadline: {deadline if deadline else 'Unknown'}")
+                st.text("Deadline not on record")
+                st.caption("Check the source before you plan around it")
         if bucket:
             st.caption(f"Timeline: {TIMELINE_BUCKET_LABELS.get(bucket, bucket)}")
 
@@ -1137,6 +1141,14 @@ def _render_find_section() -> None:
         for _, row in top_df.iterrows():
             _render_scholarship_card(
                 row, today_for_cards, saved_ids, operator_mode=operator_mode
+            )
+
+        waiting = needs_date_awards(st.session_state.get("eligible_df"))
+        if not waiting.empty and timeline_choice != "needs_date":
+            st.caption(
+                f"{_award_count_text(len(waiting))} you also qualify for have no deadline "
+                "on record. They are under Timeline → "
+                f"{TIMELINE_BUCKET_LABELS['needs_date']}."
             )
 
     ineligible_df: pd.DataFrame | None = st.session_state.ineligible_df
@@ -1800,6 +1812,34 @@ def _render_timeline_bucket(
                     _render_calendar_event(event, today_value)
 
 
+def _render_needs_date_bucket() -> None:
+    """Awards the catalog has no date for, biggest first, each with its source."""
+    waiting = needs_date_awards(st.session_state.get("eligible_df"))
+    if waiting.empty:
+        st.info("Every award you qualify for has a date on record.")
+        return
+
+    st.caption(
+        f"{_award_count_text(len(waiting))} with no deadline and no cycle month on "
+        "record. Check the source, then add the date under My Applications."
+    )
+    for _, row in waiting.iterrows():
+        catalog_id = _row_catalog_id(row)
+        with st.container(border=True):
+            col_award, col_link = st.columns([0.75, 0.25])
+            with col_award:
+                st.markdown(f"**{coerce_text(row.get('title')) or catalog_id}**")
+                sponsor = coerce_text(row.get("sponsor"))
+                amount = format_amount_range(row.get("amount_min"), row.get("amount_max"))
+                st.caption(" · ".join(part for part in (sponsor, amount) if part))
+            with col_link:
+                source_url = coerce_text(row.get("source_url"))
+                if source_url:
+                    st.link_button("Look it up", source_url, use_container_width=True)
+                else:
+                    st.caption("No source link")
+
+
 def _render_timeline_section() -> None:
     st.subheader(modes.SECTION_LABELS["timeline"])
     today_value = _effective_today(st.session_state.profile)
@@ -1836,7 +1876,7 @@ def _render_timeline_section() -> None:
     tabs = st.tabs(
         [
             TIMELINE_BUCKET_LABELS.get(bucket, bucket)
-            for bucket in calendar_feed.CALENDAR_BUCKETS
+            for bucket in (*calendar_feed.CALENDAR_BUCKETS, "needs_date")
         ]
     )
     for tab, bucket in zip(tabs, calendar_feed.CALENDAR_BUCKETS):
@@ -1844,6 +1884,8 @@ def _render_timeline_section() -> None:
             _render_timeline_bucket(
                 calendar_feed.events_in_bucket(events, bucket), today_value
             )
+    with tabs[-1]:
+        _render_needs_date_bucket()
 
 
 def _money_text(value: float | None) -> str:

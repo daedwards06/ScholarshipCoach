@@ -380,18 +380,45 @@ streamlit run app/main.py   # visual: Find shows Now with only dated awards; "Ne
 ```
 
 **Checklist:**
-- [ ] New bucket `needs_date`: no `deadline`, no `cycle.deadline_month`, and `status` in
+- [x] New bucket `needs_date`: no `deadline`, no `cycle.deadline_month`, and `status` in
       `unknown|null`; an award with `status: open` and no date stays in `now` (the sponsor says
       it is open) but the card says "Deadline not on record"
-- [ ] Find section: bucket selector gains "Needs a date"; default stays Now; the count of
+      *(2026-09-19: `needs_date` added to `TIMELINE_BUCKETS` between `senior_year` and
+      `expired`, labelled "Needs a date". `_row_bucket` in `src/rank/timeline.py` takes the
+      branch only when there is no deadline, no cycle month, and `status` normalizes to `""`
+      or `"unknown"`; grade gating still runs after, so an undated seniors-only award stays
+      `senior_year`. The card in `app/main.py` now prints "Deadline not on record" with a
+      "Check the source before you plan around it" caption wherever no date resolves.)*
+- [x] Find section: bucket selector gains "Needs a date"; default stays Now; the count of
       awards waiting in `needs_date` is shown as a caption under the results so the family
       knows what the catalog is hiding
-- [ ] Timeline page: a "Needs a date" tab, sorted by amount, each row with a "Look it up"
+      *(2026-09-19: the selector reads `["All", *TIMELINE_BUCKETS]` so the new bucket appears
+      on its own; `index=1` still points at `now`. A caption under the cards counts the
+      `needs_date` rows in `eligible_df` and points at the Timeline tab, hidden when that
+      bucket is the one already being shown.)*
+- [x] Timeline page: a "Needs a date" tab, sorted by amount, each row with a "Look it up"
       link to `source_url`
-- [ ] Calendar export skips `needs_date`
-- [ ] Tests: each rule; `open` with no date stays `now`; feed record with a cycle month but no
+      *(2026-09-19: a fourth tab after the three calendar buckets, rendered by
+      `_render_needs_date_bucket`. `needs_date_awards` in `app/helpers.py` sorts on
+      `amount_max` falling back to `amount_min`, biggest first; each row shows sponsor and
+      amount with a "Look it up" link button, or "No source link" when the record has none.)*
+- [x] Calendar export skips `needs_date`
+      *(2026-09-19: already enforced by `_award_calendar_events`, which drops any bucket not
+      in `calendar_feed.CALENDAR_BUCKETS`; the comment above that tuple now names all three
+      non-exportable buckets, and a test pins the behaviour.)*
+- [x] Tests: each rule; `open` with no date stays `now`; feed record with a cycle month but no
       date projects and stays out of `needs_date`
-- [ ] All four CI commands green
+      *(2026-09-19: 6 new tests in `tests/test_timeline_buckets.py` — undated/unknown is
+      `needs_date`, `status: open` with no date stays `now`, a recurring cycle month with no
+      deadline projects to 2027-05-01 and stays `now`, missing status reads as unknown, a
+      dated award is never `needs_date`, and `needs_date` is excluded from the default
+      rerank; the all-buckets sweep gained an undated row. 3 helper tests in
+      `tests/test_explainability_helpers.py` and 1 in `tests/test_timeline_calendar.py`.)*
+- [x] All four CI commands green
+      *(2026-09-19: pytest 718 collected / exit 0 / coverage 89.25%, ruff clean, mypy clean on
+      62 source files, validate_catalog passes on 3 records. `streamlit run app/main.py`
+      booted headless and answered `/healthz` with 200 — the tab and captions were not
+      inspected visually.)*
 
 ---
 

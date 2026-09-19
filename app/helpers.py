@@ -73,6 +73,28 @@ def format_amount_range(amount_min: Any, amount_max: Any) -> str:
     return f"${min_value:,.0f} - ${max_value:,.0f}"
 
 
+def needs_date_awards(df: Any) -> pd.DataFrame:
+    """The ``needs_date`` awards in ``df``, biggest award first.
+
+    Nobody can sort these by deadline -- that is the whole point of the bucket
+    -- so the money decides which one is worth looking up first.
+    """
+    if not isinstance(df, pd.DataFrame) or "timeline_bucket" not in df.columns:
+        return pd.DataFrame()
+    waiting = df[df["timeline_bucket"].astype("string").eq("needs_date")].copy()
+    if waiting.empty:
+        return waiting
+    worth = waiting.apply(
+        lambda row: _coerce_amount(row.get("amount_max"))
+        or _coerce_amount(row.get("amount_min"))
+        or 0.0,
+        axis=1,
+    )
+    return waiting.assign(_worth=worth).sort_values("_worth", ascending=False).drop(
+        columns="_worth"
+    )
+
+
 def effort_to_text(row: pd.Series) -> str:
     """Render an award's effort as plain counts, or "" when it asks for nothing.
 

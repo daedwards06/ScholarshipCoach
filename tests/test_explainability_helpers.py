@@ -3,7 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from app.helpers import effort_to_text, explain_ranked_row, format_amount_range
+from app.helpers import (
+    effort_to_text,
+    explain_ranked_row,
+    format_amount_range,
+    needs_date_awards,
+)
 
 
 def test_explain_ranked_row_is_stable_and_prioritizes_strong_signals() -> None:
@@ -101,3 +106,32 @@ def test_effort_to_text_renders_counts(
     requirements: dict[str, object], expected: str
 ) -> None:
     assert effort_to_text(pd.Series({"requirements": requirements})) == expected
+
+
+def test_needs_date_awards_are_the_undated_ones_biggest_first() -> None:
+    df = pd.DataFrame(
+        [
+            {"scholarship_id": "small", "timeline_bucket": "needs_date", "amount_max": 500},
+            {"scholarship_id": "dated", "timeline_bucket": "now", "amount_max": 9000},
+            {"scholarship_id": "big", "timeline_bucket": "needs_date", "amount_max": 5000},
+            {"scholarship_id": "unpriced", "timeline_bucket": "needs_date", "amount_max": None},
+        ]
+    )
+
+    assert needs_date_awards(df)["scholarship_id"].tolist() == ["big", "small", "unpriced"]
+
+
+def test_needs_date_awards_falls_back_to_the_minimum_amount() -> None:
+    df = pd.DataFrame(
+        [
+            {"scholarship_id": "floor", "timeline_bucket": "needs_date", "amount_min": 2000},
+            {"scholarship_id": "ceiling", "timeline_bucket": "needs_date", "amount_max": 3000},
+        ]
+    )
+
+    assert needs_date_awards(df)["scholarship_id"].tolist() == ["ceiling", "floor"]
+
+
+def test_needs_date_awards_handles_frames_without_the_column() -> None:
+    assert needs_date_awards(pd.DataFrame([{"scholarship_id": "a"}])).empty
+    assert needs_date_awards(None).empty

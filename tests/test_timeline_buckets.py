@@ -91,6 +91,65 @@ def test_student_ageing_out_before_next_cycle_is_not_applicable() -> None:
     assert df.loc[0, "timeline_bucket"] == "not_applicable"
 
 
+def test_undated_unknown_award_needs_a_date() -> None:
+    result = _classify()
+
+    assert result["timeline_bucket"] == "needs_date"
+    assert pd.isna(result["projected_deadline"])
+
+
+def test_open_award_with_no_date_stays_in_now() -> None:
+    # The sponsor saying it is open is the date the catalog has; keep it actionable.
+    result = _classify(status="open")
+
+    assert result["timeline_bucket"] == "now"
+
+
+def test_cycle_month_with_no_deadline_projects_and_stays_out_of_needs_date() -> None:
+    result = _classify(cycle={"recurring": True, "opens_month": None, "deadline_month": 5})
+
+    assert result["timeline_bucket"] == "now"
+    assert result["projected_deadline"].date() == date(2027, 5, 1)
+
+
+def test_missing_status_is_treated_as_unknown() -> None:
+    result = _classify(status=None)
+
+    assert result["timeline_bucket"] == "needs_date"
+
+
+def test_a_dated_award_is_never_needs_date() -> None:
+    result = _classify(deadline=date(2026, 11, 1))
+
+    assert result["timeline_bucket"] == "now"
+
+
+def test_needs_date_is_excluded_from_the_default_rerank() -> None:
+    df = pd.DataFrame(
+        [
+            {
+                "scholarship_id": "dated",
+                "stage2_score": 0.5,
+                "deadline": date(2026, 11, 1),
+                "timeline_bucket": "now",
+                "projected_deadline": pd.NaT,
+            },
+            {
+                "scholarship_id": "undated",
+                "stage2_score": 0.9,
+                "deadline": None,
+                "timeline_bucket": "needs_date",
+                "projected_deadline": pd.NaT,
+            },
+        ]
+    )
+
+    assert rerank_stage3(df, today=_TODAY)["scholarship_id"].tolist() == ["dated"]
+    assert rerank_stage3(df, today=_TODAY, timeline_bucket="needs_date")[
+        "scholarship_id"
+    ].tolist() == ["undated"]
+
+
 def test_every_bucket_value_is_declared() -> None:
     df = classify_timeline(
         pd.DataFrame(
@@ -107,6 +166,7 @@ def test_every_bucket_value_is_declared() -> None:
                     deadline=date(2026, 4, 1),
                     cycle={"recurring": False, "opens_month": None, "deadline_month": 4},
                 ),
+                _row(scholarship_id="undated"),
             ]
         ),
         _profile(),
@@ -114,7 +174,13 @@ def test_every_bucket_value_is_declared() -> None:
     )
 
     assert set(df["timeline_bucket"]) <= set(TIMELINE_BUCKETS)
-    assert df["timeline_bucket"].tolist() == ["now", "next_cycle", "senior_year", "expired"]
+    assert df["timeline_bucket"].tolist() == [
+        "now",
+        "next_cycle",
+        "senior_year",
+        "expired",
+        "needs_date",
+    ]
 
 
 def test_unknown_grade_level_keeps_the_deadline_bucket() -> None:

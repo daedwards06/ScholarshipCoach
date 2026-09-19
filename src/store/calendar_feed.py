@@ -33,7 +33,8 @@ from src.store.milestones import (
 )
 
 # now, next_cycle and senior_year are the three the timeline plans in; the
-# other two timeline buckets describe an award, not a date on a calendar.
+# other timeline buckets -- needs_date, expired, not_applicable -- describe an
+# award, not a date on a calendar, so nothing in them is exportable.
 CALENDAR_BUCKETS: tuple[str, ...] = ("now", "next_cycle", "senior_year")
 
 EVENT_KINDS: tuple[str, ...] = ("deadline", "checklist", "letter", "milestone", "award")

@@ -3,8 +3,12 @@
 Most awards repeat on the same calendar, so a listing that is closed today is
 usually a target for a later cycle rather than a dead link.  This module places
 each Stage 1 survivor in one of ``now``, ``next_cycle``, ``senior_year``,
-``expired``, or ``not_applicable`` and, for a recurring award whose listed
-deadline has passed, projects the date of its next cycle.
+``needs_date``, ``expired``, or ``not_applicable`` and, for a recurring award
+whose listed deadline has passed, projects the date of its next cycle.
+
+``needs_date`` keeps the Now bucket honest: an award with no deadline, no
+cycle month and a sponsor status nobody has confirmed is not something the
+student can act on today, it is something someone has to go look up.
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ TIMELINE_BUCKETS: tuple[str, ...] = (
     "now",
     "next_cycle",
     "senior_year",
+    "needs_date",
     "expired",
     "not_applicable",
 )
@@ -31,6 +36,7 @@ TIMELINE_BUCKET_LABELS: dict[str, str] = {
     "now": "Apply now",
     "next_cycle": "Next cycle",
     "senior_year": "A later school year",
+    "needs_date": "Needs a date",
     "expired": "Closed for good",
     "not_applicable": "Not applicable",
 }
@@ -125,6 +131,7 @@ def _row_bucket(
     row: pd.Series, profile: StudentProfile, today: date
 ) -> tuple[str, date | None]:
     deadline = _row_deadline(row)
+    deadline_month = _row_deadline_month(row)
     recurring = _row_recurring(row)
     status = _normalize_text(row.get("status"))
     deadline_is_past = deadline is not None and deadline < today
@@ -133,12 +140,16 @@ def _row_bucket(
 
     projected: date | None = None
     if recurring and (deadline_is_past or deadline is None or closed):
-        projected = project_next_deadline(deadline, _row_deadline_month(row), today)
+        projected = project_next_deadline(deadline, deadline_month, today)
 
     if deadline_is_past or closed:
         if not recurring:
             return "expired", None
         bucket = "next_cycle"
+    elif deadline is None and deadline_month is None and status in {"", "unknown"}:
+        # A sponsor that says "open" is a date of sorts; nobody saying anything
+        # is not, and that award belongs in front of a human, not the student.
+        bucket = "needs_date"
     else:
         bucket = "now"
 

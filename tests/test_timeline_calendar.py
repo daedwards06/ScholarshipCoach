@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from src.profile.grade_levels import grade_level_in_school_year, school_year_end
+from src.rank.timeline import TIMELINE_BUCKETS
 from src.store import calendar_feed, milestones, repo, tracker
 from src.store.db import connect
 
@@ -215,6 +216,28 @@ def test_group_by_month_and_school_year_are_ordered() -> None:
     ]
     assert list(calendar_feed.group_by_school_year(events)) == [2027, 2028]
     assert list(calendar_feed.group_by_month(events)) == [(2026, 10), (2027, 3), (2027, 10)]
+
+
+def test_needs_date_awards_never_reach_the_calendar() -> None:
+    # The app walks CALENDAR_BUCKETS to turn awards into events; an award with
+    # no date on record has nothing to put on a day.
+    assert "needs_date" in TIMELINE_BUCKETS
+    assert "needs_date" not in calendar_feed.CALENDAR_BUCKETS
+
+    events = [
+        calendar_feed.CalendarEvent("dated", "award", "Dated", date(2026, 11, 1)),
+        calendar_feed.CalendarEvent(
+            "undated", "award", "Undated", date(2026, 11, 1), bucket="needs_date"
+        ),
+    ]
+    exported = [
+        event
+        for bucket in calendar_feed.CALENDAR_BUCKETS
+        for event in calendar_feed.events_in_bucket(events, bucket)
+    ]
+
+    assert [event.uid for event in exported] == ["dated"]
+    assert "Undated" not in calendar_feed.to_ics(exported, now=NOW)
 
 
 # -- the family feed ---------------------------------------------------------
