@@ -7,7 +7,9 @@ that pass, run on a schedule (see ``docs/operations.md``).
 It never rewrites a record's content.  A page that still agrees with the
 record only gets its ``provenance.verified_on`` stamped; a page that
 disagrees, or one that is gone, becomes a ``reverify`` proposal in the confirm
-queue (:mod:`src.catalog.inbox`) for a person to accept or reject.
+queue (:mod:`src.catalog.inbox`) for a person to accept or reject.  A page that
+refused the fetch outright is ``blocked``: it proposes nothing and is listed for
+the owner to open in a browser.
 
 Comparison is deliberately conservative, because the regex extractor is
 recall-oriented and the queue is only useful while it stays short:
@@ -58,7 +60,15 @@ MIN_CHANGE_CONFIDENCE = 0.7
 OUTCOME_UNCHANGED = "unchanged"
 OUTCOME_CHANGED = "changed"
 OUTCOME_DEAD_LINK = "dead_link"
+OUTCOME_BLOCKED = "blocked"
 OUTCOME_ERROR = "error"
+
+# Only a status that means "this page is gone" may propose demoting a record.
+# Sponsor sites answer scripted fetches with 401/403/429 and with 5xx behind a
+# WAF as a matter of course; read as dead links, those would, over a year of
+# monthly passes, propose demoting every bot-guarded record in the catalog.
+_DEAD_LINK_STATUSES = frozenset({404, 410})
+_BLOCKED_STATUSES = frozenset({401, 403, 429})
 
 _REQUIREMENT_KEYS = (
     "essay",
@@ -114,6 +124,7 @@ class RecordVerification:
     changes: dict[str, dict[str, Any]] = field(default_factory=dict)
     proposal_id: str | None = None
     message: str | None = None
+    check_by_hand: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -127,6 +138,7 @@ class RecordVerification:
             "changes": self.changes,
             "proposal_id": self.proposal_id,
             "message": self.message,
+            "check_by_hand": self.check_by_hand,
         }
 
 
@@ -148,6 +160,7 @@ class VerificationReport:
             OUTCOME_UNCHANGED: 0,
             OUTCOME_CHANGED: 0,
             OUTCOME_DEAD_LINK: 0,
+            OUTCOME_BLOCKED: 0,
             OUTCOME_ERROR: 0,
         }
         for result in self.results:
@@ -157,6 +170,10 @@ class VerificationReport:
     @property
     def proposal_ids(self) -> list[str]:
         return [result.proposal_id for result in self.results if result.proposal_id]
+
+    @property
+    def blocked(self) -> list[RecordVerification]:
+        return [result for result in self.results if result.outcome == OUTCOME_BLOCKED]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -241,6 +258,7 @@ def verify_record(
     Returns:
         The verification result and, when the page disagrees with the record
         or the link is dead, the record a ``reverify`` proposal should carry.
+        A page that refused the fetch is ``blocked`` and proposes nothing.
     """
     catalog_id = str(record.get("catalog_id") or "")
     source_url = str(record.get("source_url") or "")
@@ -257,14 +275,16 @@ def verify_record(
                 ),
                 None,
             )
+        outcome = classify_http_status(http_status)
         result = RecordVerification(
             catalog_id=catalog_id,
             source_url=source_url,
-            outcome=OUTCOME_DEAD_LINK,
+            outcome=outcome,
             http_status=http_status,
             message=error,
+            check_by_hand=outcome == OUTCOME_BLOCKED,
         )
-        return result, _dead_link_record(record)
+        return result, (_dead_link_record(record) if outcome == OUTCOME_DEAD_LINK else None)
 
     prefill = prefill_from_html(html, url=source_url, extractor=extractor)
     digest = content_hash(prefill.text)
@@ -391,11 +411,21 @@ def load_prior_hashes(reports_dir: Path | None = None) -> dict[str, str]:
     return {}
 
 
+def classify_http_status(status: int) -> str:
+    """Map a failed fetch's HTTP status onto an outcome."""
+    if status in _DEAD_LINK_STATUSES:
+        return OUTCOME_DEAD_LINK
+    if status in _BLOCKED_STATUSES or status >= 500:
+        return OUTCOME_BLOCKED
+    return OUTCOME_ERROR
+
+
 def _fetch(client: Any, url: str) -> tuple[str | None, int | None, str | None]:
     """Return ``(html, http_status, error)``; ``html`` is None when the fetch failed.
 
     An HTTP status on the exception is what separates a dead link from a
-    laptop that was offline: only the former is worth queueing a proposal for.
+    laptop that was offline; :func:`classify_http_status` then separates a
+    page that is gone from one that only refused this fetch.
     """
     if not url:
         return None, None, "record has no source_url"

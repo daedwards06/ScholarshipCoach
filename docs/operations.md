@@ -186,8 +186,15 @@ requirement flags against the record.
 |---|---|
 | Page agrees with the record | Stamps `provenance.verified_on` (and `verified_by: verify_catalog`) in place |
 | Page disagrees | Writes a `reverify` proposal to `data/catalog/inbox/` with the field-level diff |
-| Link is dead (4xx/5xx) | Writes a `reverify` proposal with `status: unknown` |
+| Link is dead (404, 410) | Writes a `reverify` proposal with `status: unknown` |
+| Host refused the fetch (401, 403, 429, 5xx) | Reports `blocked` with `check_by_hand: true` — no proposal; the URLs are printed at the end of the run to open in a browser |
+| Any other HTTP status | Reports an `error` — no proposal |
 | Host unreachable, timeout | Reports an `error` — no proposal, because an offline laptop is not news |
+
+Sponsor sites answer scripted fetches with 401, 403, 429, or a WAF's 5xx routinely, and those
+pages are almost always alive in a browser. Only a 404 or 410 is read as a dead link; everything
+else refusing the fetch is `blocked` and waits for a person, so a year of monthly passes cannot
+quietly demote every bot-guarded record in the catalog.
 
 A record's content is never edited by the script beyond that verification stamp, and `trust` is
 never raised: `verified_by: verify_catalog` means a machine re-read the page and found nothing
@@ -254,6 +261,6 @@ Start-ScheduledTask   -TaskName "ScholarshipCoach catalog re-verification"   # r
 Unregister-ScheduledTask -TaskName "ScholarshipCoach catalog re-verification" -Confirm:$false
 ```
 
-The task's exit code is 0 for any completed pass — dead links and changed pages are the output
-of a healthy run, not a failure — and 1 only when the catalog directory holds no records. Read
+The task's exit code is 0 for any completed pass — dead links, changed pages, and blocked hosts
+are the output of a healthy run, not a failure — and 1 only when the catalog directory holds no records. Read
 what a run found in `reports/catalog_verify/`, or from the inbox.

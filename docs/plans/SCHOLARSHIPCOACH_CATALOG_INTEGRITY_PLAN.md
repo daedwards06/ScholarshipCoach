@@ -326,14 +326,35 @@ python scripts/verify_catalog.py --since-days 0 --max-records 5
 ```
 
 **Checklist:**
-- [ ] New `OUTCOME_BLOCKED` for 401, 403, 429, and any 5xx; no proposal is written; the report
+- [x] New `OUTCOME_BLOCKED` for 401, 403, 429, and any 5xx; no proposal is written; the report
       row carries the status and a `check_by_hand: true` flag
-- [ ] `OUTCOME_DEAD_LINK` only for 404 and 410; other 4xx map to `OUTCOME_ERROR`
-- [ ] Summary and `docs/operations.md` table gain the blocked row; the CLI prints blocked URLs
+      *(2026-09-19: `OUTCOME_BLOCKED` plus `_DEAD_LINK_STATUSES` / `_BLOCKED_STATUSES` and a
+      public `classify_http_status` in `src/catalog/verify.py`. `verify_record` returns
+      `(result, None)` for a blocked status, so nothing reaches `_record_proposal`.
+      `RecordVerification` gained `check_by_hand: bool`, carried in `to_dict`, and
+      `VerificationReport` gained a `blocked` property and a `blocked` key in `counts`.)*
+- [x] `OUTCOME_DEAD_LINK` only for 404 and 410; other 4xx map to `OUTCOME_ERROR`
+      *(2026-09-19: `classify_http_status` returns `dead_link` only for 404/410, `blocked` for
+      401/403/429/>=500, and `error` for everything else with a status — 400 no longer proposes
+      `status: unknown`.)*
+- [x] Summary and `docs/operations.md` table gain the blocked row; the CLI prints blocked URLs
       at the end so the owner can open them in a browser
-- [ ] Tests with the fake client: 403 → blocked, no proposal; 404 → dead link proposal;
+      *(2026-09-19: the counts line now reads `... dead_link=N blocked=N error=N`, per-record
+      rows carry a `[check by hand]` flag, and the run ends with an `HTTP <status> <url>` list.
+      `docs/operations.md` splits the old "Link is dead (4xx/5xx)" row into dead (404, 410),
+      blocked (401, 403, 429, 5xx), and other-status rows, with a paragraph on why.)*
+- [x] Tests with the fake client: 403 → blocked, no proposal; 404 → dead link proposal;
       503 → blocked; 404 after a prior blocked run still proposes
-- [ ] All four CI commands green
+      *(2026-09-19: 4 new tests in `tests/test_catalog_verify.py` — blocked parametrized over
+      401/403/429/500/503 (asserting no proposal, the on-disk record still `status: open`, and
+      the `blocked` report list), 400 → error, 403-then-404 still proposing `status: unknown`,
+      and a CLI test asserting `blocked=1`, `dead_link=0`, and the printed URL. The existing
+      dead-link test is parametrized over 404/410.)*
+- [x] All four CI commands green
+      *(2026-09-19: pytest 684 collected / exit 0 / coverage 89.17%, ruff clean, mypy clean on
+      62 source files, validate_catalog passes on 3 records. `verify_catalog.py --since-days 0
+      --max-records 5` fetched all 3 curated records live: `unchanged=3 changed=0 dead_link=0
+      blocked=0 error=0`.)*
 
 ---
 
@@ -428,6 +449,80 @@ python -c "import json,glob; rs=[json.load(open(f)) for f in glob.glob('data/cat
 - [ ] Verify against the real profile that the STEM Major award is eligible and the
       military-only and teacher-only awards are rejected with a reason code
 - [ ] Rebuild the snapshot; confirm the record count rises and the guardrail does not fire
+- [ ] All four CI commands green
+
+---
+
+## Task 1.8: The Machine Pass Must Not Sign a Person's Name
+
+**Why:** `data/catalog/schema.json` defines `trust: verified_local` as *"a person opened
+source_url and confirmed the record on `verified_on`."* `verified_on` / `verified_by` are,
+by the schema's own words, the record of a **human** confirmation. But `_verified_provenance`
+in `src/catalog/verify.py` overwrites both unconditionally, so a machine pass that learns
+nothing erases who last confirmed the record.
+
+This is not hypothetical. Running Task 1.5's own validation command on 2026-09-19 rewrote all
+three curated records from `verified_by: daedwards06` to `verified_by: verify_catalog` — on the
+same day a person hand-confirmed them in Task 1.2. The change was reverted rather than
+committed, but the behavior is still in the code, and the scheduled monthly task will do it
+again to every record in the catalog, unattended.
+
+`docs/operations.md` already promises the weaker half of this: *"`trust` is never raised:
+`verified_by: verify_catalog` means a machine re-read the page ... which is a weaker claim than
+`trust: verified_local` — that one still requires a person."* The gap is that nothing stops the
+machine from **lowering** the attribution, which is how the stronger claim's evidence gets lost.
+Success Criterion 2 ("Every record ... is `verified_local` with a `verified_on` date") is only
+meaningful while `verified_on` still means what the schema says it means.
+
+**The fix:** give the machine pass its own two fields. `checked_on` / `checked_by` record that a
+script re-read the page; `verified_on` / `verified_by` stay untouched and keep meaning a person
+did. Scheduling then runs off whichever is later, so a machine check still defers the next fetch
+by `since_days` and the monthly pass costs no more than it does today.
+
+**Depends on:** Task 1.5 (done). No hard dependency the other way, but land it before Task 2.2
+seeds NC awards and before any unattended run of the scheduled task, or the loss recurs.
+
+**Preflight Files:**
+- `src/catalog/verify.py` (`_verified_provenance` at ~L527, `_stamp_verified_on` at ~L479,
+  `_VALUE_PATTERNS` at ~L107, `_record_proposal` at ~L550, `_due_records` / `_verified_on` at ~L453)
+- `data/catalog/schema.json` (`provenance` block — `additionalProperties: false`, so new keys
+  must be declared to validate)
+- `src/catalog/entry.py` (~L392: the Add Award form rebuilds `provenance` from scratch and would
+  silently drop the new keys on an edit)
+- `src/ingest/sources/curated_catalog.py` (`_PROVENANCE_KEYS` at L45 — what reaches the snapshot)
+- `docs/operations.md` (the "What it found / What it does" table and the `trust` paragraph)
+- `tests/test_catalog_verify.py`
+
+**Validation Commands:**
+```powershell
+python -m pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+python -m mypy src/
+python scripts/validate_catalog.py
+python scripts/verify_catalog.py --since-days 0 --max-records 5
+git diff --stat data/catalog/records/   # provenance edits only; no verified_by churn
+```
+
+**Checklist:**
+- [ ] `provenance.checked_on` / `checked_by` added to `data/catalog/schema.json` as optional
+      keys (additive; `additionalProperties: false` requires declaring them);
+      `validate_catalog.py` passes
+- [ ] `_verified_provenance` writes only `checked_on` / `checked_by: verify_catalog` and never
+      touches `verified_on` / `verified_by`; `_VALUE_PATTERNS` and `_stamp_verified_on` patch
+      the new keys, keeping the hand-formatted-file guarantee
+- [ ] `_due_records` schedules on the later of `verified_on` and `checked_on`, so a machine
+      check still defers the next fetch by `since_days`
+- [ ] The changed-page path (`_record_proposal`) stamps `checked_*` on the proposed record, so
+      confirming a `reverify` proposal does not erase who last confirmed it
+- [ ] `entry.py` round-trips `checked_on` / `checked_by` instead of dropping them when the owner
+      edits a record in the app; `curated_catalog._PROVENANCE_KEYS` carries them to the snapshot
+- [ ] `docs/operations.md` table and `trust` paragraph say which pair the script writes and that
+      it never writes the human pair
+- [ ] Tests: an unchanged page keeps a human `verified_by` and sets `checked_by`; a never-verified
+      record gets `checked_*` and leaves `verified_*` null; `--since-days` defers on `checked_on`
+      alone; a `reverify` proposal preserves `verified_by`
+- [ ] Re-run the live pass over the three curated records and confirm they keep
+      `verified_by: daedwards06` (this is the regression that motivated the task)
 - [ ] All four CI commands green
 
 ---
@@ -693,7 +788,7 @@ python -c "import json,pandas as pd,dataclasses; from pathlib import Path; from 
 
 ```
 Phase 1  1.1 rebuild + guardrail → 1.2 confirm the five → 1.3 trust rule → 1.7 AFCEA split
-         → 1.4 dedupe → 1.5 blocked vs dead → 1.6 needs_date
+         → 1.4 dedupe → 1.5 blocked vs dead → 1.8 checked_by vs verified_by → 1.6 needs_date
 Phase 2  2.1 Scholarship America → 2.2 seed NC local awards → 2.3 onboard the student
 Phase 3  3.1 outcomes page → 3.2 split main.py → 3.3 bookkeeping + screenshots → 3.4 re-measure
 ```
@@ -702,8 +797,10 @@ Task 1.1 first, alone, before anything else touches the snapshot. Task 1.2 befor
 enforcement lands on a catalog with confirmed rows. Task 1.7 (added 2026-09-19) after 1.3 so the
 records it mints are confirmed once under the trust rule, and before 1.4 so dedupe is exercised
 against the real per-award catalog rather than one umbrella row; it has no hard dependency on
-1.6, whose bucketing is applied at read time. Task 2.2 after 1.6 so seeded records are
-checked against the `needs_date` rule as they land. Task 3.2 after 3.1 so the split does not
+1.6, whose bucketing is applied at read time. Task 1.8 (added 2026-09-19) after 1.5, since both
+rework the same verification pass, and before the scheduled monthly task is left to run
+unattended — every unattended pass until it lands erases a human `verified_by`. Task 2.2 after
+1.6 so seeded records are checked against the `needs_date` rule as they land. Task 3.2 after 3.1 so the split does not
 carry a placeholder. Task 3.4 last.
 
 ## Success Criteria

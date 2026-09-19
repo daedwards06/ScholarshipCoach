@@ -9,6 +9,7 @@ import pytest
 from scripts.verify_catalog import main as verify_main
 from src.catalog.inbox import list_proposals
 from src.catalog.verify import (
+    OUTCOME_BLOCKED,
     OUTCOME_CHANGED,
     OUTCOME_DEAD_LINK,
     OUTCOME_ERROR,
@@ -233,21 +234,79 @@ def test_a_newly_announced_deadline_fills_a_null(
     assert list_proposals(inbox)[0].record["deadline"] == "2027-03-01"
 
 
-def test_dead_link_proposes_status_unknown(catalog_dirs: tuple[Path, Path, Path]) -> None:
+@pytest.mark.parametrize("status", [404, 410])
+def test_dead_link_proposes_status_unknown(
+    catalog_dirs: tuple[Path, Path, Path], status: int
+) -> None:
     records, inbox, _ = catalog_dirs
     _write_record(records, _record())
-    client = _StubClient({"https://example.invalid/award": _HttpError(404)})
+    client = _StubClient({"https://example.invalid/award": _HttpError(status)})
 
     report = _run(catalog_dirs, client)
 
     result = report.results[0]
     assert result.outcome == OUTCOME_DEAD_LINK
-    assert result.http_status == 404
+    assert result.http_status == status
+    assert result.check_by_hand is False
 
     proposals = list_proposals(inbox)
     assert len(proposals) == 1
     assert proposals[0].record["status"] == "unknown"
     assert proposals[0].record["deadline"] == "2027-03-01"
+
+
+@pytest.mark.parametrize("status", [401, 403, 429, 500, 503])
+def test_a_refused_fetch_is_blocked_and_proposes_nothing(
+    catalog_dirs: tuple[Path, Path, Path], status: int
+) -> None:
+    records, inbox, _ = catalog_dirs
+    path = _write_record(records, _record())
+    client = _StubClient({"https://example.invalid/award": _HttpError(status)})
+
+    report = _run(catalog_dirs, client)
+
+    result = report.results[0]
+    assert result.outcome == OUTCOME_BLOCKED
+    assert result.http_status == status
+    assert result.check_by_hand is True
+    assert list_proposals(inbox) == []
+    assert json.loads(path.read_text(encoding="utf-8"))["status"] == "open"
+    assert report.counts[OUTCOME_BLOCKED] == 1
+    assert [blocked.source_url for blocked in report.blocked] == [
+        "https://example.invalid/award"
+    ]
+
+
+def test_other_client_errors_are_an_error_not_a_dead_link(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, inbox, _ = catalog_dirs
+    _write_record(records, _record())
+    client = _StubClient({"https://example.invalid/award": _HttpError(400)})
+
+    report = _run(catalog_dirs, client)
+
+    assert report.results[0].outcome == OUTCOME_ERROR
+    assert report.results[0].check_by_hand is False
+    assert list_proposals(inbox) == []
+
+
+def test_a_gone_page_after_a_blocked_run_still_proposes(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, inbox, _ = catalog_dirs
+    _write_record(records, _record())
+
+    blocked = _run(catalog_dirs, _StubClient({"https://example.invalid/award": _HttpError(403)}))
+    assert blocked.results[0].outcome == OUTCOME_BLOCKED
+    assert list_proposals(inbox) == []
+
+    gone = _run(catalog_dirs, _StubClient({"https://example.invalid/award": _HttpError(404)}))
+
+    assert gone.results[0].outcome == OUTCOME_DEAD_LINK
+    proposals = list_proposals(inbox)
+    assert len(proposals) == 1
+    assert proposals[0].record["status"] == "unknown"
 
 
 def test_unreachable_host_is_an_error_not_a_dead_link(
@@ -416,6 +475,41 @@ def test_cli_reports_and_exits_zero(
     assert exit_code == 0
     assert "changed=1" in output
     assert "reverify-test-foundation-award" in output
+
+
+def test_cli_lists_blocked_urls_to_open_by_hand(
+    catalog_dirs: tuple[Path, Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    records, inbox, reports = catalog_dirs
+    _write_record(records, _record())
+    client = _StubClient({"https://example.invalid/award": _HttpError(403)})
+    monkeypatch.setattr(
+        "scripts.verify_catalog.verify_catalog",
+        lambda **kwargs: verify_catalog(**{**kwargs, "client": client, "today": _TODAY}),
+    )
+
+    exit_code = verify_main(
+        [
+            "--records-dir",
+            str(records),
+            "--inbox-dir",
+            str(inbox),
+            "--reports-dir",
+            str(reports),
+            "--since-days",
+            "0",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "blocked=1" in output
+    assert "dead_link=0" in output
+    assert "check by hand" in output
+    assert "HTTP 403  https://example.invalid/award" in output
+    assert list_proposals(inbox) == []
 
 
 def test_cli_errors_on_an_empty_catalog(

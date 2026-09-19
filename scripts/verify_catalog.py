@@ -3,14 +3,15 @@
 Run monthly (see ``docs/operations.md``).  Each due record's ``source_url`` is
 re-fetched, hashed, and re-extracted; a page that still agrees only gets its
 ``provenance.verified_on`` stamped, and anything else lands in the confirm
-queue as a ``reverify`` proposal for a person to work.
+queue as a ``reverify`` proposal for a person to work.  A host that refused the
+fetch (401/403/429/5xx) proposes nothing and is printed at the end to open in a
+browser.
 
     python scripts/verify_catalog.py
     python scripts/verify_catalog.py --since-days 30 --max-records 5
 
-The exit status reports whether the pass ran, not what it found: dead links
-and changed pages are the output of a healthy run, and they are reported as
-proposals.
+The exit status reports whether the pass ran, not what it found: dead links,
+changed pages, and blocked hosts are the output of a healthy run.
 """
 from __future__ import annotations
 
@@ -65,7 +66,8 @@ def _summarize(result: RecordVerification) -> str:
     elif result.message:
         detail = result.message
     proposal = f" -> {result.proposal_id}" if result.proposal_id else ""
-    return f"  {result.catalog_id:<44} {result.outcome:<10} {detail}{proposal}"
+    flag = " [check by hand]" if result.check_by_hand else ""
+    return f"  {result.catalog_id:<44} {result.outcome:<10} {detail}{proposal}{flag}"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -93,9 +95,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     counts = report.counts
     print(
-        "unchanged={unchanged} changed={changed} dead_link={dead_link} error={error}".format(
-            **counts
-        )
+        "unchanged={unchanged} changed={changed} dead_link={dead_link} "
+        "blocked={blocked} error={error}".format(**counts)
     )
     if report.proposal_ids:
         print(
@@ -104,6 +105,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if report.report_path is not None:
         print(f"Report: {report.report_path}")
+
+    blocked = report.blocked
+    if blocked:
+        print()
+        print(
+            f"{len(blocked)} host(s) refused the fetch and proposed nothing. "
+            "Open these in a browser to check them by hand:"
+        )
+        for result in blocked:
+            print(f"  HTTP {result.http_status or '?':<4} {result.source_url}")
     return 0
 
 
