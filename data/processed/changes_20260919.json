@@ -1,0 +1,207 @@
+{
+  "added": [],
+  "changed": [
+    {
+      "fields_changed": {
+        "amount": {
+          "new": {
+            "amount_max": 5000.0,
+            "amount_min": 1500.0
+          },
+          "old": {
+            "amount_max": 5000.0,
+            "amount_min": 2500.0
+          }
+        },
+        "deadline": {
+          "new": null,
+          "old": "2027-04-01"
+        }
+      },
+      "scholarship_id": "03cd7d28765a897c44f87234a825d2f15db79ecb"
+    },
+    {
+      "fields_changed": {
+        "deadline": {
+          "new": null,
+          "old": "2027-12-01"
+        }
+      },
+      "scholarship_id": "7501e37499b521e8aa0fc8b4e9c33bcfe7ba67e9"
+    },
+    {
+      "fields_changed": {
+        "deadline": {
+          "new": null,
+          "old": "2027-02-15"
+        }
+      },
+      "scholarship_id": "8c59d9b53d19a3fd968a9c6c723f5d4978d069ea"
+    }
+  ],
+  "removed": [
+    {
+      "amount_max": 15000.0,
+      "amount_min": 5000.0,
+      "catalog_id": "collegiate-inventors-competition",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 6.0,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": "2027-06-05",
+      "description": "Annual competition honoring the most outstanding inventions and innovations by college and university students.",
+      "disability": null,
+      "education_level": "undergraduate",
+      "eligibility_text": "Open to full-time undergraduate or graduate students at accredited US colleges. Students in all majors are eligible. No state restrictions.",
+      "embedding_key": "d3209f052dbb276f79f1d6293a497c7a76954ff7",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": false,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-13T23:18:09Z",
+      "gender": null,
+      "grade_levels": [
+        "college_1",
+        "college_2",
+        "college_3",
+        "college_4"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "innovation",
+        "invention",
+        "undergraduate",
+        "competition",
+        "STEM"
+      ],
+      "last_seen_at": "2026-09-13T23:18:09Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Migrated from data/static_feed/scholarships.json. Entry requires an invention submission and a faculty advisor rather than an essay; deadline and status not yet confirmed against source_url.",
+      "provenance": {
+        "added_on": "2026-09-12",
+        "attribution": null,
+        "license": null,
+        "source_kind": "sponsor_site",
+        "source_url": null,
+        "verified_by": null,
+        "verified_on": null
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": false,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": true,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": true
+      },
+      "scholarship_id": "92051aa31407d4db34e53d1aa35763c2d841eac6",
+      "source": "curated_catalog",
+      "source_id": "collegiate-inventors-competition",
+      "source_url": "https://collegiateinventors.org/",
+      "sponsor": "National Inventors Hall of Fame",
+      "states_allowed": null,
+      "status": "unknown",
+      "title": "Collegiate Inventors Competition",
+      "trust": "unverified"
+    },
+    {
+      "amount_max": 10000.0,
+      "amount_min": 10000.0,
+      "catalog_id": "google-generation-scholarship",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 12.0,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": "2027-12-01",
+      "description": "The Google Generation Scholarship recognizes outstanding students in computer science and computer engineering.",
+      "disability": null,
+      "education_level": "undergraduate",
+      "eligibility_text": "Must be enrolled full-time at a four-year university studying computer science, computer engineering, or a closely related technical field. Open to all US and Canadian students regardless of state.",
+      "embedding_key": "bc688494718267ed631be420e2e4eb9de1985804",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-13T23:18:09Z",
+      "gender": null,
+      "grade_levels": [
+        "college_1",
+        "college_2",
+        "college_3",
+        "college_4"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "computer science",
+        "computer engineering",
+        "technology",
+        "undergraduate",
+        "diversity"
+      ],
+      "last_seen_at": "2026-09-13T23:18:09Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "Computer Science",
+        "Computer Engineering"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Migrated from data/static_feed/scholarships.json. Deadline and status not yet confirmed against source_url.",
+      "provenance": {
+        "added_on": "2026-09-12",
+        "attribution": null,
+        "license": null,
+        "source_kind": "sponsor_site",
+        "source_url": null,
+        "verified_by": "verify_catalog",
+        "verified_on": "2026-09-12"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": true,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "cdef3ef17ea99550630641ed2fd7cf04478a5d20",
+      "source": "curated_catalog",
+      "source_id": "google-generation-scholarship",
+      "source_url": "https://buildyourfuture.withgoogle.com/scholarships/google-scholarship",
+      "sponsor": "Google LLC",
+      "states_allowed": null,
+      "status": "unknown",
+      "title": "Google Generation Scholarship",
+      "trust": "unverified"
+    }
+  ]
+}

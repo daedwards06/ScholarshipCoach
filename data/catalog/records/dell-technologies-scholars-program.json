@@ -1,49 +1,64 @@
 {
-  "catalog_id": "dell-technologies-scholars-program",
-  "title": "Dell Technologies Scholars Program",
-  "sponsor": "Dell Technologies",
-  "source_url": "https://www.dell.com/en-us/dt/foundation/scholarships.htm",
-  "description": "The Dell Scholars Program supports students who have overcome obstacles and demonstrate a strong commitment to their education.",
-  "eligibility_text": "US citizen or permanent resident. Participating in a college-ready program. Must demonstrate financial need. No state restrictions. Minimum 2.4 GPA required.",
-  "amount_min": 20000.0,
   "amount_max": 20000.0,
-  "deadline": "2027-12-01",
-  "cycle": { "recurring": true, "opens_month": null, "deadline_month": 12 },
-  "status": "unknown",
-  "education_level": "high school",
-  "grade_levels": ["12"],
-  "majors_allowed": [],
-  "states_allowed": [],
-  "counties_allowed": [],
-  "min_gpa": 2.4,
+  "amount_min": 20000.0,
+  "catalog_id": "dell-technologies-scholars-program",
   "citizenship": "US",
-  "need_based": true,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 2,
+    "opens_month": 12,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "The Dell Scholars Program supports students who have overcome obstacles and demonstrate a strong commitment to their education.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "US citizen or permanent resident. Participating in a college-ready program. Must demonstrate financial need. No state restrictions. Minimum 2.4 GPA required.",
+  "employer_restricted": [],
   "first_gen_only": null,
   "gender": null,
+  "grade_levels": [
+    "12"
+  ],
   "heritage": [],
-  "military_family": null,
-  "disability": null,
-  "religion": null,
-  "employer_restricted": [],
+  "keywords": [
+    "financial need",
+    "first generation",
+    "undergraduate",
+    "technology",
+    "national"
+  ],
+  "majors_allowed": [],
   "membership_required": [],
-  "min_test_scores": { "sat": null, "act": null },
+  "military_family": null,
+  "min_gpa": 2.4,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": true,
+  "notes": "Confirmed by the owner on 2026-09-19 against https://www.dellscholars.org/scholarship/; the former dell.com foundation URL returns HTTP 404. The page states a December 15 open and a February 15 deadline, so the cycle runs Dec -> Feb. deadline is null because the cycle shown had already closed and the next one was not yet posted.",
+  "provenance": {
+    "added_on": "2026-09-12",
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-19"
+  },
+  "religion": null,
+  "renewal_terms": null,
   "requirements": {
     "essay": true,
     "essay_prompts": [],
-    "recommendation_letters": null,
-    "transcript": true,
     "fafsa": true,
-    "video_or_portfolio": null,
-    "interview": null
+    "interview": null,
+    "recommendation_letters": 1,
+    "transcript": true,
+    "video_or_portfolio": null
   },
-  "renewal_terms": null,
-  "keywords": ["financial need", "first generation", "undergraduate", "technology", "national"],
-  "trust": "unverified",
-  "provenance": {
-    "added_on": "2026-09-12",
-    "verified_on": null,
-    "verified_by": null,
-    "source_kind": "sponsor_site"
-  },
-  "notes": "Migrated from data/static_feed/scholarships.json. Open to graduating high school seniors enrolled in an approved college-readiness program; deadline and status not yet confirmed against source_url."
+  "source_url": "https://www.dellscholars.org/scholarship/",
+  "sponsor": "Dell Technologies",
+  "states_allowed": [],
+  "status": "upcoming",
+  "title": "Dell Technologies Scholars Program",
+  "trust": "verified_local"
 }

@@ -28,10 +28,67 @@ _FETCHED_AT = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
 _SCHEMA_PATH = Path(__file__).resolve().parents[1] / "data" / "catalog" / "schema.json"
 
 
+# Inlined rather than read from RECORDS_DIR: the curated catalog is owner-maintained
+# data, so pinning a fixture to a live record makes confirming or deleting an award
+# break the test suite.
+_FIXTURE_ID = "fixture-cs-scholarship"
+
+
 def _valid_record() -> dict:
-    return json.loads(
-        (RECORDS_DIR / "google-generation-scholarship.json").read_text(encoding="utf-8")
-    )
+    return {
+        "catalog_id": _FIXTURE_ID,
+        "title": "Fixture CS Scholarship",
+        "sponsor": "Fixture Sponsor",
+        "source_url": "https://example.org/fixture-cs-scholarship",
+        "description": "A representative undergraduate computing award used as a test fixture.",
+        "eligibility_text": "Full-time undergraduates studying computer science or computer engineering.",
+        "amount_min": 10000.0,
+        "amount_max": 10000.0,
+        "deadline": "2027-12-01",
+        "cycle": {"recurring": True, "opens_month": None, "deadline_month": 12},
+        "status": "unknown",
+        "education_level": "undergraduate",
+        "grade_levels": ["college_1", "college_2", "college_3", "college_4"],
+        "majors_allowed": ["Computer Science", "Computer Engineering"],
+        "states_allowed": [],
+        "counties_allowed": [],
+        "min_gpa": None,
+        "citizenship": None,
+        "need_based": None,
+        "first_gen_only": None,
+        "gender": None,
+        "heritage": [],
+        "military_family": None,
+        "disability": None,
+        "religion": None,
+        "employer_restricted": [],
+        "membership_required": [],
+        "min_test_scores": {"sat": None, "act": None},
+        "requirements": {
+            "essay": True,
+            "essay_prompts": [],
+            "recommendation_letters": None,
+            "transcript": True,
+            "fafsa": None,
+            "video_or_portfolio": None,
+            "interview": None,
+        },
+        "renewal_terms": None,
+        "keywords": ["computer science", "computer engineering", "undergraduate"],
+        "trust": "unverified",
+        "provenance": {
+            "added_on": "2026-09-12",
+            "verified_on": None,
+            "verified_by": None,
+            "source_kind": "sponsor_site",
+        },
+        "notes": None,
+    }
+
+
+def _parse_fixture() -> list[dict]:
+    payload = json.dumps([_valid_record()]).encode("utf-8")
+    return CuratedCatalogSource().parse(payload, fetched_at=_FETCHED_AT)
 
 
 def _parse_catalog() -> list[dict]:
@@ -55,15 +112,15 @@ def test_catalog_records_have_required_and_catalog_columns() -> None:
 
 
 def test_catalog_populates_eligibility_axes() -> None:
-    google = next(r for r in _parse_catalog() if r["catalog_id"] == "google-generation-scholarship")
-    assert google["source"] == "curated_catalog"
-    assert google["majors_allowed"] == ["Computer Science", "Computer Engineering"]
-    assert google["education_level"] == "undergraduate"
-    assert google["status"] == "unknown"
-    assert google["trust"] == "unverified"
-    assert google["essay_required"] is True
-    assert google["requirements"]["transcript"] is True
-    assert google["provenance"]["added_on"] == "2026-09-12"
+    parsed = _parse_fixture()[0]
+    assert parsed["source"] == "curated_catalog"
+    assert parsed["majors_allowed"] == ["Computer Science", "Computer Engineering"]
+    assert parsed["education_level"] == "undergraduate"
+    assert parsed["status"] == "unknown"
+    assert parsed["trust"] == "unverified"
+    assert parsed["essay_required"] is True
+    assert parsed["requirements"]["transcript"] is True
+    assert parsed["provenance"]["added_on"] == "2026-09-12"
 
 
 def test_catalog_ids_are_deterministic() -> None:
@@ -107,7 +164,7 @@ def test_invalid_record_is_skipped_without_failing_the_source() -> None:
     payload = json.dumps([_valid_record(), bad_enum, missing_required]).encode("utf-8")
 
     records = CuratedCatalogSource().parse(payload, fetched_at=_FETCHED_AT)
-    assert [r["catalog_id"] for r in records] == ["google-generation-scholarship"]
+    assert [r["catalog_id"] for r in records] == [_FIXTURE_ID]
 
 
 def test_unreadable_file_is_skipped_at_fetch(tmp_path: Path) -> None:
@@ -156,9 +213,7 @@ def test_validate_catalog_script_passes_on_the_committed_catalog() -> None:
 def test_validate_catalog_script_flags_filename_and_duplicate_slugs(tmp_path: Path) -> None:
     record = _valid_record()
     (tmp_path / "wrong-name.json").write_text(json.dumps(record), encoding="utf-8")
-    (tmp_path / "google-generation-scholarship.json").write_text(
-        json.dumps(record), encoding="utf-8"
-    )
+    (tmp_path / f"{_FIXTURE_ID}.json").write_text(json.dumps(record), encoding="utf-8")
 
     errors = validate_catalog(tmp_path, _SCHEMA_PATH)
     assert any("filename must match catalog_id" in message for message in errors)
@@ -166,14 +221,14 @@ def test_validate_catalog_script_flags_filename_and_duplicate_slugs(tmp_path: Pa
 
 
 def test_catalog_columns_survive_a_parquet_round_trip(tmp_path: Path) -> None:
-    snapshot_df = prepare_snapshot_df(pd.DataFrame(_parse_catalog()))
+    snapshot_df = prepare_snapshot_df(pd.DataFrame(_parse_fixture()))
     assert set(CATALOG_COLUMNS).issubset(snapshot_df.columns)
 
     output_path = tmp_path / "snapshot.parquet"
     write_parquet_atomic(snapshot_df, output_path)
     loaded = pd.read_parquet(output_path)
 
-    row = loaded.set_index("catalog_id").loc["google-generation-scholarship"]
+    row = loaded.set_index("catalog_id").loc[_FIXTURE_ID]
     assert row["requirements"]["essay"] is True
     assert row["cycle"]["deadline_month"] == 12
     assert row["provenance"]["source_kind"] == "sponsor_site"

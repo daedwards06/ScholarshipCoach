@@ -1,49 +1,71 @@
 {
-  "catalog_id": "society-of-women-engineers-scholarship",
-  "title": "Society of Women Engineers Scholarship",
-  "sponsor": "Society of Women Engineers",
-  "source_url": "https://swe.org/scholarships/",
-  "description": "SWE scholarships support women pursuing ABET-accredited engineering and computer science programs.",
-  "eligibility_text": "Open to undergraduate students pursuing an engineering or computer science degree at an ABET-accredited program. Available nationwide.",
-  "amount_min": 1000.0,
   "amount_max": 15000.0,
-  "deadline": "2027-02-15",
-  "cycle": { "recurring": true, "opens_month": null, "deadline_month": 2 },
-  "status": "unknown",
-  "education_level": "undergraduate",
-  "grade_levels": ["college_1", "college_2", "college_3", "college_4"],
-  "majors_allowed": ["Engineering", "Computer Science"],
-  "states_allowed": [],
-  "counties_allowed": [],
-  "min_gpa": null,
+  "amount_min": 1000.0,
+  "catalog_id": "society-of-women-engineers-scholarship",
   "citizenship": null,
-  "need_based": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": null,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "SWE scholarships support women pursuing ABET-accredited engineering and computer science programs.",
+  "disability": null,
+  "education_level": "undergraduate",
+  "eligibility_text": "Open to undergraduate students pursuing an engineering or computer science degree at an ABET-accredited program. Available nationwide.",
+  "employer_restricted": [],
   "first_gen_only": null,
   "gender": "female",
+  "grade_levels": [
+    "college_1",
+    "college_2",
+    "college_3",
+    "college_4"
+  ],
   "heritage": [],
-  "military_family": null,
-  "disability": null,
-  "religion": null,
-  "employer_restricted": [],
+  "keywords": [
+    "engineering",
+    "computer science",
+    "women",
+    "ABET",
+    "undergraduate",
+    "STEM"
+  ],
+  "majors_allowed": [
+    "Engineering",
+    "Computer Science"
+  ],
   "membership_required": [],
-  "min_test_scores": { "sat": null, "act": null },
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Confirmed by the owner on 2026-09-19 in a browser; the page showed no deadline, so deadline and cycle months are null rather than the 2027-02-15 carried over from the static-feed migration (that date was never verified by anyone). Automated re-verification cannot read this page (HTTP 403 to scripts/verify_catalog.py), so this record must be re-checked by hand each cycle. SWE runs one application across many named awards and separate cycles for continuing undergraduates and incoming freshmen.",
+  "provenance": {
+    "added_on": "2026-09-12",
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-19"
+  },
+  "religion": null,
+  "renewal_terms": null,
   "requirements": {
     "essay": true,
     "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
     "recommendation_letters": 1,
     "transcript": true,
-    "fafsa": null,
-    "video_or_portfolio": null,
-    "interview": null
+    "video_or_portfolio": null
   },
-  "renewal_terms": null,
-  "keywords": ["engineering", "computer science", "women", "ABET", "undergraduate", "STEM"],
-  "trust": "unverified",
-  "provenance": {
-    "added_on": "2026-09-12",
-    "verified_on": "2026-09-12",
-    "verified_by": "verify_catalog",
-    "source_kind": "sponsor_site"
-  },
-  "notes": "Migrated from data/static_feed/scholarships.json. SWE runs one application across many named awards; deadline and status not yet confirmed against source_url."
+  "source_url": "https://swe.org/scholarships/",
+  "sponsor": "Society of Women Engineers",
+  "states_allowed": [],
+  "status": "unknown",
+  "title": "Society of Women Engineers Scholarship",
+  "trust": "verified_local"
 }

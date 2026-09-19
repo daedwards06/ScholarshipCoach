@@ -127,17 +127,51 @@ python -c "import json,glob; [print(json.load(open(f))['catalog_id'], json.load(
 ```
 
 **Checklist:**
-- [ ] Claude: for each record, open `source_url`, draft the current `deadline`, `cycle`,
+- [x] Claude: for each record, open `source_url`, draft the current `deadline`, `cycle`,
       `status`, `amount_*`, `requirements`, and `grade_levels` as an inbox proposal of kind
       `reverify` with the diff; note any page that is dead, blocked, or renamed
-- [ ] Owner: review each proposal on the Inbox page; confirm with `trust: verified_local` and
+      *(2026-09-13: 5 `reverify` proposals queued. Only 2 of 5 pages were readable. AFCEA
+      renamed — award listing moved to `/afcea-educational-foundation/scholarships`;
+      `amount_min` 2500 -> 1500, deadline and cycle month dropped to null (page publishes
+      neither). Dell moved — old URL now 404 (not 403); live page `dellscholars.org/scholarship/`
+      contradicts the record's December cycle, so `deadline_month` 12 -> 2, `opens_month`
+      null -> 12, `recommendation_letters` null -> 1, `deadline` -> null, `status` -> upcoming.
+      Collegiate Inventors: TLS certificate expired. SWE: HTTP 403. Google Generation:
+      JavaScript-rendered, empty response. Per design principle 4 the three unreadable pages
+      got proposals carrying notes and no field changes — a blocked fetch proposed nothing.)*
+- [x] Owner: review each proposal on the Inbox page; confirm with `trust: verified_local` and
       `provenance.verified_by: <owner>` or reject with a reason; a dead award is deleted from
       `records/`, not left `unknown`
-- [ ] Resolve the Dell proposal: the 403 is bot-blocking; the owner checks the page in a
+      *(2026-09-19: owner confirmed AFCEA, Dell and SWE and rejected two. Collegiate Inventors
+      rejected "Unsafe website" (the expired TLS certificate) and Google Generation rejected
+      "Not really a scholarship website"; both records deleted from `records/`, so the catalog
+      is 3 records. All three survivors stamped `trust: verified_local`,
+      `provenance.verified_by: daedwards06`, `verified_on: 2026-09-19`. Note `reject()` archives
+      the proposal but does not delete the record — the deletion is a separate step.)*
+      *(2026-09-19, follow-up: the owner reports the SWE page showed no deadline, so
+      `deadline` 2027-02-15 -> null and `cycle.deadline_month` 2 -> null — both derived from the
+      unverified static-feed migration, not from the page. SWE and AFCEA therefore carry no date
+      at all and are Task 1.6 `needs_date` candidates; only Dell has a projectable cycle. Final
+      state: 3 records, all `verified_local`, 2 of 3 with no usable deadline.)*
+- [x] Resolve the Dell proposal: the 403 is bot-blocking; the owner checks the page in a
       browser and confirms or rejects on what it says
-- [ ] Rebuild the snapshot (Task 1.1 path) and confirm the five records show the local boost
+      *(2026-09-19: the premise was wrong — the old URL now returns 404, not 403. Confirmed
+      against the live page at `dellscholars.org/scholarship/`: `source_url` replaced,
+      `deadline_month` 12 -> 2, `opens_month` null -> 12, `recommendation_letters` null -> 1,
+      `deadline` -> null, `status` -> upcoming.)*
+- [x] Rebuild the snapshot (Task 1.1 path) and confirm the five records show the local boost
       line in their explanations
-- [ ] All four CI commands green
+      *(2026-09-19: rebuilt curated-only — 3 parsed, 102 carried forward from `open_scholarships`,
+      105 total vs 107 prior, guardrail not triggered, delta removed=2 changed=2. All three
+      curated rows render "Local award, smaller applicant pool" via `explain_ranked_row`.
+      Three records, not five: two were rejected and deleted.)*
+- [x] All four CI commands green
+      *(2026-09-19: pytest 655 passed / exit 0 / coverage 89.15%, ruff clean, mypy clean on
+      62 files, validate_catalog passes on 3 records. Deleting the two rejected records broke
+      13 tests in `tests/test_curated_catalog.py`, which used the live
+      `google-generation-scholarship.json` as its fixture and asserted its pre-confirmation
+      values; the fixture is now an inlined literal so curating the catalog can no longer
+      break the suite.)*
 
 ---
 
