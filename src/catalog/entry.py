@@ -217,6 +217,8 @@ def blank_form() -> dict[str, Any]:
         "added_on": "",
         "verified_on": "",
         "verified_by": "",
+        "checked_on": "",
+        "checked_by": "",
         "source_kind": "sponsor_site",
         "confidence": {},
         "requirement_evidence": {},
@@ -326,6 +328,8 @@ def form_from_record(record: Mapping[str, Any]) -> dict[str, Any]:
         values["added_on"] = _text(provenance.get("added_on"))
         values["verified_on"] = _text(provenance.get("verified_on"))
         values["verified_by"] = _text(provenance.get("verified_by"))
+        values["checked_on"] = _text(provenance.get("checked_on"))
+        values["checked_by"] = _text(provenance.get("checked_by"))
         values["source_kind"] = _one_of(
             provenance.get("source_kind"), source_kind_options(), "other"
         )
@@ -393,6 +397,8 @@ def record_from_form(values: Mapping[str, Any], *, today: date | None = None) ->
             "added_on": _iso_or_none(values.get("added_on")) or stamp,
             "verified_on": _iso_or_none(values.get("verified_on")),
             "verified_by": _text_or_none(values.get("verified_by")),
+            "checked_on": _iso_or_none(values.get("checked_on")),
+            "checked_by": _text_or_none(values.get("checked_by")),
             "source_kind": _one_of(values.get("source_kind"), source_kind_options(), "other"),
         },
         "notes": _text_or_none(values.get("notes")),

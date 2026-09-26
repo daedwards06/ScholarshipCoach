@@ -47,6 +47,8 @@
   "notes": "Confirmed by the owner on 2026-09-19 in a browser; the page showed no deadline, so deadline and cycle months are null rather than the 2027-02-15 carried over from the static-feed migration (that date was never verified by anyone). Automated re-verification cannot read this page (HTTP 403 to scripts/verify_catalog.py), so this record must be re-checked by hand each cycle. SWE runs one application across many named awards and separate cycles for continuing undergraduates and incoming freshmen.",
   "provenance": {
     "added_on": "2026-09-12",
+    "checked_by": "verify_catalog",
+    "checked_on": "2026-09-26",
     "source_kind": "sponsor_site",
     "verified_by": "daedwards06",
     "verified_on": "2026-09-19"

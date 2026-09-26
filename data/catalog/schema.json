@@ -106,6 +106,12 @@
         "added_on": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
         "verified_on": { "type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
         "verified_by": { "type": ["string", "null"] },
+        "checked_on": {
+          "type": ["string", "null"],
+          "description": "When scripts/verify_catalog.py last re-read source_url and found nothing contradicting the record. A machine check: never a substitute for verified_on.",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "checked_by": { "type": ["string", "null"] },
         "source_kind": {
           "enum": [
             "sponsor_site",

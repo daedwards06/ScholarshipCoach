@@ -125,7 +125,18 @@ def _run(
     )
 
 
-def test_unchanged_page_stamps_verified_on_and_queues_nothing(
+def _human_provenance(**overrides: object) -> dict:
+    provenance = {
+        "added_on": "2024-01-01",
+        "verified_on": "2025-06-01",
+        "verified_by": "daedwards06",
+        "source_kind": "sponsor_site",
+    }
+    provenance.update(overrides)
+    return provenance
+
+
+def test_never_verified_record_gets_checked_and_leaves_verified_null(
     catalog_dirs: tuple[Path, Path, Path],
 ) -> None:
     records, inbox, _ = catalog_dirs
@@ -137,8 +148,89 @@ def test_unchanged_page_stamps_verified_on_and_queues_nothing(
     assert [result.outcome for result in report.results] == [OUTCOME_UNCHANGED]
     assert list_proposals(inbox) == []
     provenance = json.loads(path.read_text(encoding="utf-8"))["provenance"]
-    assert provenance["verified_on"] == "2026-09-12"
-    assert provenance["verified_by"] == "verify_catalog"
+    assert provenance["checked_on"] == "2026-09-12"
+    assert provenance["checked_by"] == "verify_catalog"
+    assert provenance["verified_on"] is None
+    assert provenance["verified_by"] is None
+
+
+def test_unchanged_page_keeps_a_human_verified_by(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, _, _ = catalog_dirs
+    path = _write_record(records, _record(provenance=_human_provenance()))
+    client = _StubClient({"https://example.invalid/award": _page()})
+
+    _run(catalog_dirs, client)
+
+    provenance = json.loads(path.read_text(encoding="utf-8"))["provenance"]
+    assert provenance["verified_on"] == "2025-06-01"
+    assert provenance["verified_by"] == "daedwards06"
+    assert provenance["checked_on"] == "2026-09-12"
+    assert provenance["checked_by"] == "verify_catalog"
+
+
+def test_a_second_check_patches_the_existing_checked_stamp(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, _, _ = catalog_dirs
+    path = _write_record(
+        records,
+        _record(
+            provenance=_human_provenance(checked_on="2025-01-01", checked_by="verify_catalog")
+        ),
+    )
+    client = _StubClient({"https://example.invalid/award": _page()})
+
+    _run(catalog_dirs, client)
+
+    text = path.read_text(encoding="utf-8")
+    assert text.count('"checked_on"') == 1
+    provenance = json.loads(text)["provenance"]
+    assert provenance["checked_on"] == "2026-09-12"
+    assert provenance["verified_by"] == "daedwards06"
+
+
+def test_since_days_defers_on_checked_on_alone(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, _, reports = catalog_dirs
+    _write_record(
+        records,
+        _record(
+            provenance=_human_provenance(
+                verified_on="2024-01-01", checked_on="2026-08-01", checked_by="verify_catalog"
+            )
+        ),
+    )
+    client = _StubClient({"https://example.invalid/award": _page()})
+
+    report = verify_catalog(
+        records_dir=records,
+        reports_dir=reports,
+        client=client,
+        today=_TODAY,
+        since_days=365,
+    )
+
+    assert report.records_due == 0
+    assert client.requested == []
+
+
+def test_a_reverify_proposal_preserves_verified_by(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, inbox, _ = catalog_dirs
+    _write_record(records, _record(provenance=_human_provenance()))
+    client = _StubClient({"https://example.invalid/award": _page(deadline="April 15, 2027")})
+
+    _run(catalog_dirs, client)
+
+    provenance = list_proposals(inbox)[0].record["provenance"]
+    assert provenance["verified_on"] == "2025-06-01"
+    assert provenance["verified_by"] == "daedwards06"
+    assert provenance["checked_on"] == "2026-09-12"
+    assert provenance["checked_by"] == "verify_catalog"
 
 
 def test_changed_deadline_queues_a_reverify_proposal(
@@ -166,7 +258,7 @@ def test_changed_deadline_queues_a_reverify_proposal(
     assert unchanged["provenance"]["verified_on"] is None
 
 
-def test_verified_on_stamp_leaves_the_hand_formatted_file_otherwise_intact(
+def test_checked_on_stamp_leaves_the_hand_formatted_file_otherwise_intact(
     catalog_dirs: tuple[Path, Path, Path],
 ) -> None:
     records, _, _ = catalog_dirs
@@ -195,8 +287,11 @@ def test_verified_on_stamp_leaves_the_hand_formatted_file_otherwise_intact(
     _run(catalog_dirs, client)
 
     patched = path.read_text(encoding="utf-8")
-    assert patched == original.replace('"verified_on": null', '"verified_on": "2026-09-12"').replace(
-        '"verified_by": null', '"verified_by": "verify_catalog"'
+    assert patched == original.replace(
+        '"added_on": "2024-01-01",',
+        '"added_on": "2024-01-01",\n'
+        '    "checked_by": "verify_catalog",\n'
+        '    "checked_on": "2026-09-12",',
     )
     assert '"min_test_scores": { "sat": null, "act": null },' in patched
 

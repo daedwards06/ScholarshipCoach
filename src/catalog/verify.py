@@ -5,7 +5,9 @@ honest for as long as someone re-opens each ``source_url``.  This module is
 that pass, run on a schedule (see ``docs/operations.md``).
 
 It never rewrites a record's content.  A page that still agrees with the
-record only gets its ``provenance.verified_on`` stamped; a page that
+record only gets its ``provenance.checked_on`` / ``checked_by`` stamped --
+``verified_on`` / ``verified_by`` record a *person's* confirmation and this
+pass never writes them.  A page that
 disagrees, or one that is gone, becomes a ``reverify`` proposal in the confirm
 queue (:mod:`src.catalog.inbox`) for a person to accept or reject.  A page that
 refused the fetch outright is ``blocked``: it proposes nothing and is listed for
@@ -48,7 +50,7 @@ from src.normalize.catalog_schema import RECORDS_DIR, ROOT_DIR, iter_catalog_fil
 logger = logging.getLogger(__name__)
 
 REPORTS_DIR = ROOT_DIR / "reports" / "catalog_verify"
-VERIFIED_BY = "verify_catalog"
+CHECKED_BY = "verify_catalog"
 
 DEFAULT_SINCE_DAYS = 365
 DEFAULT_REQUESTS_PER_SECOND = 0.5
@@ -104,10 +106,11 @@ _OPEN_PHRASES = (
 )
 
 _WHITESPACE_PATTERN = re.compile(r"\s+")
+_CHECK_KEYS = ("checked_by", "checked_on")
 _VALUE_PATTERNS = {
-    key: re.compile(rf'("{key}"\s*:\s*)(?:null|"[^"]*")')
-    for key in ("verified_on", "verified_by")
+    key: re.compile(rf'("{key}"\s*:\s*)(?:null|"[^"]*")') for key in _CHECK_KEYS
 }
+_ADDED_ON_PATTERN = re.compile(r'\n([ \t]*)"added_on"\s*:\s*"[^"]*"')
 
 
 @dataclass(slots=True)
@@ -327,7 +330,7 @@ def verify_catalog(
         extractor: The :class:`Extractor` to run over each page.
         since_days: Skip records verified within this many days.
         max_records: Stop after this many fetches.
-        today: Run date, used for the ``verified_on`` stamp.
+        today: Run date, used for the ``checked_on`` stamp.
         requests_per_second: Rate limit for the client built when ``client`` is None.
         write_report: Set False to run without leaving a report behind.
     """
@@ -367,7 +370,7 @@ def verify_catalog(
                     records_dir=resolved_records,
                 )
             elif result.outcome == OUTCOME_UNCHANGED:
-                _stamp_verified_on(record, resolved_records, run_date)
+                _stamp_checked_on(record, resolved_records, run_date)
             results.append(result)
     finally:
         if owns_client:
@@ -454,21 +457,31 @@ def _load_records(records_dir: Path) -> list[dict[str, Any]]:
 def _due_records(
     records: Sequence[Mapping[str, Any]], *, today: date, since_days: int
 ) -> list[dict[str, Any]]:
-    """Records never verified, or verified at least ``since_days`` ago, oldest first."""
+    """Records never looked at, or last looked at ``since_days`` ago or more, oldest first.
+
+    "Looked at" is the later of a person's ``verified_on`` and this pass's
+    ``checked_on``, so a machine check defers the next fetch too.
+    """
     due: list[tuple[str, str, dict[str, Any]]] = []
     for record in records:
-        verified_on = _verified_on(record)
-        if verified_on is not None and (today - verified_on).days < since_days:
+        last_seen = _last_seen_on(record)
+        if last_seen is not None and (today - last_seen).days < since_days:
             continue
-        sort_key = verified_on.isoformat() if verified_on else ""
+        sort_key = last_seen.isoformat() if last_seen else ""
         due.append((sort_key, str(record.get("catalog_id")), dict(record)))
     due.sort(key=lambda item: (item[0], item[1]))
     return [record for _, _, record in due]
 
 
-def _verified_on(record: Mapping[str, Any]) -> date | None:
+def _last_seen_on(record: Mapping[str, Any]) -> date | None:
     provenance = record.get("provenance")
-    raw = provenance.get("verified_on") if isinstance(provenance, Mapping) else None
+    if not isinstance(provenance, Mapping):
+        return None
+    seen = [_iso_date(provenance.get(key)) for key in ("verified_on", "checked_on")]
+    return max((day for day in seen if day is not None), default=None)
+
+
+def _iso_date(raw: Any) -> date | None:
     if not raw:
         return None
     try:
@@ -477,41 +490,59 @@ def _verified_on(record: Mapping[str, Any]) -> date | None:
         return None
 
 
-def _stamp_verified_on(record: Mapping[str, Any], records_dir: Path, run_date: date) -> None:
-    """Write today's ``verified_on`` back into a record the page still agrees with.
+def _stamp_checked_on(record: Mapping[str, Any], records_dir: Path, run_date: date) -> None:
+    """Write today's ``checked_on`` back into a record the page still agrees with.
 
     Edited as text rather than re-serialised, because the catalog is hand-kept
     and a two-field stamp must not reflow the whole file into a diff nobody
-    can read.  A file this cannot patch is rewritten wholesale instead.
+    can read.  A record without the keys yet gets them inserted after
+    ``added_on``.  A file this cannot patch is rewritten wholesale instead.
     """
     path = records_dir / f"{record['catalog_id']}.json"
-    provenance = _verified_provenance(record, run_date)
+    provenance = _checked_provenance(record, run_date)
     try:
         original = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
-        logger.error("verify: cannot read %s to stamp verified_on: %s", path, exc)
+        logger.error("verify: cannot read %s to stamp checked_on: %s", path, exc)
         return
 
-    patched = original
-    for key in ("verified_on", "verified_by"):
-        candidate = _patch_json_value(patched, key, provenance[key])
-        if candidate is None:
-            updated = dict(record)
-            updated["provenance"] = provenance
-            write_json_atomic(updated, path)
-            return
-        patched = candidate
-
+    patched = _patch_check_stamp(original, provenance)
+    if patched is None:
+        updated = dict(record)
+        updated["provenance"] = provenance
+        write_json_atomic(updated, path)
+        return
     _write_text_atomic(patched, path)
+
+
+def _patch_check_stamp(text: str, provenance: Mapping[str, Any]) -> str | None:
+    """Set both ``checked_*`` values in JSON source text, or ``None`` if it cannot."""
+    present = [_VALUE_PATTERNS[key].search(text) is not None for key in _CHECK_KEYS]
+    if all(present):
+        patched: str | None = text
+        for key in _CHECK_KEYS:
+            if patched is not None:
+                patched = _patch_json_value(patched, key, provenance[key])
+        return patched
+    if any(present) or len(_ADDED_ON_PATTERN.findall(text)) != 1:
+        return None
+
+    def insert(match: re.Match[str]) -> str:
+        indent = match.group(1)
+        stamps = "".join(
+            f',\n{indent}"{key}": {json.dumps(provenance[key])}' for key in _CHECK_KEYS
+        )
+        return match.group(0) + stamps
+
+    return _ADDED_ON_PATTERN.sub(insert, text, count=1)
 
 
 def _patch_json_value(text: str, key: str, value: Any) -> str | None:
     """Replace one scalar value in JSON source text, or ``None`` if it is not there once."""
+    if len(_VALUE_PATTERNS[key].findall(text)) != 1:
+        return None
     encoded = json.dumps(value)
-    patched, substitutions = _VALUE_PATTERNS[key].subn(
-        lambda match: match.group(1) + encoded, text, count=1
-    )
-    return patched if substitutions == 1 else None
+    return _VALUE_PATTERNS[key].sub(lambda match: match.group(1) + encoded, text, count=1)
 
 
 def _write_text_atomic(text: str, path: Path) -> None:
@@ -525,11 +556,12 @@ def _write_text_atomic(text: str, path: Path) -> None:
             temp_path.unlink()
 
 
-def _verified_provenance(record: Mapping[str, Any], run_date: date) -> dict[str, Any]:
+def _checked_provenance(record: Mapping[str, Any], run_date: date) -> dict[str, Any]:
+    """Stamp the machine check; ``verified_*`` belong to a person and are left as found."""
     provenance = record.get("provenance")
     updated = dict(provenance) if isinstance(provenance, Mapping) else {}
-    updated["verified_on"] = run_date.isoformat()
-    updated["verified_by"] = VERIFIED_BY
+    updated["checked_on"] = run_date.isoformat()
+    updated["checked_by"] = CHECKED_BY
     return updated
 
 
@@ -563,7 +595,7 @@ def _record_proposal(
             "Status set to unknown pending a working link."
         )
     else:
-        proposed["provenance"] = _verified_provenance(proposed, run_date)
+        proposed["provenance"] = _checked_provenance(proposed, run_date)
         fields = ", ".join(sorted(result.changes))
         notes = f"Annual re-verification: the page disagrees with the record on {fields}."
 

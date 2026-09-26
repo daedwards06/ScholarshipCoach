@@ -127,6 +127,20 @@ def test_record_round_trips_back_into_form_values() -> None:
     assert entry.record_from_form(reloaded) == record
 
 
+def test_editing_a_record_keeps_the_machine_check_stamp() -> None:
+    values = _minimal_form()
+    values.update({"verified_on": "2026-09-19", "verified_by": "daedwards06"})
+    record, _ = entry.validate_form(values)
+    record["provenance"].update({"checked_on": "2026-09-26", "checked_by": "verify_catalog"})
+
+    edited, errors = entry.validate_form(entry.form_from_record(record))
+
+    assert errors == []
+    assert edited["provenance"]["checked_on"] == "2026-09-26"
+    assert edited["provenance"]["checked_by"] == "verify_catalog"
+    assert edited["provenance"]["verified_by"] == "daedwards06"
+
+
 def test_prefill_payload_seeds_the_form_without_guessing() -> None:
     html = """
     <html><head><meta property="og:title" content="Example STEM Scholarship">

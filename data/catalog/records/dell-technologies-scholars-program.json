@@ -40,6 +40,8 @@
   "notes": "Confirmed by the owner on 2026-09-19 against https://www.dellscholars.org/scholarship/; the former dell.com foundation URL returns HTTP 404. The page states a December 15 open and a February 15 deadline, so the cycle runs Dec -> Feb. deadline is null because the cycle shown had already closed and the next one was not yet posted.",
   "provenance": {
     "added_on": "2026-09-12",
+    "checked_by": "verify_catalog",
+    "checked_on": "2026-09-26",
     "source_kind": "sponsor_site",
     "verified_by": "daedwards06",
     "verified_on": "2026-09-19"

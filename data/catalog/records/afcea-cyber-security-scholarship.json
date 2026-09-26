@@ -46,6 +46,8 @@
   "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. This is the named 'Cyber Security Scholarship ($5,000)' on the STEM Majors page; it is the $5,000 top of the retired umbrella's range. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
   "provenance": {
     "added_on": "2026-09-19",
+    "checked_by": "verify_catalog",
+    "checked_on": "2026-09-26",
     "source_kind": "sponsor_site",
     "verified_by": "daedwards06",
     "verified_on": "2026-09-26"

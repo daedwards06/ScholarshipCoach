@@ -2,7 +2,8 @@
 
 Run monthly (see ``docs/operations.md``).  Each due record's ``source_url`` is
 re-fetched, hashed, and re-extracted; a page that still agrees only gets its
-``provenance.verified_on`` stamped, and anything else lands in the confirm
+``provenance.checked_on`` stamped (``verified_*`` are a person's and are never
+written here), and anything else lands in the confirm
 queue as a ``reverify`` proposal for a person to work.  A host that refused the
 fetch (401/403/429/5xx) proposes nothing and is printed at the end to open in a
 browser.

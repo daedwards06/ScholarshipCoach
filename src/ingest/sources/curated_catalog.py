@@ -42,7 +42,14 @@ _REQUIREMENT_KEYS = (
     "video_or_portfolio",
     "interview",
 )
-_PROVENANCE_KEYS = ("added_on", "verified_on", "verified_by", "source_kind")
+_PROVENANCE_KEYS = (
+    "added_on",
+    "verified_on",
+    "verified_by",
+    "checked_on",
+    "checked_by",
+    "source_kind",
+)
 
 
 class CuratedCatalogSource(BaseSource):

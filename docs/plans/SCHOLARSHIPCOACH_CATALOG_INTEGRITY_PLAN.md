@@ -553,26 +553,26 @@ git diff --stat data/catalog/records/   # provenance edits only; no verified_by 
 ```
 
 **Checklist:**
-- [ ] `provenance.checked_on` / `checked_by` added to `data/catalog/schema.json` as optional
+- [x] `provenance.checked_on` / `checked_by` added to `data/catalog/schema.json` as optional
       keys (additive; `additionalProperties: false` requires declaring them);
       `validate_catalog.py` passes
-- [ ] `_verified_provenance` writes only `checked_on` / `checked_by: verify_catalog` and never
+- [x] `_verified_provenance` writes only `checked_on` / `checked_by: verify_catalog` and never
       touches `verified_on` / `verified_by`; `_VALUE_PATTERNS` and `_stamp_verified_on` patch
       the new keys, keeping the hand-formatted-file guarantee
-- [ ] `_due_records` schedules on the later of `verified_on` and `checked_on`, so a machine
+- [x] `_due_records` schedules on the later of `verified_on` and `checked_on`, so a machine
       check still defers the next fetch by `since_days`
-- [ ] The changed-page path (`_record_proposal`) stamps `checked_*` on the proposed record, so
+- [x] The changed-page path (`_record_proposal`) stamps `checked_*` on the proposed record, so
       confirming a `reverify` proposal does not erase who last confirmed it
-- [ ] `entry.py` round-trips `checked_on` / `checked_by` instead of dropping them when the owner
+- [x] `entry.py` round-trips `checked_on` / `checked_by` instead of dropping them when the owner
       edits a record in the app; `curated_catalog._PROVENANCE_KEYS` carries them to the snapshot
-- [ ] `docs/operations.md` table and `trust` paragraph say which pair the script writes and that
+- [x] `docs/operations.md` table and `trust` paragraph say which pair the script writes and that
       it never writes the human pair
-- [ ] Tests: an unchanged page keeps a human `verified_by` and sets `checked_by`; a never-verified
+- [x] Tests: an unchanged page keeps a human `verified_by` and sets `checked_by`; a never-verified
       record gets `checked_*` and leaves `verified_*` null; `--since-days` defers on `checked_on`
       alone; a `reverify` proposal preserves `verified_by`
-- [ ] Re-run the live pass over the three curated records and confirm they keep
+- [x] Re-run the live pass over the three curated records and confirm they keep
       `verified_by: daedwards06` (this is the regression that motivated the task)
-- [ ] All four CI commands green
+- [x] All four CI commands green
 
 ---
 

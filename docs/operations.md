@@ -184,8 +184,8 @@ requirement flags against the record.
 
 | What it found | What it does |
 |---|---|
-| Page agrees with the record | Stamps `provenance.verified_on` (and `verified_by: verify_catalog`) in place |
-| Page disagrees | Writes a `reverify` proposal to `data/catalog/inbox/` with the field-level diff |
+| Page agrees with the record | Stamps `provenance.checked_on` (and `checked_by: verify_catalog`) in place; `verified_on` / `verified_by` are left as they were |
+| Page disagrees | Writes a `reverify` proposal to `data/catalog/inbox/` with the field-level diff; the proposed record carries the `checked_*` stamp and the existing `verified_*` pair unchanged |
 | Link is dead (404, 410) | Writes a `reverify` proposal with `status: unknown` |
 | Host refused the fetch (401, 403, 429, 5xx) | Reports `blocked` with `check_by_hand: true` — no proposal; the URLs are printed at the end of the run to open in a browser |
 | Any other HTTP status | Reports an `error` — no proposal |
@@ -196,10 +196,14 @@ pages are almost always alive in a browser. Only a 404 or 410 is read as a dead 
 else refusing the fetch is `blocked` and waits for a person, so a year of monthly passes cannot
 quietly demote every bot-guarded record in the catalog.
 
-A record's content is never edited by the script beyond that verification stamp, and `trust` is
-never raised: `verified_by: verify_catalog` means a machine re-read the page and found nothing
-contradicting the record, which is a weaker claim than `trust: verified_local` — that one still
-requires a person.
+A record's content is never edited by the script beyond that `checked_*` stamp. The script
+writes only `checked_on` / `checked_by`, and never `verified_on` / `verified_by`: those two
+record when a person last opened the page and confirmed the record, which is what
+`trust: verified_local` rests on, and a machine pass must not overwrite that name. `trust` is
+never raised either — `checked_by: verify_catalog` means a machine re-read the page and found
+nothing contradicting the record, which is a weaker claim. A record is due when the later of
+`verified_on` and `checked_on` is at least `--since-days` old, so a machine check still defers
+the next fetch.
 
 ### Run it by hand
 
