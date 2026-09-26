@@ -1,0 +1,72 @@
+{
+  "amount_max": 5000.0,
+  "amount_min": 5000.0,
+  "catalog_id": "afcea-nightwing-scholarship",
+  "citizenship": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 5,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "One $5,000 award for a sophomore, junior, senior or master's student in a cybersecurity or computer science discipline.",
+  "disability": null,
+  "education_level": "undergraduate",
+  "eligibility_text": "Undergraduate students must be in their sophomore, junior, or senior year, or pursuing a Master's degree. Must be enrolled in an accredited community college or four-year college or university. Minimum 3.0 unweighted GPA. Major must be Cybersecurity, Computer Science, Cybersecurity Engineering, Information Security and Assurance, Applied Information Technology/Cybersecurity, Cyber Intelligence and Security, Cybersecurity Risk Management, Intelligence Analysis, or Artificial Intelligence. The page states no citizenship, military service or employment requirement.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "college_2",
+    "college_3",
+    "college_4"
+  ],
+  "heritage": [],
+  "keywords": [
+    "cybersecurity",
+    "computer science",
+    "artificial intelligence",
+    "STEM"
+  ],
+  "majors_allowed": [
+    "Cybersecurity",
+    "Computer Science",
+    "Computer Engineering",
+    "Information Technology"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 3.0,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. The page states no citizenship requirement, so citizenship is null here where the umbrella asserted 'US' for every award. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
+  "provenance": {
+    "added_on": "2026-09-19",
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [
+      "A brief essay (250 words or less) describing financial need."
+    ],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 1,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.afcea.org/nightwing-scholarship",
+  "sponsor": "AFCEA Educational Foundation",
+  "states_allowed": [],
+  "status": "closed",
+  "title": "AFCEA Nightwing Scholarship",
+  "trust": "verified_local"
+}

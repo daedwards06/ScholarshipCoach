@@ -509,3 +509,79 @@ def test_dedupe_does_not_merge_awards_sharing_only_a_sponsor_home_page() -> None
 
     assert len(deduped) == 2
     assert superseded == {}
+
+
+def test_dedupe_keeps_sibling_awards_published_on_one_page() -> None:
+    deduped, superseded = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="afcea-stem-major",
+                source="curated_catalog",
+                source_url="https://www.afcea.org/stem-majors-scholarships",
+                title="AFCEA STEM Major Scholarship",
+                sponsor="AFCEA Educational Foundation",
+                trust="verified_local",
+            ),
+            _dedupe_row(
+                scholarship_id="afcea-cyber-security",
+                source="curated_catalog",
+                source_url="https://www.afcea.org/stem-majors-scholarships",
+                title="AFCEA Cyber Security Scholarship",
+                sponsor="AFCEA Educational Foundation",
+                trust="verified_local",
+            ),
+            _dedupe_row(
+                scholarship_id="afcea-student-member",
+                source="curated_catalog",
+                source_url="https://www.afcea.org/stem-majors-scholarships",
+                title="AFCEA Student Member Scholarship",
+                sponsor="AFCEA Educational Foundation",
+                trust="verified_local",
+            ),
+        ]
+    )
+
+    assert sorted(deduped["scholarship_id"].tolist()) == [
+        "afcea-cyber-security",
+        "afcea-stem-major",
+        "afcea-student-member",
+    ]
+    assert deduped["superseded_ids"].tolist() == [[], [], []]
+    assert superseded == {}
+
+
+def test_dedupe_still_collapses_a_feed_row_onto_a_page_with_sibling_awards() -> None:
+    deduped, superseded = _dedupe(
+        [
+            _dedupe_row(
+                scholarship_id="feed-afcea",
+                source="open_scholarships",
+                source_url="https://afcea.org/stem-majors-scholarships/",
+                title="AFCEA STEM Major Scholarship",
+                sponsor="AFCEA Educational Foundation",
+                trust="structured_feed",
+            ),
+            _dedupe_row(
+                scholarship_id="afcea-stem-major",
+                source="curated_catalog",
+                source_url="https://www.afcea.org/stem-majors-scholarships",
+                title="AFCEA STEM Major Scholarship",
+                sponsor="AFCEA Educational Foundation",
+                trust="verified_local",
+            ),
+            _dedupe_row(
+                scholarship_id="afcea-cyber-security",
+                source="curated_catalog",
+                source_url="https://www.afcea.org/stem-majors-scholarships",
+                title="AFCEA Cyber Security Scholarship",
+                sponsor="AFCEA Educational Foundation",
+                trust="verified_local",
+            ),
+        ]
+    )
+
+    assert sorted(deduped["scholarship_id"].tolist()) == [
+        "afcea-cyber-security",
+        "afcea-stem-major",
+    ]
+    assert superseded == {"open_scholarships": 1}

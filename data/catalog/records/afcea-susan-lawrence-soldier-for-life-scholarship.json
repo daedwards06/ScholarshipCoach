@@ -1,0 +1,71 @@
+{
+  "amount_max": 5000.0,
+  "amount_min": 5000.0,
+  "catalog_id": "afcea-susan-lawrence-soldier-for-life-scholarship",
+  "citizenship": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 5,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "One $5,000 award a year for an enlisted soldier at Fort Bragg enrolled at Campbell University in a STEM major.",
+  "disability": null,
+  "education_level": "undergraduate",
+  "eligibility_text": "Must serve as an enlisted soldier at Fort Bragg. Must be currently enrolled at Campbell University. Must be pursuing a major in a STEM discipline. The page states no minimum GPA, class year or citizenship requirement.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [],
+  "heritage": [],
+  "keywords": [
+    "Fort Bragg",
+    "Campbell University",
+    "enlisted",
+    "North Carolina",
+    "STEM"
+  ],
+  "majors_allowed": [
+    "Computer Science",
+    "Computer Engineering",
+    "Electrical Engineering",
+    "Engineering",
+    "Mathematics",
+    "Physics"
+  ],
+  "membership_required": [],
+  "military_family": true,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. Restricted to Campbell University (Buies Creek, NC), hence states_allowed NC - a geographic restriction the umbrella recorded as nationwide. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
+  "provenance": {
+    "added_on": "2026-09-19",
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 1,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.afcea.org/susan-lawrence-soldier-life-scholarship",
+  "sponsor": "AFCEA Educational Foundation",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "closed",
+  "title": "AFCEA Susan Lawrence Soldier for Life Scholarship",
+  "trust": "verified_local"
+}

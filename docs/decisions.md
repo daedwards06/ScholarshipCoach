@@ -5,6 +5,53 @@ Newest first. A decision stays here after it is reversed; the reversal is a new 
 
 ---
 
+## 2026-09-26 — One record per award, even when the sponsor publishes them on one page
+
+**Context.** `afcea-stem-scholarship` was one `verified_local` record standing in for AFCEA's whole
+Educational Foundation listing: `amount 1500–5000`, no GPA floor, all four college years,
+`military_family: null`, `status: unknown`. The listing is 13 separately-named awards. Reading all
+13 detail pages on 2026-09-19 showed the averaged row was true of none of them — the STEM Majors
+page requires sophomore-or-junior standing and a 3.0 GPA, while the Oracle Leadership page
+requires the applicant's own active-duty service at a 2.8 GPA and $1,500. Stage 1 filters on
+exactly those axes, so the umbrella was a correctness defect, not merely missing detail.
+
+**Decision.** Retire `afcea-stem-scholarship` (its `catalog_id` is never reused) and mint ten
+per-award records, each with the eligibility its own page publishes. The real student's profile
+now gets four eligible AFCEA awards and six `MILITARY_FAMILY_ONLY` rejections where it previously
+got one averaged row.
+
+**Skipped, with reasons, rather than recorded** — five listing entries no undergraduate can act on.
+They are also archived under `data/catalog/inbox/rejected/`, but that directory is git-ignored, so
+the reasons live here:
+
+| Entry | Why it is not a record |
+|---|---|
+| STEM Teachers Scholarships | Page states "Undergraduate students are not eligible"; needs a second-semester graduate program and a 3.5 graduate GPA. |
+| Shrader Graduate Scholarship | Graduate-only, $3,000, minimum 3.5 GPA. |
+| Cathy E. Johnston Memorial | Graduate-only (Asian Studies / Indo-Pacific security) plus mid-career intelligence professionals; "Application coming soon!", no amount or materials published. |
+| Brad A. Logan Memorial Award | $2,000 restricted to a current senior at one Pennsylvania high school, applied for through that school's Schoology. |
+| Chapter Scholarship Programs | A directory of chapters that each run their own program — no amount, eligibility, status or deadline of its own. Individual chapter awards belong in the catalog one at a time. |
+
+**Why the skips are not just low-ranking records.** A record the family will never act on still
+costs a person's attention every time it surfaces in a review or a re-verification pass. Recording
+the reason once is cheaper than re-deciding it annually.
+
+**A dedupe rule this exposed.** Task 1.4's cross-source dedupe treated a shared normalized URL
+(host + path) as proof that two rows are the same award. Three of these awards — STEM Major
+($2,500), Cyber Security ($5,000) and Student Member (AFCEA membership required) — are published
+on one page, so that rule silently collapsed them back into one row: the umbrella defect
+reappearing one layer down. A URL is now treated as an identity key only while it maps to at most
+one row per source; a source offering two rows for one URL is asserting that the page holds
+sibling awards, and matching falls back to title, sponsor and aliases. A feed row still collapses
+onto the curated award it duplicates.
+
+**Known limitation.** `military_family` is the only service-connection axis Stage 1 filters on, so
+it carries both "your family served" (iWorks) and "you serve" (Oracle, ROTC, War Veterans, Susan
+Lawrence). The rejection is correct for a civilian undergraduate either way; splitting the axis
+would be a schema change and is not yet worth it.
+
+---
+
 ## 2026-09-13 — Report the catalog that exists, not the one the metrics were measured on
 
 **Context.** The README's headline table (NDCG@10 0.61, Coverage@10 0.40) was measured on a

@@ -223,8 +223,8 @@ visible in the report.
 
 ```powershell
 python scripts/catalog_inbox.py list
-python scripts/catalog_inbox.py show reverify-afcea-stem-scholarship
-python scripts/catalog_inbox.py confirm reverify-afcea-stem-scholarship --set trust=verified_local
+python scripts/catalog_inbox.py show reverify-afcea-stem-major-scholarship
+python scripts/catalog_inbox.py confirm reverify-afcea-stem-major-scholarship --set trust=verified_local
 python scripts/catalog_inbox.py reject reverify-some-award --reason "page moved; re-adding by hand"
 ```
 

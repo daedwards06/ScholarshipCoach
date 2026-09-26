@@ -1,0 +1,75 @@
+{
+  "aliases": [
+    "AFCEA STEM Scholarship"
+  ],
+  "amount_max": 2500.0,
+  "amount_min": 2500.0,
+  "catalog_id": "afcea-stem-major-scholarship",
+  "citizenship": "US",
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 5,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "A $2,500 award for a sophomore or junior enrolled full-time in a STEM major at a four-year accredited U.S. college.",
+  "disability": null,
+  "education_level": "undergraduate",
+  "eligibility_text": "Must be an undergraduate student enrolled full-time at a four-year accredited U.S. college; online degree programs are eligible. Must be a sophomore or junior at the time of application. Must have a minimum overall GPA of 3.0 in their current academic program. Must be a U.S. citizen or permanent resident. Students attending a community college, freshmen and seniors are not eligible.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "college_2",
+    "college_3"
+  ],
+  "heritage": [],
+  "keywords": [
+    "STEM",
+    "computer science",
+    "engineering",
+    "sophomore",
+    "junior"
+  ],
+  "majors_allowed": [
+    "Computer Science",
+    "Computer Engineering",
+    "Electrical Engineering",
+    "Engineering",
+    "Mathematics",
+    "Physics"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 3.0,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. This is the named 'STEM Major Scholarship ($2,500)' on the page, not the whole listing. It carries the retired umbrella's title as an alias. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
+  "provenance": {
+    "added_on": "2026-09-19",
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 1,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.afcea.org/stem-majors-scholarships",
+  "sponsor": "AFCEA Educational Foundation",
+  "states_allowed": [],
+  "status": "closed",
+  "title": "AFCEA STEM Major Scholarship",
+  "trust": "verified_local"
+}

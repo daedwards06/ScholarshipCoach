@@ -463,20 +463,42 @@ python -c "import json,glob; rs=[json.load(open(f)) for f in glob.glob('data/cat
 ```
 
 **Checklist:**
-- [ ] Claude: fetch all 13 AFCEA detail pages; for each, draft a `prefill` proposal with its own
+- [x] Claude: fetch all 13 AFCEA detail pages; for each, draft a `prefill` proposal with its own
       `catalog_id`, real `amount_min`/`amount_max`, `grade_levels`, `min_gpa`, `citizenship`,
       `military_family`, `status`, and requirements; note which pages publish no date
-- [ ] Skip, with the reason recorded, the awards that cannot apply to an undergraduate student
+- [x] Skip, with the reason recorded, the awards that cannot apply to an undergraduate student
       (STEM Teachers, Shrader Graduate, chapter-administered programs) rather than adding
       records the family will never act on
-- [ ] Owner: confirm or reject each proposal on the Inbox page; `trust: verified_local` only
+- [x] Owner: confirm or reject each proposal on the Inbox page; `trust: verified_local` only
       for a page the owner opened
-- [ ] Retire `afcea-stem-scholarship`: delete it once its awards exist as records, so the
+- [x] Retire `afcea-stem-scholarship`: delete it once its awards exist as records, so the
       averaged eligibility stops ranking. Its `catalog_id` is never reused
-- [ ] Verify against the real profile that the STEM Major award is eligible and the
+- [x] Verify against the real profile that the STEM Major award is eligible and the
       military-only and teacher-only awards are rejected with a reason code
-- [ ] Rebuild the snapshot; confirm the record count rises and the guardrail does not fire
-- [ ] All four CI commands green
+- [x] Rebuild the snapshot; confirm the record count rises and the guardrail does not fire
+- [x] All four CI commands green
+
+**Done 2026-09-26.** Ten records minted, five listing entries skipped with reasons (recorded in
+`docs/decisions.md`, since `data/catalog/inbox/rejected/` is git-ignored). Catalog 3 -> 12 records,
+all `verified_local`; snapshot rebuild reported `records_prior_run: 3, records_this_run: 12` with
+no guardrail warning. Against the real profile (NC, Computer Science, rising sophomore, GPA 3.25,
+civilian): STEM Major, Cyber Security and Nightwing eligible with no unverified axes, Student
+Member eligible pending the `memberships` axis, and all six service-connected awards rejected
+`MILITARY_FAMILY_ONLY`.
+
+Two deviations, both recorded in `docs/decisions.md`:
+
+1. **Teacher-only awards are skipped, not rejected.** This checklist asked both for STEM Teachers
+   to be skipped and for a teacher-only award to be rejected with a reason code; those cannot both
+   hold. Owner chose to keep it skipped, so the graduate- and teacher-only entries never enter the
+   catalog and Stage 1 never sees them. The `MILITARY_FAMILY_ONLY` half of that item is verified.
+2. **Task 1.4's URL dedupe had to be narrowed.** Three of these awards (STEM Major $2,500, Cyber
+   Security $5,000, Student Member) are published on one page, and cross-source dedupe treated a
+   shared host + path as proof of identity, collapsing them back into one row -- the umbrella
+   defect one layer down. A URL is now an identity key only while it maps to at most one row per
+   source; a source offering two rows for one URL is asserting the page holds sibling awards, and
+   matching falls back to title, sponsor and aliases. Two tests in `tests/test_run_ingest.py`
+   cover the split and the still-working feed collapse.
 
 ---
 

@@ -1,0 +1,68 @@
+{
+  "amount_max": 1500.0,
+  "amount_min": 1500.0,
+  "catalog_id": "afcea-oracle-leadership-scholarship",
+  "citizenship": "US",
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 5,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "A one-time $1,500 award for an active-duty member of the U.S. Armed Forces pursuing a STEM major.",
+  "disability": null,
+  "education_level": "undergraduate",
+  "eligibility_text": "Must be an active-duty member of the U.S. Armed Forces. Must be a U.S. citizen or permanent resident. Must be enrolled in an accredited community college or four-year college/university. Minimum 2.8 unweighted GPA and in good academic standing. Must be pursuing a STEM-related major aligned with the mission of AFCEA. The page states no class year and no gender requirement.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [],
+  "heritage": [],
+  "keywords": [
+    "active duty",
+    "military",
+    "STEM",
+    "leadership"
+  ],
+  "majors_allowed": [
+    "Computer Science",
+    "Computer Engineering",
+    "Electrical Engineering",
+    "Engineering",
+    "Mathematics",
+    "Physics"
+  ],
+  "membership_required": [],
+  "military_family": true,
+  "min_gpa": 2.8,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. Requires the applicant's own active-duty service; recorded on the military_family axis because that is the only service-connection axis Stage 1 filters on. This is the $1,500 bottom of the retired umbrella's range and it is a hard no for a civilian undergraduate. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
+  "provenance": {
+    "added_on": "2026-09-19",
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 1,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.afcea.org/oracle-women-leadership-scholarship",
+  "sponsor": "AFCEA Educational Foundation",
+  "states_allowed": [],
+  "status": "closed",
+  "title": "AFCEA Oracle Leadership Scholarship",
+  "trust": "verified_local"
+}

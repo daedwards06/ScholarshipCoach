@@ -223,9 +223,11 @@ def _collapse_cross_source_duplicates(
 ) -> tuple[pd.DataFrame, dict[str, int]]:
     """Keep one row per award across sources, the most trusted row winning.
 
-    Two rows are the same award when they share a normalized URL (host + path),
-    a normalized ``(title, sponsor)`` pair, or when one record names the other's
-    title in ``aliases``.  The winner ranks first by :data:`TRUST_PRECEDENCE`,
+    Two rows are the same award when they share a normalized URL (host + path)
+    that no single source claims twice, a normalized ``(title, sponsor)`` pair,
+    or when one record names the other's title in ``aliases``.  The URL carries
+    that extra condition because sibling awards are often published on one page.
+    The winner ranks first by :data:`TRUST_PRECEDENCE`,
     then by ``register_sources`` order, then by ``scholarship_id``, so the
     outcome never depends on the order the sources happened to run in.
     """
@@ -251,7 +253,7 @@ def _collapse_cross_source_duplicates(
         if left_root != right_root:
             parent[max(left_root, right_root)] = min(left_root, right_root)
 
-    url_groups: dict[str, int] = {}
+    rows_by_url: dict[str, list[int]] = {}
     title_groups: dict[tuple[str, str], int] = {}
     rows_by_title: dict[str, list[int]] = {}
     alias_claims: list[tuple[int, str]] = []
@@ -260,10 +262,7 @@ def _collapse_cross_source_duplicates(
     for index in df.index:
         url_key = _url_match_key(df.at[index, "source_url"])
         if url_key:
-            if url_key in url_groups:
-                union(url_groups[url_key], index)
-            else:
-                url_groups[url_key] = index
+            rows_by_url.setdefault(url_key, []).append(index)
 
         title_key = normalize_title_for_match(df.at[index, "title"])
         if title_key:
@@ -279,6 +278,19 @@ def _collapse_cross_source_duplicates(
                 alias_key = normalize_title_for_match(alias)
                 if alias_key:
                     alias_claims.append((index, alias_key))
+
+    # A URL identifies an award only while it maps to at most one row per
+    # source.  A sponsor often publishes several named awards on one page --
+    # AFCEA's STEM Majors page carries three, with different amounts, GPA floors
+    # and membership rules -- and a source offering two rows for one URL is
+    # saying exactly that, so the page's URL proves nothing about identity and
+    # matching falls back to title, sponsor and aliases.
+    for members in rows_by_url.values():
+        sources = [str(df.at[index, "source"]) for index in members]
+        if len(set(sources)) != len(sources):
+            continue
+        for other in members[1:]:
+            union(members[0], other)
 
     for index, alias_key in alias_claims:
         for other in rows_by_title.get(alias_key, ()):
