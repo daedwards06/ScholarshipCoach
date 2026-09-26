@@ -595,13 +595,27 @@ def _exception_summary(exc: Exception) -> dict[str, str]:
     return {"type": type(exc).__name__, "message": str(exc)}
 
 
+def _capped_before_first_fetch(source_meta: dict[str, Any], max_listing_pages: int) -> bool:
+    """True when a zero listing-page cap stopped the connector before it fetched anything."""
+    return (
+        max_listing_pages <= 0
+        and "max_listing_pages" in (source_meta.get("caps_hit") or [])
+        and not source_meta.get("listing_urls_processed")
+    )
+
+
 def _load_prior_source_counts(report_dir: Path) -> dict[str, int]:
-    """Return ``{source_name: records}`` from the most recent readable ingest report."""
+    """Return ``{source_name: records}`` from each source's most recent non-skipped run.
+
+    A skipped run fetched nothing, so its zero says nothing about the source; the
+    comparison looks past it to the last run that actually tried.
+    """
     try:
         candidates = sorted(report_dir.glob("ingest_*.json"))
     except OSError:
         return {}
 
+    counts: dict[str, int] = {}
     for path in reversed(candidates):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
@@ -611,17 +625,17 @@ def _load_prior_source_counts(report_dir: Path) -> dict[str, int]:
         details = payload.get("sources", {}).get("details")
         if not isinstance(details, list):
             continue
-        counts: dict[str, int] = {}
         for entry in details:
             if not isinstance(entry, dict) or not entry.get("source"):
                 continue
+            name = str(entry["source"])
+            if name in counts or entry.get("status") == "skipped":
+                continue
             try:
-                counts[str(entry["source"])] = int(entry.get("records", 0))
+                counts[name] = int(entry.get("records", 0))
             except (TypeError, ValueError):
                 continue
-        if counts:
-            return counts
-    return {}
+    return counts
 
 
 def _apply_source_health(
@@ -632,12 +646,14 @@ def _apply_source_health(
 
     A connector that returned records last run and none now is the failure mode
     this exists for: without it the run reports ``succeeded`` on an empty scrape.
+    A ``skipped`` source never tried to fetch, so its zero is not a regression.
     """
     for entry in source_attempts:
         records_this_run = int(entry.get("records", 0))
         records_prior_run = prior_counts.get(entry["source"])
         regression = bool(
-            records_prior_run
+            entry.get("status") != "skipped"
+            and records_prior_run
             and records_prior_run > 0
             and records_this_run == 0
         )
@@ -751,11 +767,12 @@ def run_ingest(
                         source_report["records"] = len(parsed)
                         source_report["cache_paths"] = [str(path.resolve()) for path in cache_paths]
                         source_report.update(source_meta)
-                        source_report["status"] = (
-                            "partial"
-                            if source_meta.get("caps_hit") or source_meta.get("parse_failures")
-                            else "succeeded"
-                        )
+                        if _capped_before_first_fetch(source_meta, max_listing_pages):
+                            source_report["status"] = "skipped"
+                        elif source_meta.get("caps_hit") or source_meta.get("parse_failures"):
+                            source_report["status"] = "partial"
+                        else:
+                            source_report["status"] = "succeeded"
                         logger.info(
                             "Source=%s cached=%d files records=%d",
                             source.name,
@@ -903,6 +920,7 @@ def run_ingest(
         succeeded_sources = [entry["source"] for entry in source_attempts if entry["status"] == "succeeded"]
         partial_sources = [entry["source"] for entry in source_attempts if entry["status"] == "partial"]
         failed_sources = [entry["source"] for entry in source_attempts if entry["status"] == "failed"]
+        skipped_sources = [entry["source"] for entry in source_attempts if entry["status"] == "skipped"]
         cache_paths = [path for entry in source_attempts for path in entry.get("cache_paths", [])]
         detail_attempted = sum(int(entry.get("detail_urls_attempted", 0)) for entry in source_attempts)
         detail_succeeded = sum(int(entry.get("detail_urls_succeeded", 0)) for entry in source_attempts)
@@ -949,10 +967,12 @@ def run_ingest(
                 "succeeded": succeeded_sources,
                 "partial": partial_sources,
                 "failed": failed_sources,
+                "skipped": skipped_sources,
                 "attempted_count": len(attempted_sources),
                 "succeeded_count": len(succeeded_sources),
                 "partial_count": len(partial_sources),
                 "failed_count": len(failed_sources),
+                "skipped_count": len(skipped_sources),
                 "disabled": disabled_source_entries,
                 "disabled_count": len(disabled_source_entries),
                 "zero_record_regressions": zero_record_regressions,

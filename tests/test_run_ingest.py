@@ -133,9 +133,10 @@ def test_run_ingest_writes_report_on_snapshot_failure(monkeypatch, tmp_path: Pat
 class _CountingSource:
     """Minimal connector returning ``count`` synthetic records."""
 
-    def __init__(self, name: str, count: int) -> None:
+    def __init__(self, name: str, count: int, meta: dict | None = None) -> None:
         self.name = name
         self._count = count
+        self._meta = meta or {}
 
     def fetch_records(self, http_client, *, raw_root, **kwargs):  # noqa: ANN001
         fetched_at = datetime(2026, 2, 28, 15, 0, tzinfo=UTC)
@@ -151,17 +152,23 @@ class _CountingSource:
             }
             for index in range(self._count)
         ]
-        return records, [], {}
+        return records, [], dict(self._meta)
 
 
-def _run(monkeypatch, tmp_path: Path, sources: list[_CountingSource]) -> dict:
+def _run(
+    monkeypatch, tmp_path: Path, sources: list[_CountingSource], *, max_listing_pages: int = 3
+) -> dict:
     monkeypatch.setattr("scripts.run_ingest.register_sources", lambda: list(sources))
     return run_ingest(
         date=datetime(2026, 2, 28, tzinfo=UTC).date(),
         raw_dir=tmp_path / "raw",
         processed_dir=tmp_path / "processed",
         report_dir=tmp_path / "reports",
+        max_listing_pages=max_listing_pages,
     )
+
+
+_ZERO_CAP_META = {"caps_hit": ["max_listing_pages"], "listing_urls_processed": 0}
 
 
 def _source_detail(report: dict, name: str) -> dict:
@@ -206,6 +213,51 @@ def test_zero_records_without_prior_records_is_not_a_regression(monkeypatch, tmp
     assert beta["health"]["zero_record_regression"] is False
     assert beta["status"] == "succeeded"
     assert report["status"] == "success"
+
+
+def test_source_capped_to_zero_pages_is_skipped_not_regressed(monkeypatch, tmp_path: Path) -> None:
+    _run(monkeypatch, tmp_path, [_CountingSource("alpha", 2), _CountingSource("beta", 3)])
+    report = _run(
+        monkeypatch,
+        tmp_path,
+        [_CountingSource("alpha", 2), _CountingSource("beta", 0, _ZERO_CAP_META)],
+        max_listing_pages=0,
+    )
+
+    beta = _source_detail(report, "beta")
+    assert beta["status"] == "skipped"
+    assert beta["health"]["zero_record_regression"] is False
+    assert "error" not in beta
+    assert report["sources"]["skipped"] == ["beta"]
+    assert report["sources"]["zero_record_regressions"] == []
+    assert report["guardrail_warnings"] == []
+    assert report["status"] == "success"
+
+
+def test_real_zero_after_a_skipped_run_still_regresses(monkeypatch, tmp_path: Path) -> None:
+    # Report names have one-second resolution; rename so back-to-back runs don't overwrite.
+    first = _run(monkeypatch, tmp_path, [_CountingSource("alpha", 2), _CountingSource("beta", 3)])
+    Path(first["artifact_paths"]["report"]).rename(tmp_path / "reports" / "ingest_20260101T000001Z.json")
+    skipped = _run(
+        monkeypatch,
+        tmp_path,
+        [_CountingSource("alpha", 2), _CountingSource("beta", 0, _ZERO_CAP_META)],
+        max_listing_pages=0,
+    )
+    Path(skipped["artifact_paths"]["report"]).rename(tmp_path / "reports" / "ingest_20260101T000002Z.json")
+    report = _run(monkeypatch, tmp_path, [_CountingSource("alpha", 2), _CountingSource("beta", 0)])
+
+    beta = _source_detail(report, "beta")
+    assert beta["health"]["records_prior_run"] == 3
+    assert beta["health"]["zero_record_regression"] is True
+    assert beta["status"] == "failed"
+
+
+def test_listing_cap_hit_after_fetching_is_partial_not_skipped(monkeypatch, tmp_path: Path) -> None:
+    meta = {"caps_hit": ["max_listing_pages"], "listing_urls_processed": 3}
+    report = _run(monkeypatch, tmp_path, [_CountingSource("beta", 2, meta)])
+
+    assert _source_detail(report, "beta")["status"] == "partial"
 
 
 def test_report_lists_disabled_sources(monkeypatch, tmp_path: Path) -> None:

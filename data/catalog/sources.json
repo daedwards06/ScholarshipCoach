@@ -9,8 +9,8 @@
       "note": "Open Scholarships structured feed (Grudged LLC, CC BY 4.0). Records carry trust=structured_feed."
     },
     "scholarship_america": {
-      "enabled": true,
-      "note": "Aggregator scrape. Records carry trust=aggregator and need confirmation."
+      "enabled": false,
+      "note": "Disabled 2026-09-26: every run capped it to zero listing pages, so it contributed nothing and raised a false zero-record alarm. Its awards come in through the catalog inbox and are confirmed there; re-enable only to run it with listing pages, where its rows stay trust=aggregator and ineligible until confirmed."
     },
     "bold_org": {
       "enabled": false,

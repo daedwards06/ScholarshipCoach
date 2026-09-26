@@ -543,7 +543,9 @@ def _display_ingest_summary(report: dict[str, Any]) -> None:
         st.dataframe(pd.DataFrame(health_rows), use_container_width=True)
 
     failed_details = [
-        item for item in source_info.get("details", []) if item.get("status") != "succeeded"
+        item
+        for item in source_info.get("details", [])
+        if item.get("status") not in {"succeeded", "skipped"}
     ]
     if failed_details:
         st.warning("Some sources failed during ingest.")

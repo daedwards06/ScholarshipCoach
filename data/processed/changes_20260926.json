@@ -22,7 +22,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -38,7 +38,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -59,6 +59,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. The service/AFCEA-descendant connection is an either/or, but every branch of it is a military or AFCEA tie, so military_family is true. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": null,
+        "checked_on": null,
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -109,7 +111,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -124,7 +126,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -145,6 +147,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. This is the named 'STEM Major Scholarship ($2,500)' on the page, not the whole listing. It carries the retired umbrella's title as an alias. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": null,
+        "checked_on": null,
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -193,7 +197,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -207,7 +211,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -230,6 +234,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. This is the named 'Student Member Scholarship ($2,500)' on the STEM Majors page. The AFCEA membership requirement is the only thing separating it from the STEM Major award, and the umbrella recorded no membership requirement at all. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": null,
+        "checked_on": null,
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -278,7 +284,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": null,
       "heritage": null,
@@ -290,7 +296,7 @@
         "North Carolina",
         "STEM"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -311,6 +317,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. Restricted to Campbell University (Buies Creek, NC), hence states_allowed NC - a geographic restriction the umbrella recorded as nationwide. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": null,
+        "checked_on": null,
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -361,7 +369,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -376,7 +384,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -397,6 +405,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. One record for the ROTC family ($2,500 general, plus the $3,000 VADM Jon L. Boyes, Joan Bowden and Mort Marks awards), which share this page's eligibility and differ only by branch and amount. Requires a nomination letter from a PMS, PNS, PAS or Commanding Officer in addition to a professor's recommendation. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": null,
+        "checked_on": null,
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -445,7 +455,7 @@
       "essay_prompt": "A brief essay (250 words or less) describing financial need.",
       "essay_required": true,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -460,7 +470,7 @@
         "STEM",
         "computer science"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -481,6 +491,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. Restricted to a military dependent or spouse, which the umbrella did not record. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": "verify_catalog",
+        "checked_on": "2026-09-26",
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -531,7 +543,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": null,
       "heritage": null,
@@ -542,7 +554,7 @@
         "STEM",
         "leadership"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -563,6 +575,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. Requires the applicant's own active-duty service; recorded on the military_family axis because that is the only service-connection axis Stage 1 filters on. This is the $1,500 bottom of the retired umbrella's range and it is a hard no for a civilian undergraduate. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": null,
+        "checked_on": null,
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -611,7 +625,7 @@
       "essay_prompt": "A brief essay (250 words or less) describing financial need.",
       "essay_required": true,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -626,7 +640,7 @@
         "artificial intelligence",
         "STEM"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Cybersecurity",
@@ -645,6 +659,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. The page states no citizenship requirement, so citizenship is null here where the umbrella asserted 'US' for every award. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": "verify_catalog",
+        "checked_on": "2026-09-26",
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -695,7 +711,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -710,7 +726,7 @@
         "STEM",
         "C4I"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -731,6 +747,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": null,
+        "checked_on": null,
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"
@@ -779,7 +797,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T15:53:01Z",
+      "first_seen_at": "2026-09-26T16:53:57Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -794,7 +812,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T15:53:01Z",
+      "last_seen_at": "2026-09-26T16:53:57Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Cybersecurity",
@@ -813,6 +831,8 @@
       "notes": "Split out of the retired 'afcea-stem-scholarship' umbrella on 2026-09-19. The umbrella averaged 13 named awards into eligibility true of none of them. This is the named 'Cyber Security Scholarship ($5,000)' on the STEM Majors page; it is the $5,000 top of the retired umbrella's range. Page status on 2026-09-19: 'Applications closed!'. The page publishes no application deadline; 'no later than May 1, 2026' is the mailed-documents date for the closed cycle, recorded as cycle.deadline_month 5.",
       "provenance": {
         "added_on": "2026-09-19",
+        "checked_by": "verify_catalog",
+        "checked_on": "2026-09-26",
         "source_kind": "sponsor_site",
         "verified_by": "daedwards06",
         "verified_on": "2026-09-26"

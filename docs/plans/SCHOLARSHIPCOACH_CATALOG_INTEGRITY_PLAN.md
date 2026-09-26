@@ -600,16 +600,16 @@ python scripts/run_ingest.py --max-listing-pages 0 --max-detail-pages 0   # no g
 ```
 
 **Checklist:**
-- [ ] Health: a source whose `caps_hit` includes `max_listing_pages` with a zero cap reports
+- [x] Health: a source whose `caps_hit` includes `max_listing_pages` with a zero cap reports
       `status: skipped` and `health.zero_record_regression: false`; regression only fires when
       the source actually attempted a fetch
-- [ ] Owner decision recorded in `sources.json` note and `docs/decisions.md`: either disable
+- [x] Owner decision recorded in `sources.json` note and `docs/decisions.md`: either disable
       `scholarship_america` until its records go through the inbox, or run it with pages and
       keep it `aggregator` (which Task 1.3 makes ineligible until confirmed)
-- [ ] README paragraph under the table rewritten to match the decision
-- [ ] Tests: capped-to-zero source is skipped, not regressed; a real zero after a prior
+- [x] README paragraph under the table rewritten to match the decision
+- [x] Tests: capped-to-zero source is skipped, not regressed; a real zero after a prior
       non-zero still regresses
-- [ ] All four CI commands green
+- [x] All four CI commands green
 
 ---
 

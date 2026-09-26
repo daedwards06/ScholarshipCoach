@@ -5,6 +5,26 @@ Newest first. A decision stays here after it is reversed; the reversal is a new 
 
 ---
 
+## 2026-09-26 — Scholarship America is disabled; its awards go through the inbox
+
+**Context.** `sources.json` enabled the `scholarship_america` scrape, but every ingest ran with
+`--max-listing-pages 0`, so the connector stopped before its first request. The health check could
+not tell that from a broken scraper and raised `Source 'scholarship_america' returned 0 records but
+returned 13 on the prior run` on every run. An alarm that fires every time stops being read.
+
+**Decision.** Disable `scholarship_america` in `sources.json`. Awards found on its site are
+brought in through the catalog inbox and confirmed there, like any other lead. Separately, the
+health check now reports a source capped to zero listing pages as `status: skipped`, never as a
+zero-record regression, and looks past skipped runs when finding the prior count, so a real zero
+after a skipped run still fails.
+
+**Rejected.** Keeping it enabled and running it with listing pages. Its rows carry
+`trust=aggregator` and are ineligible until confirmed (Catalog Integrity Task 1.3), so the scrape
+would add fetch load and terms exposure for rows the student cannot see until someone confirms
+them by hand — the same work the inbox already does.
+
+---
+
 ## 2026-09-26 — One record per award, even when the sponsor publishes them on one page
 
 **Context.** `afcea-stem-scholarship` was one `verified_local` record standing in for AFCEA's whole

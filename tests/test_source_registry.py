@@ -51,6 +51,6 @@ def test_disabled_sources_reports_the_note(tmp_path: Path) -> None:
     assert disabled_sources(config) == [{"source": "bold_org", "note": "rewrite pending"}]
 
 
-def test_shipped_config_disables_bold_org() -> None:
-    assert [entry["source"] for entry in disabled_sources()] == ["bold_org"]
-    assert "bold_org" not in [source.name for source in register_sources()]
+def test_shipped_config_disables_the_scrapers() -> None:
+    assert [entry["source"] for entry in disabled_sources()] == ["scholarship_america", "bold_org"]
+    assert [source.name for source in register_sources()] == ["curated_catalog", "open_scholarships"]

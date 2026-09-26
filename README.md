@@ -105,16 +105,19 @@ flag and a dated note per source.
 |---|---|---:|---|
 | `curated_catalog` — hand-curated records in `data/catalog/records/` | `verified_local` | 3 | Project-owned |
 | `open_scholarships` — [Open Scholarships](https://github.com/Grudged/open-scholarships) structured API feed | `structured_feed` | 102 | CC BY 4.0 |
-| `scholarship_america` — public listing scrape | `aggregator` | 0 | Public web pages; ineligible until confirmed |
+| `scholarship_america` — public listing scrape | — | disabled | Awards enter through the inbox (URL prefill) instead |
 | `bold_org` | — | disabled | Client-rendered listing; returned 0 records since June 2026 |
 
 *Counts are from `scholarships_snapshot_20260919.parquet` (105 records)*, a curated-only rebuild:
 the three catalog records were re-parsed and the 102 `open_scholarships` rows were carried forward
-from the prior snapshot. `scholarship_america` has contributed nothing since it was configured with
-zero listing pages, and the health check said so out loud rather than reporting success:
-`Source 'scholarship_america' returned 0 records but returned 13 on the prior run`. A silent
-`succeeded` on exactly that condition is how the catalog collapsed from 166 records to 35 without
-anyone noticing.
+from the prior snapshot. `scholarship_america` contributed nothing in that build: every run capped
+it to zero listing pages, and the health check reported
+`Source 'scholarship_america' returned 0 records but returned 13 on the prior run` each time. It
+is now disabled, and awards found on its site come in through the catalog inbox via URL prefill
+and are confirmed there, like any other lead. A source capped to zero pages now reports `skipped`
+rather than a regression, so the zero-record alarm fires only when a source actually tried to fetch
+and came back empty. A silent `succeeded` on exactly that condition is how the catalog collapsed
+from 166 records to 35 without anyone noticing.
 
 Open Scholarships data is used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 and attributed as required:
