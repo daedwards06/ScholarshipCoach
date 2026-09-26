@@ -54,6 +54,7 @@ plus date, so a run is reproducible and a result is explainable to the person ac
 - [Multi-objective tuning](#multi-objective-tuning)
 - [Win probability model (retired from the product)](#win-probability-model-retired-from-the-product)
 - [Quick start](#quick-start)
+- [Screenshots](#screenshots)
 - [Project structure](#project-structure)
 - [Design principles](#design-principles)
 - [Future work](#future-work)
@@ -470,6 +471,40 @@ access goes through a private network overlay (Tailscale), never a hosted URL.
 
 See [`docs/operations.md`](docs/operations.md) for the runbook — start on boot, firewall scope,
 weekly backups of `data/private/`, restore steps.
+
+---
+
+## Screenshots
+
+Captured from the running app on the committed demo profile (Jordan Rivera, fictional). Launch it
+with `streamlit run app/main.py` to explore interactively.
+
+**Ranked cards, student mode.** Each award is a card with its amount, deadline urgency, timeline
+bucket and plain-English reasons it matched; **Save** puts it on My Applications, and the raw
+stage scores sit behind **Signal details**.
+
+![Ranked scholarship cards in student mode](docs/images/ranked_cards.png)
+
+<table>
+<tr>
+<td width="34%" valign="top">
+
+**This Week on a phone.** What is due in the next 14 days across saved applications, at the width
+the student actually opens it.
+
+<img src="docs/images/this_week_phone.png" alt="This Week view at phone width" width="100%">
+
+</td>
+<td width="66%" valign="top">
+
+**The Inbox, parent mode.** A re-verification proposal shown as a field-level diff against the
+catalog record. Nothing reaches `data/catalog/records/` until a person confirms it here.
+
+<img src="docs/images/inbox_proposal.png" alt="Catalog inbox with a re-verification proposal diff" width="100%">
+
+</td>
+</tr>
+</table>
 
 ---
 

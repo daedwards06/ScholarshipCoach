@@ -815,16 +815,21 @@ git status   # docs/images/ tracked, each image < 500KB
 ```
 
 **Checklist:**
-- [ ] Family Product Plan Task 3.2: check the student-view and parent-view items, with a note
+- [x] Family Product Plan Task 3.2: check the student-view and parent-view items, with a note
       that Outcomes landed in Catalog Integrity Task 3.1
 - [ ] Family Product Plan Task 4.3: check the labels item once Task 2.3 here is done, with a
       pointer
-- [ ] Execute UI Redesign Plan Task 6 from that plan: three screenshots (ranked cards in
+      *(Task 2.3 is still owner-dependent, so the item stays unchecked; its note now points
+      here)*
+- [x] Execute UI Redesign Plan Task 6 from that plan: three screenshots (ranked cards in
       student mode, This Week on a phone-width window, the Inbox with a proposal diff),
       `docs/images/`, README "Screenshots" section
-- [ ] `docs/system_design.md`: `needs_date` bucket, `TRUST_UNCONFIRMED`, carry-forward
-      rebuild, cross-source dedupe precedence
-- [ ] All four CI commands green
+      *(demo profile; the inbox proposal and saved awards were staged for the capture and
+      removed afterwards, `coach.db` restored from a copy)*
+- [x] `docs/system_design.md`: `needs_date` bucket, `TRUST_UNCONFIRMED`, carry-forward
+      rebuild, cross-source dedupe precedence *(dedupe precedence was already documented by
+      Task 1.4)*
+- [x] All four CI commands green
 
 ---
 

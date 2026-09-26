@@ -210,13 +210,18 @@ streamlit run app/main.py   # capture screenshots manually
 each < 500 KB.)
 
 **Checklist:**
-- [ ] Create `docs/images/` (with `.gitkeep`)
-- [ ] Capture 3 screenshots of the redesigned app: card ranking view, profile form,
+- [x] Create `docs/images/` *(no `.gitkeep` needed; it holds the images)*
+- [x] Capture 3 screenshots of the redesigned app: card ranking view, profile form,
       signal-details / explainability expander
-- [ ] Add a "Screenshots" section to README with the three images and captions that match
+      *(run from Catalog Integrity Plan Task 3.3 on 2026-09-26 with that task's shot list, which
+      replaced this one after the family-product modes landed: `ranked_cards.png` (student mode,
+      profile sidebar visible), `this_week_phone.png` (390px wide), `inbox_proposal.png`
+      (parent mode, re-verification diff). Captured with Playwright on the demo profile)*
+- [x] Add a "Screenshots" section to README with the three images and captions that match
       the **new** card UI (not the old dataframe)
-- [ ] Add a note: launch with `streamlit run app/main.py` to explore interactively
-- [ ] Images committed and render on GitHub
+- [x] Add a note: launch with `streamlit run app/main.py` to explore interactively
+- [ ] Images committed and render on GitHub *(files are in `docs/images/`, each < 500 KB; not
+      committed yet)*
 
 ---
 

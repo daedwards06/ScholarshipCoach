@@ -53,6 +53,14 @@ source domain.
 has checked it. Feed records additionally carry `license` and the `attribution` string that
 license requires, so the credit travels with the row into every snapshot.
 
+Trust is a Stage 1 axis, not a label. A record whose `trust` is `unverified` or `aggregator` is
+ineligible with the reason code `TRUST_UNCONFIRMED`, the same way a wrong state is; `verified_local`
+and `structured_feed` pass. A row with no `trust` value at all passes too, so snapshots built
+before the field existed still rank. `whatif_eligibility` counts trust rejections separately as
+"needs confirmation", since the fix is a person checking the record, not the student changing.
+Operator mode's "Include unconfirmed records" toggle (`include_unconfirmed=True`) skips the check
+for pipeline inspection; the student and parent views always enforce it.
+
 ### Cross-source dedupe
 
 The same award reaches the snapshot from more than one source, under different ids and often
@@ -80,6 +88,21 @@ reason recorded next to it.
 A connector that returns zero records where it previously returned some fails the ingest run
 visibly rather than reporting `succeeded` — the failure mode that let the catalog collapse
 unnoticed before 2026-09-12.
+
+### Partial rebuilds carry forward
+
+A run restricted to some sources (`run_ingest(only_sources=[...])`, which is what the app's
+"Rebuild snapshot" button does with `curated_catalog`) must not delete the records it never
+re-fetched. After normalizing and deduping the rows that ran, ingest loads the prior snapshot and
+appends every prior row whose source did not run and is still enabled in `sources.json`. A source
+switched off drops out, as intended. The run report counts these under
+`records.carried_forward` per source.
+
+Behind that sits a blocking guardrail. A snapshot that would hold fewer than half the prior
+snapshot's records is refused: the run writes its report and raw cache, skips the snapshot and
+delta, and records why in `artifact_notes.snapshot_skip_reason`. `--force` (`force=True`) writes
+it anyway, for a deliberate shrink. The app surfaces a blocked rebuild as an error rather than a
+silent no-op.
 
 ## The Inbox (Confirm Queue)
 
@@ -110,11 +133,19 @@ in one bucket:
 | `now` | Open, deadline ahead, the student is eligible this cycle |
 | `next_cycle` | Recurring; this cycle has passed but the next one is projected |
 | `senior_year` | Gated on a grade level the student has not reached |
+| `needs_date` | No deadline, no cycle month, and a status of `unknown` or blank — someone has to look it up |
 | `expired` | Non-recurring and past |
 | `not_applicable` | Eligible on no cycle within the student's remaining school years |
 
 For a recurring award whose listed deadline has passed, the module projects the next cycle's date
 from the listed month and day. Bucketing is a pure function of catalog plus profile plus today.
+
+`needs_date` keeps `now` honest. An award nobody has dated is not something the student can act
+on this week, so it waits in its own bucket instead of competing for her attention. A sponsor
+status of `open` with no date still counts as `now`, and a feed record with a cycle month but no
+deadline is projected, not parked. The Find section's default stays `now` with a count of the
+awards waiting on a date; the Timeline page lists them biggest-first with a "Look it up" link, and
+the calendar export skips them.
 
 ## Persistence
 

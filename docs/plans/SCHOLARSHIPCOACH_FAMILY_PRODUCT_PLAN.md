@@ -688,9 +688,13 @@ streamlit run app/main.py   # visual: mode switch; parent-only sections hidden i
 **Checklist:**
 - [x] `app/modes.py`: `Mode = student|parent|operator`; a sidebar selector; `operator` keeps
       today's Advanced expander and is hidden unless `settings.operator_enabled`
-- [ ] Student view: This Week, My Applications, Essays, Recommenders
-- [ ] Parent view: everything in student view read-only for essays, plus Catalog & Inbox,
+- [x] Student view: This Week, My Applications, Essays, Recommenders
+      *(delivered by Tasks 3.3–3.7; `STUDENT_SECTIONS` in `app/modes.py`, one module per section
+      under `app/sections/` since Catalog Integrity Task 3.2)*
+- [x] Parent view: everything in student view read-only for essays, plus Catalog & Inbox,
       Timeline, Colleges & Money, Outcomes, Settings
+      *(`PARENT_SECTIONS` + `essays_read_only`; Outcomes was a placeholder until Catalog
+      Integrity Plan Task 3.1 made it a real page)*
 - [x] Optional PIN for parent mode read from `.streamlit/secrets.toml`; absent → no PIN
 - [x] Tests: mode gating helpers (pure functions), PIN check
 - [x] Tests + ruff green
@@ -1116,7 +1120,8 @@ python scripts/evaluate_golden_students.py --k 10 --human-labels data/eval/human
       top 20; add to `human_labels.csv`; report human NDCG for her profile
       *(BLOCKED on the student. `make_labeling_worksheet.py` now takes `--student` and
       `--top-ranked`; no private profile exists on this machine, so the generated worksheet is
-      for the demo profile. No labels were invented, so there is no current human NDCG.)*
+      for the demo profile. No labels were invented, so there is no current human NDCG. Now tracked
+      as Catalog Integrity Plan Task 2.3, still owner-dependent as of 2026-09-26.)*
 - [x] README repositioning: product summary first, architecture second, "Data sources" with
       attribution, "Family product vs. portfolio library" section, win model reframed as a
       retired-from-product calibration demo
