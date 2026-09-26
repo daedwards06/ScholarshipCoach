@@ -26,6 +26,8 @@ from src.eval.golden_students import GoldenStudent, get_golden_student
 from src.io.snapshotting import get_latest_snapshot_path
 from src.profile.store import (
     DEFAULT_STUDENT_ID,
+    load_demo_profile,
+    load_profile,
     load_profile_or_demo,
     to_stage1_profile,
     to_stage2_profile,
@@ -36,6 +38,9 @@ from src.rank.stage3_rerank import rerank_stage3
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "data" / "eval"
+# A real student's profile and labels are personal data, so their worksheet
+# lands beside the private profile rather than in the committed eval set.
+PRIVATE_OUTPUT_DIR = ROOT_DIR / "data" / "private" / "eval"
 DESCRIPTION_SNIPPET_CHARS = 200
 
 WORKSHEET_COLUMNS = [
@@ -54,8 +59,11 @@ WORKSHEET_COLUMNS = [
 class WorksheetSubject(Protocol):
     """The slice of a student a worksheet needs: an id and both stage profiles."""
 
-    student_id: str
-    profile: StudentProfile
+    @property
+    def student_id(self) -> str: ...
+
+    @property
+    def profile(self) -> StudentProfile: ...
 
     def as_stage2_profile(self) -> dict[str, Any]: ...
 
@@ -89,6 +97,29 @@ def get_stored_student(student_id: str) -> tuple[StoredStudentSubject, bool]:
         stage2_profile=to_stage2_profile(stored),
     )
     return subject, is_demo
+
+
+def find_stored_student(student_id: str) -> StoredStudentSubject | None:
+    """Return the stored student with exactly this id, or ``None``.
+
+    Unlike :func:`get_stored_student` this never substitutes the demo profile
+    for a different id: a labels file names whose judgements they are, and
+    scoring them against someone else's ranking would be a wrong number.
+    """
+    try:
+        stored = load_profile(student_id)
+    except ValueError:
+        return None
+    if stored is None:
+        demo = load_demo_profile()
+        if str(demo.get("student_id") or "") != student_id:
+            return None
+        stored = demo
+    return StoredStudentSubject(
+        student_id=student_id,
+        profile=to_stage1_profile(stored),
+        stage2_profile=to_stage2_profile(stored),
+    )
 
 
 def _format_amount(row: pd.Series) -> str:
@@ -241,10 +272,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=DEFAULT_OUTPUT_DIR,
-        help="Output directory for the worksheet CSV. Defaults to data/eval.",
+        default=None,
+        help="Output directory for the worksheet CSV. Defaults to data/private/eval for "
+        "--student and data/eval for --profile.",
     )
     return parser.parse_args()
+
+
+def resolve_output_dir(output_dir: Path | None, *, stored_student: bool) -> Path:
+    """Return where the worksheet is written; a stored student's stays private."""
+    if output_dir is None:
+        return PRIVATE_OUTPUT_DIR if stored_student else DEFAULT_OUTPUT_DIR
+    return output_dir if output_dir.is_absolute() else ROOT_DIR / output_dir
 
 
 def _resolve_snapshot_path(snapshot: Path | None, processed_dir: Path) -> Path:
@@ -289,7 +328,7 @@ def main() -> int:
             f"No eligible scholarships for profile '{student.student_id}' in '{snapshot_path}'."
         )
 
-    output_dir = args.output_dir if args.output_dir.is_absolute() else ROOT_DIR / args.output_dir
+    output_dir = resolve_output_dir(args.output_dir, stored_student=args.student is not None)
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"labeling_worksheet_{student.student_id}.csv"
     worksheet.to_csv(output_path, index=False, encoding="utf-8")

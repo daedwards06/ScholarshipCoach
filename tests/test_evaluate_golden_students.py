@@ -11,10 +11,13 @@ from scripts.evaluate_golden_students import (
     _human_label_check,
     _load_weight_overrides,
     _markdown_report,
+    _stored_label_subjects,
 )
+from scripts.make_labeling_worksheet import StoredStudentSubject
 from src.eval.golden_students import get_golden_students
 from src.eval.human_labels import load_human_labels
 from src.eval.relevance import RelevanceConfig
+from src.profile import store as profile_store
 from src.rank.weights import Stage3Weights
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -320,6 +323,10 @@ def test_markdown_report_renders_human_label_section() -> None:
             "ndcg_at_k": 0.95,
             "profiles_with_labels": 1,
             "labeled_pairs": 8,
+            "per_profile_labeled_counts": {"student_1": 8},
+            "per_profile_ndcg_at_k": {"student_1": 0.95},
+            "stored_student_ids": ["student_1"],
+            "unknown_profile_ids": ["nobody"],
         },
     )
 
@@ -327,3 +334,50 @@ def test_markdown_report_renders_human_label_section() -> None:
     assert "- Proxy NDCG@K (K=10): 0.7200" in report
     assert "- Human NDCG@K (K=10): 0.9500" in report
     assert "- Labeled (profile, scholarship) pairs: 8" in report
+    assert "| student_1 (stored student) | 8 | 0.9500 |" in report
+    assert "- Ignored labels for unknown profile `nobody`" in report
+
+
+def test_stored_label_subjects_ranks_a_real_student_and_reports_unknown_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(profile_store, "STUDENTS_DIR", tmp_path)
+    profile = profile_store.load_demo_profile()
+    profile["student_id"] = "student_1"
+    (tmp_path / "student_1.json").write_text(json.dumps(profile), encoding="utf-8")
+    golden_id = get_golden_students()[0].student_id
+    human_labels = {
+        golden_id: {"sch_a": 2},
+        "student_1": {"sch_a": 1},
+        "nobody": {"sch_a": 0},
+    }
+
+    subjects, unknown = _stored_label_subjects(human_labels, {golden_id})
+
+    assert [subject.student_id for subject in subjects] == ["student_1"]
+    assert unknown == ["nobody"]
+
+
+def test_human_label_check_scores_a_stored_student_per_profile() -> None:
+    golden = get_golden_students()[0]
+    stored = StoredStudentSubject(
+        student_id="student_1", profile=golden.profile, stage2_profile={}
+    )
+    ranked = pd.DataFrame([{"scholarship_id": "sch_a"}, {"scholarship_id": "sch_b"}])
+    results = [
+        {"student_id": golden.student_id, "k": 2, "reranked_df": ranked},
+        {"student_id": "student_1", "k": 2, "reranked_df": ranked},
+    ]
+    human_labels = {
+        golden.student_id: {"sch_a": 2, "sch_b": 1},
+        # Her ranking puts the award she rated 0 first: a real miss.
+        "student_1": {"sch_a": 0, "sch_b": 2},
+    }
+
+    result = _human_label_check([golden, stored], results, human_labels, k=10, enabled=True)
+
+    assert result is not None
+    assert result["profiles_with_labels"] == 2
+    per_profile = result["per_profile_ndcg_at_k"]
+    assert per_profile[golden.student_id] == pytest.approx(1.0)
+    assert per_profile["student_1"] < 1.0

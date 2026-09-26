@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+import json
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from scripts.make_labeling_worksheet import (
+    DEFAULT_OUTPUT_DIR,
+    PRIVATE_OUTPUT_DIR,
     WORKSHEET_COLUMNS,
     _format_amount,
     build_worksheet,
+    find_stored_student,
     get_stored_student,
+    resolve_output_dir,
 )
+from src.profile import store as profile_store
 from src.eval.golden_students import GoldenStudent
 from src.rank.stage1_eligibility import StudentProfile
 
@@ -169,3 +177,40 @@ def test_stored_student_subject_works_as_worksheet_subject() -> None:
 
     assert list(worksheet.columns) == WORKSHEET_COLUMNS
     assert (worksheet["profile_id"] == subject.student_id).all()
+
+
+def test_stored_student_worksheet_defaults_to_the_private_dir() -> None:
+    assert resolve_output_dir(None, stored_student=True) == PRIVATE_OUTPUT_DIR
+    assert resolve_output_dir(None, stored_student=False) == DEFAULT_OUTPUT_DIR
+    assert PRIVATE_OUTPUT_DIR.parts[-2:] == ("private", "eval")
+
+
+def test_explicit_output_dir_wins_over_the_default(tmp_path: Path) -> None:
+    assert resolve_output_dir(tmp_path, stored_student=True) == tmp_path
+
+
+def test_find_stored_student_reads_a_private_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(profile_store, "STUDENTS_DIR", tmp_path)
+    profile = profile_store.load_demo_profile()
+    profile["student_id"] = "student_1"
+    (tmp_path / "student_1.json").write_text(json.dumps(profile), encoding="utf-8")
+
+    subject = find_stored_student("student_1")
+
+    assert subject is not None
+    assert subject.student_id == "student_1"
+    assert isinstance(subject.profile, StudentProfile)
+
+
+def test_find_stored_student_never_substitutes_the_demo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(profile_store, "STUDENTS_DIR", tmp_path)
+    demo_id = str(profile_store.load_demo_profile()["student_id"])
+
+    assert find_stored_student("student_1") is None
+    assert find_stored_student("not a valid id!") is None
+    demo = find_stored_student(demo_id)
+    assert demo is not None and demo.student_id == demo_id

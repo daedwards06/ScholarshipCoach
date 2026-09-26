@@ -696,8 +696,11 @@ python scripts/evaluate_golden_students.py --k 10 --human-labels data/private/ev
       This Week and Find; note anything that did not fit at phone width
 - [ ] Owner with the student: save at least three awards from ranked cards, so My Applications
       and This Week have rows
-- [ ] Claude: `make_labeling_worksheet.py --student` writes to `data/private/eval/` (private
+- [x] Claude: `make_labeling_worksheet.py --student` writes to `data/private/eval/` (private
       profile, private worksheet); the evaluator accepts a labels file from that path
+      *(2026-09-26: the evaluator also ranks any stored student named in the labels file and
+      reports per-profile human NDCG; checked end to end with dummy labels on the demo
+      fallback, kept outside the repo.)*
 - [ ] Student: label her top 20 (0/1/2 scale, same as `human_labels.csv`)
 - [ ] Claude: report human NDCG@10 for her profile in `docs/evaluation.md` under "Real
       outcomes", without the labels or her profile entering git; the README cites the number

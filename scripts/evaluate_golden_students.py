@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 
 import pandas as pd
 
+from scripts.make_labeling_worksheet import WorksheetSubject, find_stored_student
 from src.eval.golden_students import GoldenStudent, get_golden_students
 from src.eval.human_labels import load_human_labels
 from src.eval.metrics import (
@@ -285,6 +287,79 @@ def _win_model_topk_summary(per_profile_topk: dict[str, list[dict[str, Any]]]) -
     }
 
 
+def _rank_subject(
+    snapshot_df: pd.DataFrame,
+    student: WorksheetSubject,
+    *,
+    max_k: int,
+    stage2_weights: Stage2Weights | None = None,
+    stage3_weights: Stage3Weights | None = None,
+    amount_utility_mode: str = "log",
+    similarity_mode: str = "tfidf",
+    model_name: str = DEFAULT_MODEL_NAME,
+    processed_dir: Path | None = None,
+    use_win_model: bool = False,
+    win_model_path: Path | None = None,
+    win_model: Any | None = None,
+) -> dict[str, Any]:
+    """Run Stages 1-3 for one subject; ``k`` is capped at its eligible count."""
+    eligible_df, ineligible_df = apply_eligibility_filter(snapshot_df, student.profile)
+    k = min(max_k, int(len(eligible_df)))
+
+    if k > 0:
+        scored_df = score_stage2(
+            eligible_df,
+            student.as_stage2_profile(),
+            weights=stage2_weights,
+            amount_utility_mode=amount_utility_mode,
+            similarity_mode=similarity_mode,
+            model_name=model_name,
+            processed_dir=processed_dir,
+        )
+        reranked_df = rerank_stage3(
+            scored_df,
+            today=student.profile.today,
+            profile=student.profile,
+            weights=stage3_weights,
+            use_win_model=use_win_model,
+            win_model_path=win_model_path,
+            win_model=win_model,
+        )
+    else:
+        scored_df = pd.DataFrame()
+        reranked_df = pd.DataFrame()
+
+    return {
+        "student_id": student.student_id,
+        "k": k,
+        "eligible_df": eligible_df,
+        "ineligible_df": ineligible_df,
+        "scored_df": scored_df,
+        "reranked_df": reranked_df,
+    }
+
+
+def _stored_label_subjects(
+    human_labels: dict[str, dict[str, int]] | None, golden_ids: set[str]
+) -> tuple[list[WorksheetSubject], list[str]]:
+    """Return stored students named in a labels file, and ids that match no one.
+
+    Golden personas are ranked anyway; a real student's labels need her stored
+    profile ranked alongside them, or they would be silently ignored.
+    """
+    subjects: list[WorksheetSubject] = []
+    unknown: list[str] = []
+    for profile_id in sorted(human_labels or {}):
+        if profile_id in golden_ids:
+            continue
+        subject = find_stored_student(profile_id)
+        if subject is None:
+            unknown.append(profile_id)
+        else:
+            subjects.append(subject)
+    return subjects, unknown
+
+
 def _run_per_profile(
     snapshot_df: pd.DataFrame,
     students: list[GoldenStudent],
@@ -307,33 +382,23 @@ def _run_per_profile(
     relevance_labels: dict[str, list[int]] = {}
 
     for student in students:
-        eligible_df, ineligible_df = apply_eligibility_filter(snapshot_df, student.profile)
-        k = min(max_k, int(len(eligible_df)))
-
-        if k > 0:
-            scored_df = score_stage2(
-                eligible_df,
-                student.as_stage2_profile(),
-                weights=stage2_weights,
-                amount_utility_mode=amount_utility_mode,
-                similarity_mode=similarity_mode,
-                model_name=model_name,
-                processed_dir=processed_dir,
-            )
-            reranked_df = rerank_stage3(
-                scored_df,
-                today=student.profile.today,
-                profile=student.profile,
-                weights=stage3_weights,
-                use_win_model=use_win_model,
-                win_model_path=win_model_path,
-                win_model=win_model,
-            )
-            topk_df = reranked_df.head(k).copy()
-        else:
-            scored_df = pd.DataFrame()
-            reranked_df = pd.DataFrame()
-            topk_df = pd.DataFrame()
+        result = _rank_subject(
+            snapshot_df,
+            student,
+            max_k=max_k,
+            stage2_weights=stage2_weights,
+            stage3_weights=stage3_weights,
+            amount_utility_mode=amount_utility_mode,
+            similarity_mode=similarity_mode,
+            model_name=model_name,
+            processed_dir=processed_dir,
+            use_win_model=use_win_model,
+            win_model_path=win_model_path,
+            win_model=win_model,
+        )
+        k = int(result["k"])
+        reranked_df = result["reranked_df"]
+        topk_df = reranked_df.head(k).copy() if k > 0 else pd.DataFrame()
 
         top_records = _profile_topk_records(topk_df, k)
         labels = proxy_relevance_labels(
@@ -344,17 +409,7 @@ def _run_per_profile(
         )
         profile_id = student.student_id
 
-        per_profile_results.append(
-            {
-                "student_id": profile_id,
-                "description": student.description,
-                "k": k,
-                "eligible_df": eligible_df,
-                "ineligible_df": ineligible_df,
-                "scored_df": scored_df,
-                "reranked_df": reranked_df,
-            }
-        )
+        per_profile_results.append({**result, "description": student.description})
         per_profile_topk[profile_id] = top_records
         ordered_ids[profile_id] = [str(rec["scholarship_id"]) for rec in top_records]
         relevance_labels[profile_id] = labels
@@ -432,7 +487,7 @@ def _cross_label_check(
 
 
 def _human_label_check(
-    students: list[GoldenStudent],
+    students: Sequence[WorksheetSubject],
     per_profile_results: list[dict[str, Any]],
     human_labels: dict[str, dict[str, int]] | None,
     *,
@@ -471,6 +526,10 @@ def _human_label_check(
         "profiles_with_labels": len(labels_by_profile),
         "labeled_pairs": int(sum(per_profile_labeled_counts.values())),
         "per_profile_labeled_counts": per_profile_labeled_counts,
+        "per_profile_ndcg_at_k": {
+            profile_id: compute_ndcg_at_k({profile_id: labels}, k=k)
+            for profile_id, labels in labels_by_profile.items()
+        },
         "ndcg_at_k": compute_ndcg_at_k(labels_by_profile, k=k),
     }
 
@@ -687,6 +746,18 @@ def _markdown_report(
         )
         lines.append(f"- Profiles with labels: {human_label.get('profiles_with_labels', 0)}")
         lines.append(f"- Labeled (profile, scholarship) pairs: {human_label.get('labeled_pairs', 0)}")
+        stored_ids = set(human_label.get("stored_student_ids") or [])
+        per_profile_ndcg = human_label.get("per_profile_ndcg_at_k") or {}
+        if len(per_profile_ndcg) > 1 or stored_ids:
+            counts = human_label.get("per_profile_labeled_counts") or {}
+            lines.append("")
+            lines.append("| Profile | Labeled pairs | Human NDCG@K |")
+            lines.append("|:---|---:|---:|")
+            for profile_id, value in sorted(per_profile_ndcg.items()):
+                name = f"{profile_id} (stored student)" if profile_id in stored_ids else profile_id
+                lines.append(f"| {name} | {counts.get(profile_id, 0)} | {_format_ndcg(value)} |")
+        for profile_id in human_label.get("unknown_profile_ids") or []:
+            lines.append(f"- Ignored labels for unknown profile `{profile_id}`")
         lines.append("")
 
     lines.append("## Per Profile Top-K")
@@ -838,13 +909,38 @@ def main() -> int:
     )
     human_labels_path = _resolve_path(args.human_labels) if args.human_labels else None
     human_labels = load_human_labels(human_labels_path) if human_labels_path else None
+    stored_subjects, unknown_label_ids = _stored_label_subjects(
+        human_labels, {student.student_id for student in students}
+    )
+    for profile_id in unknown_label_ids:
+        print(f"Labels for '{profile_id}' match no golden persona or stored student; ignored.")
+    stored_results = [
+        _rank_subject(
+            snapshot_df,
+            subject,
+            max_k=args.k,
+            stage2_weights=stage2_weights,
+            stage3_weights=stage3_weights,
+            amount_utility_mode=amount_utility_mode,
+            similarity_mode=args.similarity_mode,
+            model_name=args.model_name,
+            processed_dir=processed_dir,
+            use_win_model=args.use_win_model,
+            win_model_path=active_win_model_path,
+            win_model=active_win_model,
+        )
+        for subject in stored_subjects
+    ]
     human_label = _human_label_check(
-        students,
-        run_one_results,
+        [*students, *stored_subjects],
+        [*run_one_results, *stored_results],
         human_labels,
         k=args.k,
         enabled=human_labels is not None,
     )
+    if human_label is not None:
+        human_label["stored_student_ids"] = [subject.student_id for subject in stored_subjects]
+        human_label["unknown_profile_ids"] = unknown_label_ids
 
     metrics = _metrics_payload(
         run_one_results,

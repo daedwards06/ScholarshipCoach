@@ -281,7 +281,8 @@ current catalog, not re-keying the old file to make a number reappear. The works
 python scripts/make_labeling_worksheet.py --student --top-ranked --n 20
 ```
 
-See [`docs/evaluation.md`](docs/evaluation.md#human-labeled-evaluation) for the rubric and the
+It writes to `data/private/eval/`, which is git-ignored, so her profile and labels never enter
+the repo; only the resulting number will. See [`docs/evaluation.md`](docs/evaluation.md#human-labeled-evaluation) for the rubric and the
 agreement diagnostic.
 
 ### Historical metrics (superseded)

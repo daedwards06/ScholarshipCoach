@@ -119,6 +119,14 @@ The proxy labels above share features with the ranker (keyword overlap, text sim
 
    `--top-ranked` takes the ranked top-N the student actually sees (Stage 1 → 2 → 3) instead of a random draw across the eligible set. Twenty ranked rows is a realistic ask of a real person, and it is the right sample for measuring *ordering*. It is the wrong sample for measuring *recall*: a top-N label set cannot reveal a good award the ranker buried. Eligible-set sampling therefore stays the default, and `--top-ranked` is the opt-in.
 
+   A `--student` worksheet is written to `data/private/eval/`, not `data/eval/`: it names a real person's profile and her judgements, and `data/private/` is git-ignored. Save the labeled copy as `data/private/eval/human_labels_student.csv` and score it with:
+
+   ```powershell
+   python scripts/evaluate_golden_students.py --k 10 --human-labels data/private/eval/human_labels_student.csv
+   ```
+
+   The evaluator ranks any stored student named in the labels file alongside the golden personas, with the same weights, and reports each profile's human NDCG on its own row. A `profile_id` that matches neither a golden persona nor a stored profile is reported as ignored, never scored against someone else's ranking.
+
 2. **Label by hand.** Fill the `label` column using the **same 0/1/2 rubric as the proxy**:
    - `2` (high): strong fit — major/field, level, and topic all clearly match.
    - `1` (medium): plausible fit — related field or general-eligibility award worth applying to.
