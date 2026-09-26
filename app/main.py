@@ -20,6 +20,7 @@ from app.helpers import (
     reasons_to_text,
     unverified_to_text,
 )
+from scripts.export_outcomes import build_outcomes_frame
 from scripts.run_ingest import get_latest_snapshot_path, run_ingest
 from src.catalog import inbox
 from src.catalog import entry as catalog_entry
@@ -75,12 +76,6 @@ WEIGHTS_PROFILE_PATHS = {
 }
 WEIGHTS_PROFILE_OPTIONS = tuple(WEIGHTS_PROFILE_PATHS.keys()) + ("Custom file path",)
 SNAPSHOT_DATE_RE = re.compile(r"scholarships_snapshot_(\d{8})\.parquet$")
-
-# Sections whose surfaces are built by later Phase 3 tasks. Listing them now is
-# deliberate: the nav shows the family the whole product, not just what runs.
-_PENDING_SECTION_NOTES = {
-    "outcomes": "Results per application: awarded amounts and renewal terms.",
-}
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 
 # The timeline shows catalog awards alongside the family's own dates. A whole
@@ -2874,9 +2869,84 @@ def _render_settings_section() -> None:
         st.error(f"Could not open the family database: {exc}")
 
 
-def _render_pending_section(section: str) -> None:
-    st.subheader(modes.SECTION_LABELS[section])
-    st.info(_PENDING_SECTION_NOTES[section])
+def _outcomes_table(rows: list[money.OutcomeRow]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Award": row.award_title,
+                "Cycle": "—" if row.cycle_year is None else str(row.cycle_year),
+                "Result": tracker.STATUS_LABELS.get(row.result, row.result.title()),
+                "Amount": _money_text(row.amount),
+                "Renewal terms": row.renewal_terms,
+                "Paid to": row.paid_to,
+                "Decided": row.decided_on,
+            }
+            for row in rows
+        ]
+    )
+
+
+def _outcomes_csv_callable(
+    student_id: str, profile: dict[str, Any], snapshot_path: str | None, today_value: date
+) -> Any:
+    # The download callable runs on its own thread after the click, so it
+    # opens its own connection and reads nothing from session state.
+    def build() -> str:
+        snapshot_df = pd.read_parquet(snapshot_path) if snapshot_path else pd.DataFrame()
+        with open_db() as conn:
+            frame = build_outcomes_frame(
+                conn, student_id, profile, snapshot_df, today=today_value
+            )
+        return str(frame.to_csv(index=False))
+
+    return build
+
+
+def _render_outcomes_section() -> None:
+    st.subheader(modes.SECTION_LABELS["outcomes"])
+    profile = st.session_state.profile
+    today_value = _effective_today(profile)
+    try:
+        with open_db() as conn:
+            student_id = _ensure_student(conn)
+            applications = repo.list_applications(conn, student_id)
+            outcomes = repo.list_outcomes(conn, student_id)
+    except Exception as exc:
+        st.error(f"Could not open the family database: {exc}")
+        return
+
+    if not outcomes:
+        st.info(
+            "No results recorded yet. When an award decides, open it in My Applications, "
+            "set its status to Submitted, and record the result there."
+        )
+        return
+
+    col_won, col_decided = st.columns(2)
+    col_won.metric("Total won", _money_text(money.total_won(outcomes)))
+    col_decided.metric("Results recorded", str(len(outcomes)))
+
+    by_year = money.won_by_year(outcomes)
+    if by_year:
+        st.markdown("**Won by school year**")
+        for year in by_year:
+            st.markdown(f"{year.label}: {_money_text(year.total)} · {_award_count_text(year.count)}")
+
+    st.dataframe(
+        _outcomes_table(money.outcome_rows(applications, outcomes)),
+        hide_index=True,
+        width="stretch",
+    )
+    st.download_button(
+        "Download outcomes.csv",
+        data=_outcomes_csv_callable(
+            student_id, dict(profile), _active_snapshot_path(), today_value
+        ),
+        file_name="outcomes.csv",
+        mime="text/csv",
+        on_click="ignore",
+        help="Submitted applications with their results and ranking features, for the win model.",
+    )
 
 
 def main() -> None:
@@ -2916,10 +2986,10 @@ def main() -> None:
         _render_catalog_inbox_section()
     elif section == "what_if":
         _render_what_if_section()
+    elif section == "outcomes":
+        _render_outcomes_section()
     elif section == "settings":
         _render_settings_section()
-    else:
-        _render_pending_section(section)
 
 
 if __name__ == "__main__":

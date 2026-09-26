@@ -25,7 +25,7 @@ from datetime import date
 
 from src.profile.grade_levels import school_year_end
 from src.store.milestones import school_year_label
-from src.store.repo import College, Outcome, net_price
+from src.store.repo import Application, College, Outcome, net_price
 
 WON_RESULT = "won"
 
@@ -66,6 +66,20 @@ class CollegeCost:
     merit_aid_notes: str
     outside_award_policy: str
     remaining: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class OutcomeRow:
+    """One decided application, as the Outcomes page lists it."""
+
+    application_id: int
+    award_title: str
+    cycle_year: int | None
+    result: str
+    amount: float | None
+    renewal_terms: str
+    paid_to: str
+    decided_on: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +153,59 @@ def renewal_conditions(
         if is_won(outcome) and str(outcome.renewal_terms or "").strip()
     ]
     rows.sort(key=lambda row: (row.award_title.casefold(), row.application_id))
+    return rows
+
+
+def _parse_day(value: object) -> date | None:
+    try:
+        return date.fromisoformat(str(value or "").strip()[:10])
+    except ValueError:
+        return None
+
+
+def cycle_year(application: Application, fallback_deadline: date | None = None) -> int | None:
+    """The award cycle an application belongs to, keyed on its deadline.
+
+    Falls back to the snapshot's deadline, then the submission year, then the
+    year the award was saved.
+    """
+    for candidate in (
+        _parse_day(application.deadline),
+        fallback_deadline,
+        _parse_day(application.submitted_on),
+        _parse_day(application.created_at),
+    ):
+        if candidate is not None:
+            return candidate.year
+    return None
+
+
+def outcome_rows(
+    applications: Iterable[Application], outcomes: Iterable[Outcome]
+) -> list[OutcomeRow]:
+    """Join each outcome to its application, newest cycle first."""
+    by_id = {application.id: application for application in applications}
+    rows: list[OutcomeRow] = []
+    for outcome in outcomes:
+        application = by_id.get(outcome.application_id)
+        title = ""
+        if application is not None:
+            title = application.title or application.catalog_id
+        rows.append(
+            OutcomeRow(
+                application_id=outcome.application_id,
+                award_title=title or f"Application {outcome.application_id}",
+                cycle_year=None if application is None else cycle_year(application),
+                result=str(outcome.result or "").strip().casefold(),
+                amount=outcome.amount_awarded,
+                renewal_terms=str(outcome.renewal_terms or "").strip(),
+                paid_to=str(outcome.paid_to or "").strip(),
+                decided_on=str(outcome.decided_on or "")[:10],
+            )
+        )
+    rows.sort(
+        key=lambda row: (-(row.cycle_year or 0), row.award_title.casefold(), row.application_id)
+    )
     return rows
 
 

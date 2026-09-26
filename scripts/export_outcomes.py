@@ -34,7 +34,7 @@ from src.profile.store import (
     to_stage2_profile,
 )
 from src.rank.stage2_scoring import score_stage2
-from src.store import repo
+from src.store import money, repo
 from src.store.db import DEFAULT_DB_PATH, open_db
 from src.win_model.features import FEATURE_COLUMNS, build_pair_features
 
@@ -99,21 +99,6 @@ def _is_submitted(application: repo.Application) -> bool:
     return bool(application.submitted_on) or application.status in SUBMITTED_STATUSES
 
 
-def _cycle_year(
-    application: repo.Application, row: pd.Series | None, submitted_on: date | None
-) -> int | None:
-    """The award cycle this attempt belongs to, keyed on its deadline."""
-    deadline = _parse_date(application.deadline)
-    if deadline is None and row is not None:
-        deadline = _row_deadline(row)
-    if deadline is not None:
-        return deadline.year
-    if submitted_on is not None:
-        return submitted_on.year
-    created = _parse_date(application.created_at)
-    return None if created is None else created.year
-
-
 def build_outcomes_frame(
     conn: sqlite3.Connection,
     student_id: str,
@@ -161,7 +146,9 @@ def build_outcomes_frame(
             "student_id": student_id,
             "catalog_id": application.catalog_id,
             "title": application.title,
-            "cycle_year": _cycle_year(application, row, submitted_on),
+            "cycle_year": money.cycle_year(
+                application, None if row is None else _row_deadline(row)
+            ),
             "submitted": True,
             "submitted_on": application.submitted_on or "",
             "status": application.status,

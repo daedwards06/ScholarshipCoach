@@ -666,6 +666,11 @@ python -c "import json,glob; rs=[json.load(open(f)) for f in glob.glob('data/cat
 
 ## Task 2.3: Onboard the Real Student and Label Her Top 20 *(owner-dependent)*
 
+> **Deferred 2026-09-26, still open.** Waiting on a session with the student. Task 3.1 went
+> ahead because it does not depend on this task. Task 3.2 should wait until this task is done,
+> because this task's phone-width findings become checklist items on 3.2. Family Product Plan
+> Task 4.3's label item stays blocked until then.
+
 **Why:** There is no private profile, the database has no applications, and the human-label
 item in Family Product Plan Task 4.3 is blocked on exactly this. Success criteria 3 and 4 of
 that plan are untested until the student has used the app once.
@@ -727,14 +732,17 @@ streamlit run app/main.py   # visual: parent mode → Outcomes lists rows, total
 ```
 
 **Checklist:**
-- [ ] Outcomes page: table of outcomes joined to application title, cycle year, result,
+- [x] Outcomes page: table of outcomes joined to application title, cycle year, result,
       amount, renewal terms; totals by year; a "Download outcomes.csv" that calls the export
       script's function
-- [ ] Empty state says where outcomes are entered (application detail) rather than showing an
+      *(2026-09-26: row helper is `money.outcome_rows`; `money.cycle_year` is now shared with
+      `export_outcomes.py`. Checked headless with Streamlit AppTest on a seeded temp DB, not in
+      a browser.)*
+- [x] Empty state says where outcomes are entered (application detail) rather than showing an
       empty table
-- [ ] `_render_pending_section` and `_PENDING_SECTION_NOTES` deleted
-- [ ] Tests: the page's row-building helper (pure) on a temp database with two outcomes
-- [ ] All four CI commands green
+- [x] `_render_pending_section` and `_PENDING_SECTION_NOTES` deleted
+- [x] Tests: the page's row-building helper (pure) on a temp database with two outcomes
+- [x] All four CI commands green
 
 ---
 

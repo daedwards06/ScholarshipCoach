@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -209,6 +210,61 @@ def test_summary_reads_a_real_database(
     assert [row.label for row in summary.by_year] == ["2025-26"]
     assert [row.award_title for row in summary.renewals] == ["NC CS Award"]
     assert summary.colleges[0].remaining == 12500.0
+
+
+# -- outcomes page rows -----------------------------------------------------
+
+
+def test_outcome_rows_join_titles_and_cycles_from_a_real_database(
+    conn: sqlite3.Connection, student: repo.Student
+) -> None:
+    won = repo.create_application(
+        conn, student.student_id, "nc-cs-award", title="NC CS Award", deadline="2027-02-01"
+    )
+    lost = repo.create_application(
+        conn, student.student_id, "gaston-fund", deadline="2026-03-15"
+    )
+    repo.set_outcome(
+        conn,
+        won.id,
+        result="won",
+        amount_awarded=2500.0,
+        paid_to="NC State",
+        renewal_terms="Renewable at 3.0 GPA",
+        decided_on="2027-04-10",
+    )
+    repo.set_outcome(conn, lost.id, result="lost", decided_on="2026-05-01")
+
+    rows = money.outcome_rows(
+        repo.list_applications(conn, student.student_id),
+        repo.list_outcomes(conn, student.student_id),
+    )
+
+    assert [row.award_title for row in rows] == ["NC CS Award", "gaston-fund"]
+    assert [row.cycle_year for row in rows] == [2027, 2026]
+    assert [row.result for row in rows] == ["won", "lost"]
+    assert rows[0].amount == 2500.0
+    assert rows[0].renewal_terms == "Renewable at 3.0 GPA"
+    assert rows[0].paid_to == "NC State"
+    assert rows[0].decided_on == "2027-04-10"
+    assert rows[1].amount is None
+
+
+def test_outcome_rows_survive_a_missing_application() -> None:
+    rows = money.outcome_rows([], [_outcome(7, result="Won", amount=500.0)])
+
+    assert rows[0].award_title == "Application 7"
+    assert rows[0].cycle_year is None
+    assert rows[0].result == "won"
+
+
+def test_cycle_year_falls_back_past_a_missing_deadline() -> None:
+    application = repo.Application(
+        id=1, student_id="student_1", catalog_id="x", submitted_on="2026-10-02"
+    )
+
+    assert money.cycle_year(application) == 2026
+    assert money.cycle_year(application, date(2027, 1, 15)) == 2027
 
 
 # -- the view is parent-only ------------------------------------------------
