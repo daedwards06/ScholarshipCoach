@@ -855,17 +855,17 @@ python -c "import json,pandas as pd,dataclasses; from pathlib import Path; from 
 ```
 
 **Checklist:**
-- [ ] README "Evaluation results": new table on the new snapshot, old 2026-09-13 rows moved
+- [x] README "Evaluation results": new table on the new snapshot, old 2026-09-13 rows moved
       under "Historical metrics" with their snapshot named
-- [ ] README "Limitations": the demo-profile Stage 1 rejection breakdown, the count of
+- [x] README "Limitations": the demo-profile Stage 1 rejection breakdown, the count of
       `needs_date` awards, the count of `verified_local` records, and the count of NC or
       county-scoped records, each from the validation command output
-- [ ] `docs/decisions.md`: dated entry "2026-09-13 review: the checklist was green and the
+- [x] `docs/decisions.md`: dated entry "2026-09-13 review: the checklist was green and the
       catalog was not" with the findings table from this plan's preamble and the decisions
       list
-- [ ] `docs/evaluation.md`: the trust rule and the `needs_date` bucket as things the harness
+- [x] `docs/evaluation.md`: the trust rule and the `needs_date` bucket as things the harness
       now sees
-- [ ] All four CI commands green
+- [x] All four CI commands green
 
 ---
 

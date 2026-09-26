@@ -76,6 +76,30 @@ Optional win-model flags:
   - computed only when relevance labels are available
   - otherwise reported as `"N/A"`
 
+## What Stage 1 and the Timeline Now Show the Harness
+
+Two rules from the Catalog Integrity Plan change what an evaluation run sees, and neither is
+switched off for evaluation.
+
+**The trust rule is a Stage 1 axis.** A record with `trust: unverified` or `trust: aggregator` is
+ineligible with the reason code `TRUST_UNCONFIRMED`, exactly like a wrong state, so it never
+reaches Stage 2 and cannot appear in a top-K or earn a proxy label. `verified_local` and
+`structured_feed` pass, and a row with no `trust` column passes so pre-catalog snapshots (such as
+the 2026-06-27 one the historical human labels are pinned to) still evaluate. The evaluator does
+not set `include_unconfirmed`; that switch exists for operator-mode inspection only. When
+`TRUST_UNCONFIRMED` appears in the Ineligible Reason Breakdown it counts profile×award pairs, so
+one unconfirmed record shows up once per golden profile. On `scholarships_snapshot_20260926.parquet`
+no record is unconfirmed and the code does not appear.
+
+**`needs_date` is a timeline bucket, not a filter.** `src/rank/timeline.classify_timeline` puts
+an eligible award with no deadline, no cycle month and `status: unknown` in `needs_date` instead
+of `now`. The golden evaluation ranks the Stage 1 survivors and does not bucket them, so
+`needs_date` awards still compete for a golden top-K and still count toward eligibility
+precision; `make_labeling_worksheet.py` does not bucket either. The bucket matters for the
+family-facing Now list: on the 2026-09-26 snapshot the demo student has 106 eligible awards, 76 in `needs_date` and
+21 in Now. A proxy NDCG therefore measures ordering over a set most of which the student could not
+yet act on; reading it as "quality of the Now list" overstates it.
+
 ## Proxy Relevance Labels (Offline Heuristic)
 
 For portfolio-friendly offline evaluation, relevance labels are heuristic (not human annotations):

@@ -72,6 +72,56 @@ would be a schema change and is not yet worth it.
 
 ---
 
+## 2026-09-13 review: the checklist was green and the catalog was not
+
+**Context.** Every task in the Family Product Plan was checked off and all four CI gates were
+green. A review on 2026-09-13 against the code, `scholarships_snapshot_20260912.parquet` (107
+records), the local database, and an offline run of the in-app rebuild found the gaps in the data
+and in the seams between tasks:
+
+| Finding | Evidence |
+|---|---|
+| "Rebuild snapshot" deletes the feed records | Curated-only run in a temp dir wrote a **5-row** snapshot, delta `removed: 102`; the >50% guardrail warned and wrote anyway |
+| The trust rule is documented, not enforced | README and design principle 2 say only confirmed or trusted-feed records count as eligible; Stage 1 never reads `trust` |
+| All 5 curated records are `trust: unverified`, `status: unknown` | Migrated in Task 1.1, never hand-confirmed; nothing in the catalog qualifies for the Task 3.6 local boost |
+| Outcomes is a placeholder page | Listed in the parent nav, routes to `_render_pending_section` |
+| Cross-source duplicate | "Dell Scholars Program" (feed) and "Dell Technologies Scholars Program" (curated) both rank |
+| HTTP 403 is treated as a dead link | The one inbox proposal proposes `status: unknown` for a sponsor page that blocked the fetch |
+| Zero local or NC-specific awards | All 102 feed records are national; no record has a county |
+| The Now bucket is mostly unknowns | Demo student: 93 of 101 eligible land in `now`; 79 of those are `status: unknown` with no deadline |
+| Stage 1 barely filters a real profile | 6 of 107 rejected for the demo student |
+| Scholarship America is enabled but fetches nothing | `max_listing_pages 0` every run; the zero-record regression warning fires every run |
+| The family has not used it | No `data/private/students/`; `coach.db` has 0 applications, essays, recommenders, outcomes |
+| `app/main.py` is 2,850 lines | Every section inline; the router is the last 40 lines |
+
+**Decisions.** Recorded as `docs/plans/SCHOLARSHIPCOACH_CATALOG_INTEGRITY_PLAN.md`:
+
+- Fix the destructive defect first. Nothing else is worth doing on a snapshot that a button can
+  wipe.
+- Confirm the five records by hand before enforcing trust, so enforcement does not empty the
+  catalog on the day it lands.
+- Seed local awards through the Add Award page, not by hand-writing JSON, so the seeding exercises
+  the product's own front door.
+- Owner-dependent tasks (confirming records, seeding local awards, onboarding the student) have a
+  Claude half and an owner half. Claude drafts and validates; the owner confirms. Nothing gets
+  `trust: verified_local` because Claude read a web page.
+- No new features. Every task either fixes a defect, fills a data gap, or removes debt that blocks
+  the first two.
+
+**Re-measured (2026-09-26, `scholarships_snapshot_20260926.parquet`, 133 records: 34
+`verified_local` + 99 `structured_feed`, none `unverified` or `aggregator`).** A curated-only
+rebuild carried all 99 feed rows forward with no guardrail warning. 23 curated records are
+NC-scoped, 12 to named counties. The demo student now loses 27 of 133 in Stage 1 (12
+`COUNTY_NOT_ALLOWED`), and 76 of the 106 survivors sit in `needs_date` rather than Now. Golden
+proxy NDCG@10 fell from 0.831 to 0.803 (tuned) and 0.744 to 0.720 (baseline). The current code
+still scores 0.831 on the 2026-09-12 snapshot, and the seeded NC awards change no golden top-10,
+so the drop is the corrected and departed records, not the code or the seeding.
+
+**Still open.** The real student's labels (Task 2.3) are owner-dependent; until they exist there
+is no current human-judged NDCG. The 76 `needs_date` feed rows each need a date looked up by hand.
+
+---
+
 ## 2026-09-13 — Report the catalog that exists, not the one the metrics were measured on
 
 **Context.** The README's headline table (NDCG@10 0.61, Coverage@10 0.40) was measured on a

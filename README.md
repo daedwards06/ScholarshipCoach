@@ -104,14 +104,18 @@ flag and a dated note per source.
 
 | Source | Trust | Records | License / terms |
 |---|---|---:|---|
-| `curated_catalog` — hand-curated records in `data/catalog/records/` | `verified_local` | 3 | Project-owned |
-| `open_scholarships` — [Open Scholarships](https://github.com/Grudged/open-scholarships) structured API feed | `structured_feed` | 102 | CC BY 4.0 |
+| `curated_catalog` — hand-curated records in `data/catalog/records/` | `verified_local` | 34 | Project-owned |
+| `open_scholarships` — [Open Scholarships](https://github.com/Grudged/open-scholarships) structured API feed | `structured_feed` | 99 | CC BY 4.0 |
 | `scholarship_america` — public listing scrape | — | disabled | Awards enter through the inbox (URL prefill) instead |
 | `bold_org` | — | disabled | Client-rendered listing; returned 0 records since June 2026 |
 
-*Counts are from `scholarships_snapshot_20260919.parquet` (105 records)*, a curated-only rebuild:
-the three catalog records were re-parsed and the 102 `open_scholarships` rows were carried forward
-from the prior snapshot. `scholarship_america` contributed nothing in that build: every run capped
+*Counts are from `scholarships_snapshot_20260926.parquet` (133 records)*, a curated-only rebuild:
+the 34 catalog records were re-parsed and the 99 `open_scholarships` rows were carried forward
+from the prior snapshot. The feed contributed 102 rows on 2026-09-12; "Dell Scholars Program" now
+collapses onto the curated Dell Technologies record, and "Golden Door Scholars" and "Out to
+Innovate Scholarship" are no longer in the carried-forward set. 23 of the
+34 curated records are NC-scoped, 12 of those to named counties. `scholarship_america`
+contributed nothing in the builds before it was disabled: every run capped
 it to zero listing pages, and the health check reported
 `Source 'scholarship_america' returned 0 records but returned 13 on the prior run` each time. It
 is now disabled, and awards found on its site come in through the catalog inbox via URL prefill
@@ -197,14 +201,23 @@ Evaluation is **offline and snapshot-based**. Proxy relevance labels are heurist
 configurable (`hybrid` = keyword OR similarity threshold; `no_similarity` = structured + keyword
 only).
 
-**Measured 2026-09-13** on `scholarships_snapshot_20260912.parquet` — **107 records**
-(5 `verified_local` + 102 `structured_feed`) — across **9 golden profiles**, K=10, embeddings
-similarity mode, win model off:
+**Measured 2026-09-26** on `scholarships_snapshot_20260926.parquet` — **133 records**
+(34 `verified_local` + 99 `structured_feed`, no `unverified` or `aggregator` rows) — across
+**9 golden profiles**, K=10, embeddings similarity mode, win model off:
 
 | Configuration | NDCG@10 (hybrid) | NDCG@10 (no_similarity) | Coverage@10 | Unique awards |
 |:---|---:|---:|---:|---:|
-| Baseline (default weights) | 0.744 | 0.567 | 0.400 | 36 |
-| **Tuned (`best_weights.json`)** | **0.831** | **0.650** | **0.467** | **42** |
+| Baseline (default weights) | 0.720 | 0.545 | 0.389 | 35 |
+| **Tuned (`best_weights.json`)** | **0.803** | **0.624** | **0.456** | **41** |
+
+Every number is lower than on 2026-09-13 (0.831 tuned), and the cause is the catalog, not the
+code: the current code on the old `scholarships_snapshot_20260912.parquet` still scores 0.831. The
+22 NC awards seeded since then are not the cause either — they widen the NC CS persona's eligible
+set from 104 to 124, but no golden profile's top-10 changes with or without them. What moved the
+number is the records that were corrected or left before the seeding: the five `unverified` curated
+rows were confirmed or replaced (the AFCEA umbrella became ten per-award records with their own GPA
+and class-year floors), and three feed rows are gone. The tuned configuration still wins under both
+label heuristics by a similar margin.
 
 The second column is the circularity check: the *same* ranking re-scored under the other label
 heuristic. The tuned configuration wins under both, by a similar margin, so the gain is not purely
@@ -214,10 +227,10 @@ the tuner learning the shape of one label rule.
 
 | Metric | Value |
 |:---|---:|
-| Eligibility precision | 0.628 (605 eligible of 963 profile×award pairs) |
-| Amount in top-10 (mean / median / max) | $28,351 / $10,000 / $250,000 |
+| Eligibility precision | 0.529 (633 eligible of 1,197 profile×award pairs) |
+| Amount in top-10 (mean / median / max) | $28,905 / $10,000 / $250,000 |
 | Ranking stability (re-run determinism) | Exact match |
-| NDCG@10, TF-IDF mode (same weights) | 0.646 |
+| NDCG@10, TF-IDF mode (same weights) | 0.648 |
 
 > **Coverage@k here is a cross-profile _diversity_ ratio, not catalog coverage.** It is
 > `unique recommended scholarships / total recommended slots` summed across all golden
@@ -228,14 +241,19 @@ the tuner learning the shape of one label rule.
 
 The 2026-09-12 review found `majors_allowed`, `min_gpa` and `education_level` at **zero non-null
 in every snapshot in the repo** — Stage 1 was effectively a state-plus-deadline filter. The
-reason-code breakdown is the check that this changed:
+reason-code breakdown across the 9 golden profiles is the check that this changed:
 
-| Reason code | Rejections |
-|:---|---:|
-| `EDUCATION_LEVEL_MISMATCH` | 336 |
-| `GPA_BELOW_MIN` | 21 |
-| `MAJOR_NOT_ALLOWED` | 12 |
-| `CITIZENSHIP_MISMATCH` | 2 |
+| Reason code | Rejections (2026-09-26, 1,197 pairs) | Rejections (2026-09-13, 963 pairs) |
+|:---|---:|---:|
+| `EDUCATION_LEVEL_MISMATCH` | 484 | 336 |
+| `STATE_NOT_ALLOWED` | 161 | — |
+| `MAJOR_NOT_ALLOWED` | 80 | 12 |
+| `GPA_BELOW_MIN` | 38 | 21 |
+| `CITIZENSHIP_MISMATCH` | 11 | 2 |
+
+`STATE_NOT_ALLOWED` is new because the catalog had no state-restricted curated award until the NC
+seeding. `TRUST_UNCONFIRMED` is zero because no record in this snapshot is `unverified` or
+`aggregator`; the rule is exercised in `tests/`, not by the current data.
 
 Reproduce any of the above:
 
@@ -294,6 +312,8 @@ scheme, and the win model still in the ranking path.
 
 | Configuration | NDCG@10 | Coverage@10 | Snapshot |
 |:---|---:|---:|:---|
+| Baseline (default weights), measured 2026-09-13 | 0.744 (no_similarity 0.567) | 0.400 | `scholarships_snapshot_20260912.parquet`, 107 records (5 `unverified` curated + 102 feed), no win model |
+| Tuned (`best_weights.json`), measured 2026-09-13 | 0.831 (no_similarity 0.650) | 0.467 | `scholarships_snapshot_20260912.parquet`, 107 records, no win model |
 | Baseline (default weights) | 0.29 | 0.21 | 160 records, March 2026, no win model |
 | Relevance-optimized (grid search, 150 configs) | 0.57 | 0.45 | 160 records, March 2026, win model |
 | Pareto-selected (relevance + coverage + EV) | 0.61 | 0.40 | 163 records, March 2026, win model |
@@ -305,15 +325,35 @@ scheme, and the win model still in the ranking path.
 The headline metrics come with caveats worth stating plainly. Full methodology in
 [`docs/evaluation.md`](docs/evaluation.md).
 
-- **The catalog is small, and 102 of 107 records come from one feed.** Open Scholarships is
+- **The catalog is small, and 99 of 133 records come from one feed.** Open Scholarships is
   Nevada-focused, so state-restricted awards skew accordingly, and a single source dominating the
-  catalog limits what cross-profile coverage can mean. Local NC awards — the ones with the
-  smallest applicant pools and the best odds — are still being curated by hand.
+  catalog limits what cross-profile coverage can mean. All **34** curated records are
+  `verified_local`; **23** of them are NC-scoped and **12** of those are restricted to named
+  county lists, every one of which includes Gaston. That is the whole local catalog — one
+  county's awards and a handful of statewide ones, not a statewide survey.
+- **Stage 1 still passes most of the catalog for a real profile.** For the demo student
+  (`data/demo/student_demo.json`, a Guilford County senior) it keeps **106 of 133** and rejects
+  27:
+
+  | Reason code | Rejections |
+  |:---|---:|
+  | `COUNTY_NOT_ALLOWED` | 12 |
+  | `MILITARY_FAMILY_ONLY` | 6 |
+  | `EDUCATION_LEVEL_MISMATCH` | 4 |
+  | `GPA_BELOW_MIN` | 3 |
+  | `MAJOR_NOT_ALLOWED` | 1 |
+  | `MEMBERSHIP_REQUIRED` | 1 |
+
+  The filter is only as selective as the axes a record fills in, and most feed rows fill few.
+- **Most eligible awards still need a date.** Of the demo student's 106 eligible awards, **76**
+  land in the `needs_date` bucket — no deadline, no cycle month and `status: unknown` — against 21
+  in Now, 5 in Next cycle and 4 in a later school year. The bucket keeps Now honest; it does not
+  make those 76 actionable. All 76 are feed rows, and each needs a person to look the date up.
 - **Proxy labels share features with the ranker.** Relevance labels are built from
   `keyword_overlap` and text similarity — the same signals Stage 2 scores on. Tuning weights to
   maximize NDCG against those labels is partly self-fulfilling. `--cross-label-check` scores the
   same ranking under both heuristics and reports NDCG side by side; gains that survive the switch
-  are more believable, and the tuned configuration's does (0.744 → 0.831 hybrid, 0.567 → 0.650
+  are more believable, and the tuned configuration's does (0.720 → 0.803 hybrid, 0.545 → 0.624
   no_similarity).
 - **The non-circular headline is currently missing, not merely weak.** The human-labeled set is
   orphaned by the ID change described above. Until it is rebuilt, every NDCG on this page is a

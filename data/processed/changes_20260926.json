@@ -2,6 +2,242 @@
   "added": [
     {
       "aliases": null,
+      "amount_max": null,
+      "amount_min": null,
+      "catalog_id": "annable-scholarship",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": 12,
+        "recurring": true
+      },
+      "deadline": "2027-03-05",
+      "description": "Partial undergraduate funding for North Carolina residents (and residents of listed upstate South Carolina counties).",
+      "disability": null,
+      "education_level": "undergraduate",
+      "eligibility_text": "Enrolled or planning to enroll full-time at a two- or four-year not-for-profit U.S. college; legal resident of North Carolina or of York, Cherokee, Spartanburg, Greenville, Laurens, Lancaster, Kershaw, Union, Chester, Chesterfield, Fairfield or Darlington County, SC; GPA 2.5 or higher; no felony drug conviction.",
+      "embedding_key": "518c60e47d2f01e1bddfcce11594cf7235bab516",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": null,
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "north carolina",
+        "undergraduate"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 2.5,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. FFTC Fund ID 4334 (search the portal by name; FFTC fund pages are ASP.NET postbacks with no per-fund URL, so prefill cannot reach them).",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "00b98d238d57320f5792400f5f93db3dbd578281",
+      "source": "curated_catalog",
+      "source_id": "annable-scholarship",
+      "source_url": "https://fftcscholarships.communityforce.com/Funds/Search.aspx",
+      "sponsor": "Foundation For The Carolinas",
+      "states_allowed": [
+        "NC",
+        "SC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "The Annable Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 20000.0,
+      "amount_min": 20000.0,
+      "catalog_id": "george-and-patricia-barnard-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$20,000 ($5,000 a year) plus mentoring for one Gaston County senior who has succeeded despite adversity.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Gaston County public, private, or charter high school senior and Gaston County resident; GPA 3.0 or better; college preparatory course of study; extracurriculars, leadership, and strong financial need. Deadline in March (date changes each year); apply through the high school counselor.",
+      "embedding_key": "47064bd0f235a2f5a4b798602c4e68f8c4189b58",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "adversity",
+        "mentoring",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 3.0,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=5000.0, amount_max=20000.0, min_gpa=3.0, counties_allowed=['Gaston'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "$5,000 a year, renewable for three more years; includes mentoring and a one-time Stultz Internship stipend.",
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "0efa4cfe336f2a93a79e93dab23e9771a2074449",
+      "source": "curated_catalog",
+      "source_id": "george-and-patricia-barnard-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/george-and-patricia-barnard-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "George and Patricia Barnard \"We Believe in You!\" Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 1000.0,
+      "amount_min": 1000.0,
+      "catalog_id": "clyde-and-dezaree-brackett-family-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$1,000 for Gaston County high school graduates showing academic promise, character, and financial need.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Gaston County high school graduates pursuing college or advanced technical education. Awards are based on academics, character and financial need.",
+      "embedding_key": "ffcf38b29d99dea7f385f05d823d610240500807",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=1000.0, amount_max=1000.0, counties_allowed=['Gaston'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "15e625807b1ed06fe2729ec5106d92a7d3124407",
+      "source": "curated_catalog",
+      "source_id": "clyde-and-dezaree-brackett-family-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/clyde-and-dezaree-brackett-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Clyde & Dezaree Brackett Family Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
       "amount_max": 2000.0,
       "amount_min": 2000.0,
       "catalog_id": "afcea-swacina-scholarship",
@@ -22,7 +258,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -38,7 +274,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -88,6 +324,168 @@
       "trust": "verified_local"
     },
     {
+      "aliases": null,
+      "amount_max": null,
+      "amount_min": null,
+      "catalog_id": "dr-david-edmond-trawick-scholarship",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": 12,
+        "recurring": true
+      },
+      "deadline": "2027-03-05",
+      "description": "Annual scholarships for needy and deserving North Carolina seniors going to four-year colleges.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Legal resident of North Carolina; graduating senior at an NC high school; 2.0 minimum GPA; full-time at a four-year college or university; financial need.",
+      "embedding_key": "5a2c39f2b47adaa7cb2210071f86ed43c1e0db5d",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "north carolina",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 2.0,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. FFTC Fund ID 4205 (search the portal by name; FFTC fund pages are ASP.NET postbacks with no per-fund URL, so prefill cannot reach them).",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "3af39fda2ac2fbc91a007ce67e5fbcaffea8b15a",
+      "source": "curated_catalog",
+      "source_id": "dr-david-edmond-trawick-scholarship",
+      "source_url": "https://fftcscholarships.communityforce.com/Funds/Search.aspx",
+      "sponsor": "Foundation For The Carolinas",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Dr. David Edmond Trawick Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 5000.0,
+      "amount_min": null,
+      "catalog_id": "north-carolina-teaching-fellows",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 2,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": "2027-02-14",
+      "description": "Forgivable loans of up to $5,000 per semester for students who commit to teaching elementary education, special education, or a STEM field in an NC public school; one year of teaching forgives each year of funding.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "High school applicants (or fewer than 24 college credit hours) need a minimum unweighted high school GPA of 3.0; must be admitted to a partner institution to accept funding; commit to teaching elementary education, special education, or a STEM field in an NC public school. Early action by November 1, 2026; the 2027-28 application closes February 14, 2027.",
+      "embedding_key": "9c72024273c36b599ec4e39f047aa9d6346b252f",
+      "employer_restricted": null,
+      "essay_prompt": "Why you are inspired to enter teaching, and why elementary education, special education, or a STEM field (250-500 words).",
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "teaching",
+        "forgivable loan",
+        "stem education",
+        "north carolina"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "education"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 3.0,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: amount ($5,000 per semester is on the home page, not /apply/); video requirement; letters; essay prompts. /ncteachingfellows/eligibility/ returns 404.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "sponsor_site",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "A forgivable loan, not a grant: repaid by teaching in an NC public school one year per year funded.",
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [
+          "Why you are inspired to enter teaching, and why elementary education, special education, or a STEM field (250-500 words).",
+          "A time you faced a challenge or adversity and how you overcame it (250-500 words).",
+          "Your school activities, accomplishments, leadership, jobs, and community service and why they matter (250-500 words)."
+        ],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": 2,
+        "transcript": true,
+        "video_or_portfolio": true
+      },
+      "scholarship_id": "412200ebd6f039e7018f63230150ae9d66fef6f4",
+      "source": "curated_catalog",
+      "source_id": "north-carolina-teaching-fellows",
+      "source_url": "https://myapps.northcarolina.edu/ncteachingfellows/apply/",
+      "sponsor": "UNC System / NC Teaching Fellows Commission",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "open",
+      "superseded_ids": [],
+      "title": "North Carolina Teaching Fellows",
+      "trust": "verified_local"
+    },
+    {
       "aliases": [
         "AFCEA STEM Scholarship"
       ],
@@ -111,7 +509,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -126,7 +524,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -197,7 +595,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -211,7 +609,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -284,7 +682,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": null,
       "heritage": null,
@@ -296,7 +694,7 @@
         "North Carolina",
         "STEM"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -349,6 +747,589 @@
     },
     {
       "aliases": null,
+      "amount_max": 20000.0,
+      "amount_min": 20000.0,
+      "catalog_id": "albert-g-myers-scholarship",
+      "citizenship": "US",
+      "counties_allowed": [
+        "Gaston"
+      ],
+      "cycle": {
+        "deadline_month": 2,
+        "opens_month": 1,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "Up to eight renewable $20,000 scholarships ($5,000 a year) for Gaston County seniors, selected by a committee of Gastonia civic clubs.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Seniors in public or private high schools in Gaston County who are also Gaston County residents; U.S. citizens; eligible only in the year they graduate. Judged on purpose in life, financial need, character, leadership, activities, and scholastic achievement. Applications open in winter/early spring. 2026 application: due to the school counselor by February 19, 2026 (February 21 in 2025); needs a 300-word statement, a parent letter on finances, two recommendation letters (school; religious/business/civic), and a transcript.",
+      "embedding_key": "b061c0398dfe1c94eec3f8fce1d22067e3c52276",
+      "employer_restricted": null,
+      "essay_prompt": "Up to 300 words: your goal for the future, and how past, present and future activities make it probable.",
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "leadership",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: deadline='2025-10-07', amount_min=5000.0, amount_max=20000.0, counties_allowed=['Gaston']. Deadline month from the 2026 application PDF (https://www.cfgaston.org/wp-content/uploads/2026/01/2026-A.G.-Myers-Scholarship-application.pdf), added 2026-09-26.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "$5,000 a year for four years with semester grade reports.",
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [
+          "Up to 300 words: your goal for the future, and how past, present and future activities make it probable."
+        ],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": 2,
+        "transcript": true,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "6afffa5f4cfb14c503f1ce37e15f25f744c5c286",
+      "source": "curated_catalog",
+      "source_id": "albert-g-myers-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/albert-g-myers-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Albert G. Myers Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 8000.0,
+      "amount_min": 8000.0,
+      "catalog_id": "nc-space-grant-undergraduate-research-scholarship",
+      "citizenship": "US",
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$8,000 for a 12-month, faculty-mentored research project with NASA, commercial space, or ISS relevance, for STEM undergraduates at NC colleges.",
+      "disability": null,
+      "education_level": "undergraduate",
+      "eligibility_text": "U.S. citizen; enrolled full-time (or accepted for full-time enrollment) in a STEM bachelor's program at an accredited North Carolina college or university; minimum 3.0 GPA; propose a research project relevant to NASA, commercial space, and/or the ISS. Up to two awards total, reapplying each time.",
+      "embedding_key": "cdad69dcd2905bf7c420d64620988d16beedabf7",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12",
+        "college_1",
+        "college_2",
+        "college_3",
+        "college_4"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "nasa",
+        "research",
+        "stem",
+        "aerospace",
+        "north carolina"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "stem"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 3.0,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: the deadline among 7 candidates (info-session and project dates mixed in); citizenship; majors. The older /undergraduate-research-scholarship-program/ URL is a stale 2019 page that still answers 200.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "sponsor_site",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": 1,
+        "transcript": true,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "6b908a66d5a2606d261f49879519bf5792758647",
+      "source": "curated_catalog",
+      "source_id": "nc-space-grant-undergraduate-research-scholarship",
+      "source_url": "https://ncspacegrant.ncsu.edu/higher-ed-opportunities/undergraduate-research-scholarships/",
+      "sponsor": "North Carolina Space Grant",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "NC Space Grant Undergraduate Research Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 2000.0,
+      "amount_min": 2000.0,
+      "catalog_id": "locke-bell-family-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$2,000 for a Gaston County senior attending Gaston College or UNC Charlotte.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Current Gaston County high school senior planning to attend Gaston College or UNC Charlotte. Criteria: need, character, academic achievement; priority to Boys and Girls Club and Dream Center Academy participants. Deadline March 31.",
+      "embedding_key": "4e3b6fb484fd490aa3a50a649694ed9f99a511d3",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "unc charlotte",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=2000.0, amount_max=2000.0, counties_allowed=['Gaston'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "Renewable for up to one year.",
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "6d3025f88f663b20e497d3b077fe20022b6eb3b3",
+      "source": "curated_catalog",
+      "source_id": "locke-bell-family-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/locke-bell-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Locke Bell Family Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 1000.0,
+      "amount_min": 1000.0,
+      "catalog_id": "mildred-j-sadler-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "One-time $1,000 for African American Gaston County public school students pursuing a college or trade degree.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "African American Gaston County public school student pursuing a college or trade degree. Awards based on academics, character and financial need.",
+      "embedding_key": "624a56171af15a4ef98f064ff2a61421e1d94223",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": [
+        "African American"
+      ],
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "african american",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=1000.0, amount_max=1000.0, counties_allowed=['Gaston'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "78c78933512335579bec2387b89a606a071b39a6",
+      "source": "curated_catalog",
+      "source_id": "mildred-j-sadler-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/mildred-j-sadler-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Mildred J. Sadler Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 2000.0,
+      "amount_min": 2000.0,
+      "catalog_id": "ralph-c-gingles-jr-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "One-time $2,000 for a Gaston County senior headed to a four-year college, with an essay on Thornburg v. Gingles.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "One Gaston County graduating high school student with a GPA of 3.0 unweighted or better, accepted to a four-year college/university, with financial need.",
+      "embedding_key": "2a82d1c60fe5a432b6228f0d596cedd6513a1d7a",
+      "employer_restricted": null,
+      "essay_prompt": "500 words minimum on the importance of Thornburg v. Gingles and its effects on voting rights.",
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "voting rights",
+        "essay"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 3.0,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=2000.0, amount_max=2000.0, min_gpa=3.0, counties_allowed=['Gaston'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [
+          "500 words minimum on the importance of Thornburg v. Gingles and its effects on voting rights."
+        ],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "79b93d9c2b8d4c2e6cf435691728229328b0f68e",
+      "source": "curated_catalog",
+      "source_id": "ralph-c-gingles-jr-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/ralph-c-gingles-jr-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Honorable Ralph C. Gingles, Jr. Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 500.0,
+      "amount_min": 500.0,
+      "catalog_id": "sylvia-l-holmes-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Cleveland",
+        "Gaston",
+        "Lincoln",
+        "Polk",
+        "Rutherford"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$500 for a young woman from the former Girl Scouts Pioneer Council area (Cleveland, Gaston, Lincoln, Polk, Rutherford).",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Female high school senior and resident of Cleveland, Gaston, Lincoln, Polk, or Rutherford County, NC. Girl Scout participation and attending an NC college are looked on with favor but not required.",
+      "embedding_key": "11ba44016ff48c0d6d92121783f97f75e160d2e6",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": "female",
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "women",
+        "girl scouts",
+        "gaston county"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=500.0, amount_max=500.0, states_allowed=['North Carolina'], counties_allowed=['Gaston', 'Rutherford'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "8088a0202dd1b60ec02149d87438d5fd621b4f9c",
+      "source": "curated_catalog",
+      "source_id": "sylvia-l-holmes-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/sylvia-l-holmes-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Sylvia L. Holmes Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 2000.0,
+      "amount_min": 2000.0,
+      "catalog_id": "advocates-for-african-americans-carolinas-scholarship",
+      "citizenship": "US",
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": 12,
+        "recurring": true
+      },
+      "deadline": "2027-03-05",
+      "description": "$2,000 from a Duke Energy employee resource group for Carolinas seniors entering engineering, computer science, sciences, or business.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Graduating senior at a North or South Carolina high school; 3.5 minimum unweighted GPA; full-time at a four-year college in NC or SC; enrolling in engineering, computer science, the sciences, accounting, finance or business administration; U.S. citizen; finalists interview.",
+      "embedding_key": "7edf1d1bfdb6b76319eb757801d6c4e5a3b88b76",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "computer science",
+        "engineering",
+        "duke energy",
+        "carolinas"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "engineering",
+        "computer science",
+        "stem",
+        "accounting",
+        "finance",
+        "business administration"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 3.5,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. FFTC Fund ID 1197 (search the portal by name; FFTC fund pages are ASP.NET postbacks with no per-fund URL, so prefill cannot reach them).",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": true,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "84d041a445b5e21763516c06bee3b7de7f25ced4",
+      "source": "curated_catalog",
+      "source_id": "advocates-for-african-americans-carolinas-scholarship",
+      "source_url": "https://fftcscholarships.communityforce.com/Funds/Search.aspx",
+      "sponsor": "Foundation For The Carolinas",
+      "states_allowed": [
+        "NC",
+        "SC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Advocates for African Americans Carolinas Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
       "amount_max": 3000.0,
       "amount_min": 2500.0,
       "catalog_id": "afcea-rotc-scholarship",
@@ -369,7 +1350,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -384,7 +1365,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -435,6 +1416,173 @@
     },
     {
       "aliases": null,
+      "amount_max": 5000.0,
+      "amount_min": 2000.0,
+      "catalog_id": "daniel-c-ragan-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$5,000 for a Gaston County public high school graduate at a UNC System school ($2,000 for NC community college).",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Current Gaston County public high school graduate and Gaston County resident for one year; accredited NC college, university, or community college. Criteria: financial need, character, academic achievement.",
+      "embedding_key": "bfa1673471f110c52dc1bb35f654524db4539323",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "unc system",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=2000.0, amount_max=5000.0, states_allowed=['North Carolina'], counties_allowed=['Gaston'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "Renewable up to four years at a university with a 2.0 average.",
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "ab78bf85b4f450487eab988dd0c00502acd9a4a8",
+      "source": "curated_catalog",
+      "source_id": "daniel-c-ragan-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/daniel-c-ragan-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Daniel C. Ragan Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": null,
+      "amount_min": null,
+      "catalog_id": "afcea-north-carolina-chapter-graduating-senior-award",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 4,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "Chapter scholarship for seniors at NC high schools entering an accredited STEM program; preference to military-connected students.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Senior at a North Carolina high school entering an accredited STEM program in the fall; preference given to military-connected students; minimum GPA (not yet published); two letters of recommendation; personal statement. The chapter states amounts and deadlines are pending. 2026 cycle (per BizFayetteville, 2026-04-08): high school junior, senior, or current college student at a North Carolina school pursuing STEM, minimum 2.7 GPA; submissions to admin@nc.afceachapters.org by April 20 (extended).",
+      "embedding_key": "e3e63426419709fb850145da42eacd2c2fcdaba4",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "11",
+        "12",
+        "college_1",
+        "college_2",
+        "college_3",
+        "college_4"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "stem",
+        "cybersecurity",
+        "military connected",
+        "north carolina",
+        "afcea"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "stem"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 2.7,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: interview flag set wrongly (the page mentions interview coaching for veterans); amount range from chapter totals. The page itself says amounts, deadlines, and GPA are pending -- no date exists to record yet. Deadline month, GPA, and grades from https://bizfayetteville.com/more-news/2026/4/8/applications-now-open-for-2026-afcea-nc-stem-teacher-student-grant/5364, added 2026-09-26; amounts still unpublished.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "membership_org",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": 2,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "b192be6e47cb434e61f9a4c7d69a66ebb8047704",
+      "source": "curated_catalog",
+      "source_id": "afcea-north-carolina-chapter-graduating-senior-award",
+      "source_url": "https://www.afceanc.org/index.php/education/",
+      "sponsor": "AFCEA North Carolina Chapter",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "AFCEA North Carolina Chapter Graduating Senior Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
       "amount_max": 2500.0,
       "amount_min": 2500.0,
       "catalog_id": "afcea-iworks-scholarship",
@@ -455,7 +1603,7 @@
       "essay_prompt": "A brief essay (250 words or less) describing financial need.",
       "essay_required": true,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -470,7 +1618,7 @@
         "STEM",
         "computer science"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -523,6 +1671,92 @@
     },
     {
       "aliases": null,
+      "amount_max": 1000.0,
+      "amount_min": 1000.0,
+      "catalog_id": "penc-harold-mcknight-memorial-scholarship",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 5,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "One-time $1,000 for students enrolled in or accepted to an engineering program at an NC college.",
+      "disability": null,
+      "education_level": "undergraduate",
+      "eligibility_text": "Currently enrolled in or accepted to an Engineering degree program at an accredited college or university in North Carolina. Applications must be received by May 1.",
+      "embedding_key": "3af9b22cc6664de5a0eb0b05c5203ae31a29f08f",
+      "employer_restricted": null,
+      "essay_prompt": "Up to 500 words (1-3 paragraphs): your vision of how you would like to serve as a Professional Engineer.",
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12",
+        "college_1",
+        "college_2",
+        "college_3",
+        "college_4"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "engineering",
+        "professional engineer",
+        "north carolina"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "engineering"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Source is a PDF; prefill reads PDFs as raw bytes, so the form started blank.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "membership_org",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [
+          "Up to 500 words (1-3 paragraphs): your vision of how you would like to serve as a Professional Engineer."
+        ],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": true,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "c3381fcc8747937d9fce77f4814daa9a48efd528",
+      "source": "curated_catalog",
+      "source_id": "penc-harold-mcknight-memorial-scholarship",
+      "source_url": "https://cdn.ymaws.com/penc.org/resource/resmgr/scholarships/2025_Harold_McKnight_Scholar.pdf",
+      "sponsor": "Professional Engineers of North Carolina (PENC Educational Foundation)",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Harold McKnight Memorial Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
       "amount_max": 1500.0,
       "amount_min": 1500.0,
       "catalog_id": "afcea-oracle-leadership-scholarship",
@@ -543,7 +1777,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": null,
       "heritage": null,
@@ -554,7 +1788,7 @@
         "STEM",
         "leadership"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -605,6 +1839,169 @@
     },
     {
       "aliases": null,
+      "amount_max": null,
+      "amount_min": null,
+      "catalog_id": "penc-engineering-freshman-scholarship",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 5,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "Two-year scholarship for incoming NC freshmen entering an ABET-accredited engineering program; awarded each spring.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Incoming freshman intending to major in engineering in an ABET-EAC accredited curriculum; citizen and permanent resident of North Carolina; must remain in engineering with at least a 3.0 GPA after freshman year to keep the second year. The 2026 signature page certifies study at North Carolina State University.",
+      "embedding_key": "56d0d3c9bd50a1c222bd8f51aada62f0770b5f5a",
+      "employer_restricted": null,
+      "essay_prompt": "Up to 500 words: your interest in engineering, your major and specialization, the occupation you plan after graduation, your financial need, your long-term goals, and how the scholarship helps.",
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "engineering",
+        "north carolina",
+        "abet"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "engineering"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: everything -- the source is a PDF and prefill returned the raw PDF bytes as text; the HTML page (penc.org/page/Scholarships) answers 403 to a scripted fetch. Amount is not stated in the 2026 packet; 2026 deadline was May 1, 2026.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "sponsor_site",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "Two-year award; must remain in engineering with at least a 3.0 GPA at the end of freshman year.",
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [
+          "Up to 500 words: your interest in engineering, your major and specialization, the occupation you plan after graduation, your financial need, your long-term goals, and how the scholarship helps."
+        ],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": 2,
+        "transcript": true,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "d9323106989e730d496aaa33149b76917dc80bf8",
+      "source": "curated_catalog",
+      "source_id": "penc-engineering-freshman-scholarship",
+      "source_url": "https://cdn.ymaws.com/penc.org/resource/resmgr/scholarships/2026_PENC_Freshman_Scholarsh.pdf",
+      "sponsor": "Professional Engineers of North Carolina (PENC Educational Foundation)",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "PENC Engineering Freshman Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 2500.0,
+      "amount_min": 2500.0,
+      "catalog_id": "sam-and-ruth-beam-memorial-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston",
+        "Lincoln"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$2,500 for one Gaston or Lincoln County senior pursuing a four-year degree.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Gaston or Lincoln County graduating senior pursuing a degree at a four-year college or university.",
+      "embedding_key": "2d14cd28b79fcfa164e72bd2f63a55991f80be90",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "lincoln county",
+        "community service"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=2500.0, amount_max=2500.0, counties_allowed=['Gaston', 'Lincoln'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "e64aa13fba55fea8793c1ea4ea19060644491e30",
+      "source": "curated_catalog",
+      "source_id": "sam-and-ruth-beam-memorial-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/sam-ruth-beam-memorial-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Sam L. and Ruth M. Beam Memorial Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
       "amount_max": 5000.0,
       "amount_min": 5000.0,
       "catalog_id": "afcea-nightwing-scholarship",
@@ -625,7 +2022,7 @@
       "essay_prompt": "A brief essay (250 words or less) describing financial need.",
       "essay_required": true,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -640,7 +2037,7 @@
         "artificial intelligence",
         "STEM"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Cybersecurity",
@@ -711,7 +2108,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -726,7 +2123,7 @@
         "STEM",
         "C4I"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Computer Science",
@@ -777,6 +2174,99 @@
     },
     {
       "aliases": null,
+      "amount_max": 1000.0,
+      "amount_min": 500.0,
+      "catalog_id": "max-j-fowler-leadership-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston",
+        "Cleveland"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$500\u2013$1,000 for Gaston or Cleveland County students at NC State's College of Engineering or College of Physical & Mathematical Sciences.",
+      "disability": null,
+      "education_level": "undergraduate",
+      "eligibility_text": "Resident of Gaston or Cleveland County; accepted and enrolled at NC State University in the College of Physical & Mathematical Sciences or College of Engineering, completing a four-year degree. Ranked on community service, school performance, class rank, music/arts interests, and financial need.",
+      "embedding_key": "9bcc072d68bed4b082094726275560c1c9c9754f",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12",
+        "college_1",
+        "college_2",
+        "college_3",
+        "college_4"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "nc state",
+        "engineering",
+        "computer science",
+        "gaston county"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "engineering",
+        "computer science",
+        "mathematics",
+        "physics",
+        "chemistry",
+        "statistics"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=500.0, amount_max=1000.0, counties_allowed=['Cleveland', 'Gaston'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "e9a69d5a948147c67d05d3aec4a23d047e3dc099",
+      "source": "curated_catalog",
+      "source_id": "max-j-fowler-leadership-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/max-j-fowler-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Max J. Fowler Leadership Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
       "amount_max": 5000.0,
       "amount_min": 5000.0,
       "catalog_id": "afcea-cyber-security-scholarship",
@@ -797,7 +2287,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-09-26T16:53:57Z",
+      "first_seen_at": "2026-09-26T22:40:11Z",
       "gender": null,
       "grade_levels": [
         "college_2",
@@ -812,7 +2302,7 @@
         "sophomore",
         "junior"
       ],
-      "last_seen_at": "2026-09-26T16:53:57Z",
+      "last_seen_at": "2026-09-26T22:40:11Z",
       "llm_enriched_fields": [],
       "majors_allowed": [
         "Cybersecurity",
@@ -857,6 +2347,411 @@
       "status": "closed",
       "superseded_ids": [],
       "title": "AFCEA Cyber Security Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": null,
+      "amount_min": null,
+      "catalog_id": "ncae-martin-luther-king-jr-scholarship",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 2,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "Freshman-year scholarship for NC public high school seniors, judged on character, community involvement, and scholastic achievement.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "North Carolina resident; public high school senior planning to continue their education; official transcript with a cumulative unweighted GPA of at least 2.5; all materials due electronically by the first Monday in February.",
+      "embedding_key": "62b64ee6e962e907a0d8ea6fd61025381ab47cb6",
+      "employer_restricted": null,
+      "essay_prompt": "How the philosophies and ideals of Dr. King influence your life (1 page or less).",
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "north carolina",
+        "public school",
+        "community service"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 2.5,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: deadline ('first Monday in February' is a rule, not a date); letters; essay prompts. The page does not state the amount.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "membership_org",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "Paid for the fall and spring of freshman year only.",
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [
+          "How the philosophies and ideals of Dr. King influence your life (1 page or less).",
+          "Why you deserve this scholarship and your need for financial assistance (1 page or less)."
+        ],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": 2,
+        "transcript": true,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "f24fcf82d1c85d0b1a997680a8e558a6768db92a",
+      "source": "curated_catalog",
+      "source_id": "ncae-martin-luther-king-jr-scholarship",
+      "source_url": "https://www.ncae.org/mlkjrscholarshipinfo",
+      "sponsor": "North Carolina Association of Educators / NC Foundation for Public School Children",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "NCAE Dr. Martin Luther King Jr. Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 4000.0,
+      "amount_min": 2000.0,
+      "catalog_id": "nc-tech-betsy-justus-founders-scholarship",
+      "citizenship": null,
+      "counties_allowed": null,
+      "cycle": {
+        "deadline_month": 4,
+        "opens_month": 1,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "Two awards a year for young women at NC high schools pursuing technology or engineering: $1,000 per year ($4,000 at a four-year school) plus a Lenovo laptop.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Current senior at a North Carolina high school; rising female first-year student enrolling as an undergraduate at an accredited NC institution (four-year campus in the state or NC Community College System); NC resident for tuition; cumulative unweighted GPA of at least 3.0; intended major in technology or engineering.",
+      "embedding_key": "2464dff2757be216350618945d90da9792632457",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": true,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": "female",
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "women in tech",
+        "computer science",
+        "engineering",
+        "north carolina",
+        "laptop"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": [
+        "technology",
+        "engineering"
+      ],
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 3.0,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": null,
+      "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: deadline ('opens the application in January and accepts submissions through April 15', no year); gender; majors; added a false 'Florida' state from a past winner's bio.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "sponsor_site",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "$1,000 per year; enrollment verified annually before payment.",
+      "requirements": {
+        "essay": true,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": 1,
+        "transcript": true,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "fa16c906cf6c5669117f4c9e0875acce3bcf5465",
+      "source": "curated_catalog",
+      "source_id": "nc-tech-betsy-justus-founders-scholarship",
+      "source_url": "https://www.nctech.org/about/education-foundation/scholarships.html",
+      "sponsor": "NC TECH Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Betsy Y. Justus NC TECH Founders Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 750.0,
+      "amount_min": 750.0,
+      "catalog_id": "bess-chapel-umc-brad-baxter-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Gaston",
+        "Lincoln"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": null,
+        "recurring": true
+      },
+      "deadline": null,
+      "description": "$750 for Gaston or Lincoln County residents accepted to college.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "Resident of Gaston or Lincoln counties who has received a high school diploma and acceptance to a college/university. Selection on financial need, work ethic, character, and high school performance.",
+      "embedding_key": "683b586d4dcdb6e0ac8df8f846c16ac426ccefe1",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "gaston county",
+        "lincoln county",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": null,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=750.0, amount_max=750.0, counties_allowed=['Gaston', 'Lincoln'].",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "community_foundation",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": null,
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": null,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": null,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "fba494d723d3a96fa5902ab855688aeaaab810c5",
+      "source": "curated_catalog",
+      "source_id": "bess-chapel-umc-brad-baxter-scholarship",
+      "source_url": "https://www.cfgaston.org/portfolio-item/bess-chapel-umc-brad-baxter-scholarship/",
+      "sponsor": "Gaston Community Foundation",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Bess Chapel U.M.C./Brad Baxter Scholarship",
+      "trust": "verified_local"
+    },
+    {
+      "aliases": null,
+      "amount_max": 14000.0,
+      "amount_min": 14000.0,
+      "catalog_id": "golden-leaf-colleges-and-universities-scholarship",
+      "citizenship": null,
+      "counties_allowed": [
+        "Alamance",
+        "Alexander",
+        "Alleghany",
+        "Anson",
+        "Ashe",
+        "Avery",
+        "Beaufort",
+        "Bertie",
+        "Bladen",
+        "Burke",
+        "Caldwell",
+        "Camden",
+        "Caswell",
+        "Catawba",
+        "Cherokee",
+        "Chowan",
+        "Clay",
+        "Cleveland",
+        "Columbus",
+        "Craven",
+        "Cumberland",
+        "Dare",
+        "Davidson",
+        "Davie",
+        "Duplin",
+        "Edgecombe",
+        "Franklin",
+        "Gaston",
+        "Gates",
+        "Graham",
+        "Granville",
+        "Greene",
+        "Halifax",
+        "Harnett",
+        "Haywood",
+        "Hertford",
+        "Hoke",
+        "Hyde",
+        "Jackson",
+        "Johnston",
+        "Jones",
+        "Lee",
+        "Lenoir",
+        "Macon",
+        "Madison",
+        "Martin",
+        "McDowell",
+        "Mitchell",
+        "Montgomery",
+        "Nash",
+        "Northampton",
+        "Onslow",
+        "Pamlico",
+        "Pasquotank",
+        "Perquimans",
+        "Person",
+        "Pitt",
+        "Polk",
+        "Randolph",
+        "Richmond",
+        "Robeson",
+        "Rockingham",
+        "Rowan",
+        "Rutherford",
+        "Sampson",
+        "Scotland",
+        "Stanly",
+        "Stokes",
+        "Surry",
+        "Swain",
+        "Transylvania",
+        "Tyrrell",
+        "Vance",
+        "Warren",
+        "Washington",
+        "Watauga",
+        "Wayne",
+        "Wilkes",
+        "Wilson",
+        "Yadkin",
+        "Yancey"
+      ],
+      "cycle": {
+        "deadline_month": 3,
+        "opens_month": 1,
+        "recurring": true
+      },
+      "deadline": "2027-03-01",
+      "description": "Four-year scholarship for graduating NC high school seniors from qualifying rural, economically distressed counties who enroll full-time at a participating NC college or university.",
+      "disability": null,
+      "education_level": "high school",
+      "eligibility_text": "NC resident for tuition purposes; reside in a qualifying rural NC county; graduating NC high school senior enrolling full-time in the fall; minimum cumulative GPA 2.5; plan to enroll at a participating NC public or private college/university; FAFSA Student Aid Index of 15000 or less; commit to returning to a rural NC county after college.",
+      "embedding_key": "69c25b17871a27a87c5a7c371e201d02bec4fa37",
+      "employer_restricted": null,
+      "essay_prompt": null,
+      "essay_required": null,
+      "first_gen_only": null,
+      "first_seen_at": "2026-09-26T22:40:11Z",
+      "gender": null,
+      "grade_levels": [
+        "12"
+      ],
+      "heritage": null,
+      "is_recurring": true,
+      "keywords": [
+        "rural",
+        "north carolina",
+        "financial need"
+      ],
+      "last_seen_at": "2026-09-26T22:40:11Z",
+      "llm_enriched_fields": [],
+      "majors_allowed": null,
+      "membership_required": null,
+      "military_family": null,
+      "min_gpa": 2.5,
+      "min_test_scores": {
+        "act": null,
+        "sat": null
+      },
+      "need_based": true,
+      "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: counties (the list is in a linked PDF; the page shows only 'Clay'); amount read as $3,500 (per year) rather than the $14,000 four-year total.",
+      "provenance": {
+        "added_on": "2026-09-26",
+        "checked_by": null,
+        "checked_on": null,
+        "source_kind": "sponsor_site",
+        "verified_by": "daedwards06",
+        "verified_on": "2026-09-26"
+      },
+      "religion": null,
+      "renewal_terms": "$3,500 a year for up to four years; renewal needs a Renewal Profile and FAFSA each year, continued need, full-time enrollment, and SAP.",
+      "requirements": {
+        "essay": null,
+        "essay_prompts": [],
+        "fafsa": true,
+        "interview": null,
+        "recommendation_letters": null,
+        "transcript": true,
+        "video_or_portfolio": null
+      },
+      "scholarship_id": "fe71aa9c200d3608364ebb9f013160ad44eaec6f",
+      "source": "curated_catalog",
+      "source_id": "golden-leaf-colleges-and-universities-scholarship",
+      "source_url": "https://scholars.goldenleaf.org/applicants/colleges-universities/",
+      "sponsor": "Golden LEAF Foundation (administered by NCSEAA)",
+      "states_allowed": [
+        "NC"
+      ],
+      "status": "upcoming",
+      "superseded_ids": [],
+      "title": "Golden LEAF Colleges and Universities Scholarship",
       "trust": "verified_local"
     }
   ],
