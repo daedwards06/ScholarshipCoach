@@ -1,0 +1,81 @@
+{
+  "amount_max": 1000.0,
+  "amount_min": 500.0,
+  "catalog_id": "max-j-fowler-leadership-scholarship",
+  "citizenship": null,
+  "counties_allowed": [
+    "Gaston",
+    "Cleveland"
+  ],
+  "cycle": {
+    "deadline_month": 3,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "$500\u2013$1,000 for Gaston or Cleveland County students at NC State's College of Engineering or College of Physical & Mathematical Sciences.",
+  "disability": null,
+  "education_level": "undergraduate",
+  "eligibility_text": "Resident of Gaston or Cleveland County; accepted and enrolled at NC State University in the College of Physical & Mathematical Sciences or College of Engineering, completing a four-year degree. Ranked on community service, school performance, class rank, music/arts interests, and financial need.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12",
+    "college_1",
+    "college_2",
+    "college_3",
+    "college_4"
+  ],
+  "heritage": [],
+  "keywords": [
+    "nc state",
+    "engineering",
+    "computer science",
+    "gaston county"
+  ],
+  "majors_allowed": [
+    "engineering",
+    "computer science",
+    "mathematics",
+    "physics",
+    "chemistry",
+    "statistics"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=500.0, amount_max=1000.0, counties_allowed=['Cleveland', 'Gaston'].",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "community_foundation",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.cfgaston.org/portfolio-item/max-j-fowler-scholarship/",
+  "sponsor": "Gaston Community Foundation",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "Max J. Fowler Leadership Scholarship",
+  "trust": "verified_local"
+}

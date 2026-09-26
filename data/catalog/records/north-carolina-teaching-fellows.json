@@ -1,0 +1,73 @@
+{
+  "amount_max": 5000.0,
+  "amount_min": null,
+  "catalog_id": "north-carolina-teaching-fellows",
+  "citizenship": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 2,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": "2027-02-14",
+  "description": "Forgivable loans of up to $5,000 per semester for students who commit to teaching elementary education, special education, or a STEM field in an NC public school; one year of teaching forgives each year of funding.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "High school applicants (or fewer than 24 college credit hours) need a minimum unweighted high school GPA of 3.0; must be admitted to a partner institution to accept funding; commit to teaching elementary education, special education, or a STEM field in an NC public school. Early action by November 1, 2026; the 2027-28 application closes February 14, 2027.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "teaching",
+    "forgivable loan",
+    "stem education",
+    "north carolina"
+  ],
+  "majors_allowed": [
+    "education"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 3.0,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: amount ($5,000 per semester is on the home page, not /apply/); video requirement; letters; essay prompts. /ncteachingfellows/eligibility/ returns 404.",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": "A forgivable loan, not a grant: repaid by teaching in an NC public school one year per year funded.",
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [
+      "Why you are inspired to enter teaching, and why elementary education, special education, or a STEM field (250-500 words).",
+      "A time you faced a challenge or adversity and how you overcame it (250-500 words).",
+      "Your school activities, accomplishments, leadership, jobs, and community service and why they matter (250-500 words)."
+    ],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 2,
+    "transcript": true,
+    "video_or_portfolio": true
+  },
+  "source_url": "https://myapps.northcarolina.edu/ncteachingfellows/apply/",
+  "sponsor": "UNC System / NC Teaching Fellows Commission",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "open",
+  "title": "North Carolina Teaching Fellows",
+  "trust": "verified_local"
+}

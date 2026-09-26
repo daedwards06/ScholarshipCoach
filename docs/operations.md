@@ -268,3 +268,121 @@ Unregister-ScheduledTask -TaskName "ScholarshipCoach catalog re-verification" -C
 The task's exit code is 0 for any completed pass — dead links, changed pages, and blocked hosts
 are the output of a healthy run, not a failure — and 1 only when the catalog directory holds no records. Read
 what a run found in `reports/catalog_verify/`, or from the inbox.
+
+---
+
+## Where local awards come from
+
+Local and state awards have the smallest applicant pools and appear in no aggregator, so they are
+entered by hand: paste the URL into **Catalog → Add Award**, correct what prefill got wrong, and
+confirm. Nothing gets `trust: verified_local` until a person has opened the page that day.
+
+### Local sources (the family's list)
+
+These are the sources only the family can know. Each one gets its URL pasted into Add Award once
+a year, and the counselor's list is the one that moves the most.
+
+| Source | Where to look | Re-check |
+|---|---|---|
+| High school counselor's scholarship page or handout | School website / counseling office | **Every fall** (September) and again in January; the list is rebuilt each school year |
+| County community foundation | The foundation's scholarship portal | Each fall, when the portal opens (usually November–January) |
+| Family credit union | Member site, "scholarships" or "community" page | Each fall |
+| Parents' employers | HR / benefits portal, dependent scholarship programs | Each fall; some programs change sponsors between years |
+| Church and civic organizations (Rotary, Lions, Elks, VFW/American Legion posts, sororities/fraternities) | Their websites or a phone call | Each winter; many post only a paper form in January–March |
+
+The owner fills in the actual names and URLs; a source with no web page is still worth a row with
+a note of who to call.
+
+### Gaston and Mecklenburg counties
+
+Searched 2026-09-26. The two county foundations carry nearly all of the local money; the school
+district pages mostly link back to them.
+
+**Scope rule:** awards that require Mecklenburg County residency or enrollment in a
+Charlotte-Mecklenburg school are out of scope for this family — skip them in future searches.
+From FFTC, only funds open to any NC (or Carolinas) senior apply.
+
+| Source | What it holds | Cycle | Re-check |
+|---|---|---|---|
+| [Gaston Community Foundation](https://www.cfgaston.org/explore-scholarships/) | 34 funds; 11 are open county-wide (Myers and Barnard at $20,000; Ragan, Gingles, Beam, Brackett, Bess Chapel, Sadler, Holmes, Locke Bell, Max J. Fowler) | Most due early March (Mar 2 in 2026); Locke Bell Mar 31 | **January** — the portal reopens for the new cycle |
+| [Foundation For The Carolinas](https://fftcscholarships.communityforce.com/Funds/Search.aspx) | 161 funds; in the catalog: Trawick, Annable, Advocates for African Americans (open to any NC senior). Mecklenburg-only funds (Holcomb, Caldwell, CMS Incentive, Panthers/Sam Mills) are out of scope | 2027 cycle opens Dec 1, 2026, closes Mar 5, 2027 | **December** — dates post before the portal opens |
+| [PENC Harold McKnight](https://cdn.ymaws.com/penc.org/resource/resmgr/scholarships/2025_Harold_McKnight_Scholar.pdf) | $1,000, engineering at an NC school (earlier years limited it to nine Charlotte-region counties; 2025 does not) | May 1 | **March**, for the new year's PDF |
+| [Gaston County Schools](https://www.gaston.k12.nc.us/for-parents/school-counseling/scholarships) / [CMS](https://www.cmsk12.org/academics/fafsa-resources/financial-resources-scholarships) | Links to the two foundations plus national search sites | — | Each fall, with the counselor |
+
+Not seeded, and why:
+- **One-school funds.** About 15 Gaston funds, and a similar share of FFTC's, are limited to a
+  single high school (Cherryville, Forestview, South Point, Ashbrook, Hunter Huss, North
+  Mecklenburg, Garinger, Providence, and others). The catalog has no high-school field, so they
+  would rank as eligible for every student in the county. Add the ones for her school by hand, with
+  the school named in `eligibility_text`, once the school is known.
+- **Employer, church, trade, nursing, teaching, and graduate-only funds** — no path for a CS/CE
+  student, or tied to an employer or congregation the family has not named.
+- **CapTech STEM and Logical Advantage technology scholarships** (Charlotte) — the only listing
+  found is a 2015 IT-oLogy post. Ask the CMS counselor whether they still run.
+
+FFTC fund pages have no per-fund URL (the portal is an ASP.NET postback), so those records point at
+the portal search page and name the Fund ID in `notes`; search the portal by fund name to open one.
+`verify_catalog.py` re-fetches the shared portal page for all of them, so a change to one fund's
+details will not show up in its diff — re-check FFTC funds by hand each December.
+
+### NC statewide programs
+
+Drafted by Claude on 2026-09-26 as `manual` inbox proposals (`trust: unverified`) through the same
+prefill path the Add Award page uses. Each waits on the Inbox page for the owner to open the source
+and confirm.
+
+| Award | Scope | Cycle | Source |
+|---|---|---|---|
+| Golden LEAF Colleges and Universities Scholarship | 81 rural counties | Jan → Mar 1 | scholars.goldenleaf.org |
+| Aubrey Lee Brooks Scholarship | 14 counties (incl. Guilford); NC State, UNC-CH, UNCG | Jan → Mar 1 | cfnc.org (the NCSEAA page is password-protected) |
+| Betsy Y. Justus NC TECH Founders Scholarship | NC; women; technology or engineering | Jan → Apr 15 | nctech.org |
+| PENC Engineering Freshman Scholarship | NC; engineering | spring → May 1 | PENC application PDF (penc.org answers 403 to scripts) |
+| NCAE Dr. Martin Luther King Jr. Scholarship | NC public HS seniors | first Monday in Feb | ncae.org |
+| NC Scholarship for Children of Wartime Veterans | NC; military family | Feb 14 | milvets.nc.gov |
+| SECU Foundation People Helping People | NC public HS; SECU members; UNC campuses | set by each school district | ncsecufoundation.org |
+| NC Sheriffs' Association Criminal Justice Scholarship | NC; CJ undergraduates | Mar 31 | ncsheriffs.org (date from CFNC) |
+| NC Space Grant Undergraduate Research Scholarship | NC colleges; STEM | Mar | ncspacegrant.ncsu.edu |
+| North Carolina Teaching Fellows (forgivable loan) | NC; teaching | Nov 1 early / Feb 14 | myapps.northcarolina.edu |
+| NC 4-H Development Fund Scholarships | NC; 4-H members | Feb 1 (county deadline earlier) | cfnc.org |
+| R. Flake Shaw Scholarship | NC; agriculture | Mar | ncfb.org |
+| AFCEA North Carolina Chapter graduating senior award | NC; grades 11–12 and college; STEM; 2.7 GPA | Apr 20 (2026, extended) | afceanc.org (date from BizFayetteville) |
+
+Seven are in the catalog (Golden LEAF, NC TECH Founders, PENC Freshman, NCAE MLK Jr., Space
+Grant, Teaching Fellows, AFCEA NC). The owner rejected the rest as not applying to this family:
+Brooks (county), Wartime Veterans (military family), Sheriffs (criminal justice), 4-H
+(membership), R. Flake Shaw (agriculture), and SECU (the family are not SECU members). Keep them
+listed so a later search does not re-propose them.
+
+Re-check the seven in **December**: most open in January, and a December pass catches the new
+cycle's date before the award reaches the Now bucket.
+
+### What prefill missed
+
+Recorded while seeding, for a later prefill task. Every one of these was corrected by hand before
+proposing.
+
+- **Year-less dates.** "March 1", "April 15", "February 1", and "first Monday in February" produce
+  no candidate. Pages state a recurring month far more often than a dated deadline.
+- **Wrong date chosen.** On CFNC pages the application-open date ("will open on Monday, January 12,
+  2026") was taken as the deadline, while the labeled "DEADLINE March 1" was missed. Unrelated dates
+  (info sessions, award announcements) crowd the candidate list.
+- **County lists.** The county pattern requires "X County" after every name, so "Alamance, Bertie,
+  …, Swain or Warren county" yields only Warren, and "Cleveland, Gaston, Lincoln, Polk, and
+  Rutherford Counties" yields two of five. A list in a linked PDF yields nothing. (Single-county
+  pages — "Gaston County students" — were read correctly every time.)
+- **Page chrome dates.** On the Gaston foundation's pages, sidebar post dates ("October 7, 2025")
+  crowd out the labeled "Deadline March 2, 2026"; one page proposed the post date as its deadline.
+- **Postback portals.** FFTC's CommunityForce portal has no URL per fund, so there is nothing to
+  paste into Add Award.
+- **Counties and states from prose.** "a native of Guilford County" restricted a statewide award to
+  Guilford; "Hollywood, Florida" in a winner's bio added Florida.
+- **Site chrome as requirements.** CFNC's navigation says "FAFSA 101" on every page, so every CFNC
+  listing is flagged FAFSA-required.
+- **Renewal terms as entry criteria.** "maintains a 2.75 cumulative GPA" (renewal) became the minimum
+  GPA.
+- **Totals as award amounts.** Program lifetime totals ("more than $3,000,000", "$580,000") become
+  `amount_max`.
+- **PDFs.** A PDF URL is fetched and its raw bytes are treated as text; prefill reports success
+  with nothing usable.
+- **Never extracted.** Gender, military family, membership, and majors outside the vocabulary are
+  not attempted.

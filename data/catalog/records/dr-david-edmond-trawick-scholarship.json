@@ -1,0 +1,65 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "dr-david-edmond-trawick-scholarship",
+  "citizenship": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 3,
+    "opens_month": 12,
+    "recurring": true
+  },
+  "deadline": "2027-03-05",
+  "description": "Annual scholarships for needy and deserving North Carolina seniors going to four-year colleges.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Legal resident of North Carolina; graduating senior at an NC high school; 2.0 minimum GPA; full-time at a four-year college or university; financial need.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "north carolina",
+    "financial need"
+  ],
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 2.0,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": true,
+  "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. FFTC Fund ID 4205 (search the portal by name; FFTC fund pages are ASP.NET postbacks with no per-fund URL, so prefill cannot reach them).",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "community_foundation",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://fftcscholarships.communityforce.com/Funds/Search.aspx",
+  "sponsor": "Foundation For The Carolinas",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "Dr. David Edmond Trawick Scholarship",
+  "trust": "verified_local"
+}

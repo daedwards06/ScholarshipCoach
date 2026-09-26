@@ -1,0 +1,69 @@
+{
+  "amount_max": 750.0,
+  "amount_min": 750.0,
+  "catalog_id": "bess-chapel-umc-brad-baxter-scholarship",
+  "citizenship": null,
+  "counties_allowed": [
+    "Gaston",
+    "Lincoln"
+  ],
+  "cycle": {
+    "deadline_month": 3,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "$750 for Gaston or Lincoln County residents accepted to college.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Resident of Gaston or Lincoln counties who has received a high school diploma and acceptance to a college/university. Selection on financial need, work ethic, character, and high school performance.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "gaston county",
+    "lincoln county",
+    "financial need"
+  ],
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": true,
+  "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=750.0, amount_max=750.0, counties_allowed=['Gaston', 'Lincoln'].",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "community_foundation",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.cfgaston.org/portfolio-item/bess-chapel-umc-brad-baxter-scholarship/",
+  "sponsor": "Gaston Community Foundation",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "Bess Chapel U.M.C./Brad Baxter Scholarship",
+  "trust": "verified_local"
+}

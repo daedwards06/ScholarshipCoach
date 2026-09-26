@@ -1,0 +1,71 @@
+{
+  "amount_max": 4000.0,
+  "amount_min": 2000.0,
+  "catalog_id": "nc-tech-betsy-justus-founders-scholarship",
+  "citizenship": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 4,
+    "opens_month": 1,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Two awards a year for young women at NC high schools pursuing technology or engineering: $1,000 per year ($4,000 at a four-year school) plus a Lenovo laptop.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Current senior at a North Carolina high school; rising female first-year student enrolling as an undergraduate at an accredited NC institution (four-year campus in the state or NC Community College System); NC resident for tuition; cumulative unweighted GPA of at least 3.0; intended major in technology or engineering.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": "female",
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "women in tech",
+    "computer science",
+    "engineering",
+    "north carolina",
+    "laptop"
+  ],
+  "majors_allowed": [
+    "technology",
+    "engineering"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 3.0,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: deadline ('opens the application in January and accepts submissions through April 15', no year); gender; majors; added a false 'Florida' state from a past winner's bio.",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": "$1,000 per year; enrollment verified annually before payment.",
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 1,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.nctech.org/about/education-foundation/scholarships.html",
+  "sponsor": "NC TECH Foundation",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "Betsy Y. Justus NC TECH Founders Scholarship",
+  "trust": "verified_local"
+}

@@ -635,21 +635,32 @@ python -c "import json,glob; rs=[json.load(open(f)) for f in glob.glob('data/cat
 ```
 
 **Checklist:**
-- [ ] Owner: provide the source list — the high school counselor's scholarship page or
+- [x] Owner: provide the source list — the high school counselor's scholarship page or
       handout, the county community foundation, the family's credit union, employer(s), and
       church or civic organizations; Claude cannot know these
-- [ ] Claude: for each source, paste the URL into Add Award, review what prefill produced,
+      *(2026-09-26: owner named Gaston and Mecklenburg counties. High school, credit union,
+      employers, and church not yet given, so one-school and employer funds were not seeded.)*
+- [x] Claude: for each source, paste the URL into Add Award, review what prefill produced,
       record what it missed (feeds a later prefill task), and submit as `manual` proposals
       with `trust: unverified`
-- [ ] Claude: add the NC statewide programs with public pages (NCSEAA-administered awards,
+      *(20 proposals from Gaston Community Foundation, Foundation For The Carolinas, and PENC;
+      misses in `docs/operations.md`. FFTC funds have no per-fund URL, so prefill could not run.)*
+- [x] Claude: add the NC statewide programs with public pages (NCSEAA-administered awards,
       Golden LEAF, NC Sheriffs' Association, and the like) the same way
-- [ ] Owner: confirm each proposal on the Inbox page, setting `trust: verified_local` only
+      *(2026-09-26: 13 `manual` proposals in the inbox; prefill misses recorded in
+      `docs/operations.md` "What prefill missed". SECU and AFCEA-NC publish no date yet.)*
+- [x] Owner: confirm each proposal on the Inbox page, setting `trust: verified_local` only
       after opening the page
-- [ ] At least 15 records with `states_allowed: ["NC"]` or a non-empty `counties_allowed`;
+      *(Inbox worked: 23 confirmed, 10 rejected with reasons. All 23 are `verified_local`,
+      stamped `verified_by: daedwards06` / `verified_on: 2026-09-26` at the owner's request.)*
+- [x] At least 15 records with `states_allowed: ["NC"]` or a non-empty `counties_allowed`;
       every one has a `deadline` or a `cycle.deadline_month`, so none lands in `needs_date`
-- [ ] `docs/operations.md` "Where local awards come from": the source list, how often each is
+      *(21 of 34 are NC- or county-scoped, all dated. Myers (Feb, from the 2026 application PDF)
+      and AFCEA NC (Apr, from a 2026 news item) got deadline months; SECU People Helping People
+      was removed because the family are not SECU members.)*
+- [x] `docs/operations.md` "Where local awards come from": the source list, how often each is
       re-checked, and that the counselor list changes every fall
-- [ ] All four CI commands green
+- [x] All four CI commands green
 
 ---
 

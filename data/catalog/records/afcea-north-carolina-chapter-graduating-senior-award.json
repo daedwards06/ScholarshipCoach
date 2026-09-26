@@ -1,0 +1,75 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "afcea-north-carolina-chapter-graduating-senior-award",
+  "citizenship": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 4,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Chapter scholarship for seniors at NC high schools entering an accredited STEM program; preference to military-connected students.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Senior at a North Carolina high school entering an accredited STEM program in the fall; preference given to military-connected students; minimum GPA (not yet published); two letters of recommendation; personal statement. The chapter states amounts and deadlines are pending. 2026 cycle (per BizFayetteville, 2026-04-08): high school junior, senior, or current college student at a North Carolina school pursuing STEM, minimum 2.7 GPA; submissions to admin@nc.afceachapters.org by April 20 (extended).",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "11",
+    "12",
+    "college_1",
+    "college_2",
+    "college_3",
+    "college_4"
+  ],
+  "heritage": [],
+  "keywords": [
+    "stem",
+    "cybersecurity",
+    "military connected",
+    "north carolina",
+    "afcea"
+  ],
+  "majors_allowed": [
+    "stem"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 2.7,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: interview flag set wrongly (the page mentions interview coaching for veterans); amount range from chapter totals. The page itself says amounts, deadlines, and GPA are pending -- no date exists to record yet. Deadline month, GPA, and grades from https://bizfayetteville.com/more-news/2026/4/8/applications-now-open-for-2026-afcea-nc-stem-teacher-student-grant/5364, added 2026-09-26; amounts still unpublished.",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "membership_org",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 2,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.afceanc.org/index.php/education/",
+  "sponsor": "AFCEA North Carolina Chapter",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "AFCEA North Carolina Chapter Graduating Senior Scholarship",
+  "trust": "verified_local"
+}

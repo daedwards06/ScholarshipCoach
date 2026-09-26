@@ -1,0 +1,70 @@
+{
+  "amount_max": 20000.0,
+  "amount_min": 20000.0,
+  "catalog_id": "albert-g-myers-scholarship",
+  "citizenship": "US",
+  "counties_allowed": [
+    "Gaston"
+  ],
+  "cycle": {
+    "deadline_month": 2,
+    "opens_month": 1,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Up to eight renewable $20,000 scholarships ($5,000 a year) for Gaston County seniors, selected by a committee of Gastonia civic clubs.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Seniors in public or private high schools in Gaston County who are also Gaston County residents; U.S. citizens; eligible only in the year they graduate. Judged on purpose in life, financial need, character, leadership, activities, and scholastic achievement. Applications open in winter/early spring. 2026 application: due to the school counselor by February 19, 2026 (February 21 in 2025); needs a 300-word statement, a parent letter on finances, two recommendation letters (school; religious/business/civic), and a transcript.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "gaston county",
+    "leadership",
+    "financial need"
+  ],
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": true,
+  "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: deadline='2025-10-07', amount_min=5000.0, amount_max=20000.0, counties_allowed=['Gaston']. Deadline month from the 2026 application PDF (https://www.cfgaston.org/wp-content/uploads/2026/01/2026-A.G.-Myers-Scholarship-application.pdf), added 2026-09-26.",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "community_foundation",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": "$5,000 a year for four years with semester grade reports.",
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [
+      "Up to 300 words: your goal for the future, and how past, present and future activities make it probable."
+    ],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 2,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.cfgaston.org/portfolio-item/albert-g-myers-scholarship/",
+  "sponsor": "Gaston Community Foundation",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "Albert G. Myers Scholarship",
+  "trust": "verified_local"
+}

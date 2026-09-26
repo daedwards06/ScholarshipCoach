@@ -1,0 +1,75 @@
+{
+  "amount_max": 2000.0,
+  "amount_min": 2000.0,
+  "catalog_id": "advocates-for-african-americans-carolinas-scholarship",
+  "citizenship": "US",
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 3,
+    "opens_month": 12,
+    "recurring": true
+  },
+  "deadline": "2027-03-05",
+  "description": "$2,000 from a Duke Energy employee resource group for Carolinas seniors entering engineering, computer science, sciences, or business.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Graduating senior at a North or South Carolina high school; 3.5 minimum unweighted GPA; full-time at a four-year college in NC or SC; enrolling in engineering, computer science, the sciences, accounting, finance or business administration; U.S. citizen; finalists interview.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "computer science",
+    "engineering",
+    "duke energy",
+    "carolinas"
+  ],
+  "majors_allowed": [
+    "engineering",
+    "computer science",
+    "stem",
+    "accounting",
+    "finance",
+    "business administration"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 3.5,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. FFTC Fund ID 1197 (search the portal by name; FFTC fund pages are ASP.NET postbacks with no per-fund URL, so prefill cannot reach them).",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "community_foundation",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": true,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://fftcscholarships.communityforce.com/Funds/Search.aspx",
+  "sponsor": "Foundation For The Carolinas",
+  "states_allowed": [
+    "NC",
+    "SC"
+  ],
+  "status": "upcoming",
+  "title": "Advocates for African Americans Carolinas Scholarship",
+  "trust": "verified_local"
+}

@@ -1,0 +1,68 @@
+{
+  "amount_max": 2000.0,
+  "amount_min": 2000.0,
+  "catalog_id": "locke-bell-family-scholarship",
+  "citizenship": null,
+  "counties_allowed": [
+    "Gaston"
+  ],
+  "cycle": {
+    "deadline_month": 3,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "$2,000 for a Gaston County senior attending Gaston College or UNC Charlotte.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Current Gaston County high school senior planning to attend Gaston College or UNC Charlotte. Criteria: need, character, academic achievement; priority to Boys and Girls Club and Dream Center Academy participants. Deadline March 31.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "gaston county",
+    "unc charlotte",
+    "financial need"
+  ],
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": true,
+  "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. Prefill proposed: amount_min=2000.0, amount_max=2000.0, counties_allowed=['Gaston'].",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "community_foundation",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": "Renewable for up to one year.",
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.cfgaston.org/portfolio-item/locke-bell-scholarship/",
+  "sponsor": "Gaston Community Foundation",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "Locke Bell Family Scholarship",
+  "trust": "verified_local"
+}

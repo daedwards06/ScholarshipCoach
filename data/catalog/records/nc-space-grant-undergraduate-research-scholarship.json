@@ -1,0 +1,74 @@
+{
+  "amount_max": 8000.0,
+  "amount_min": 8000.0,
+  "catalog_id": "nc-space-grant-undergraduate-research-scholarship",
+  "citizenship": "US",
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 3,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "$8,000 for a 12-month, faculty-mentored research project with NASA, commercial space, or ISS relevance, for STEM undergraduates at NC colleges.",
+  "disability": null,
+  "education_level": "undergraduate",
+  "eligibility_text": "U.S. citizen; enrolled full-time (or accepted for full-time enrollment) in a STEM bachelor's program at an accredited North Carolina college or university; minimum 3.0 GPA; propose a research project relevant to NASA, commercial space, and/or the ISS. Up to two awards total, reapplying each time.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12",
+    "college_1",
+    "college_2",
+    "college_3",
+    "college_4"
+  ],
+  "heritage": [],
+  "keywords": [
+    "nasa",
+    "research",
+    "stem",
+    "aerospace",
+    "north carolina"
+  ],
+  "majors_allowed": [
+    "stem"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 3.0,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: the deadline among 7 candidates (info-session and project dates mixed in); citizenship; majors. The older /undergraduate-research-scholarship-program/ URL is a stale 2019 page that still answers 200.",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 1,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://ncspacegrant.ncsu.edu/higher-ed-opportunities/undergraduate-research-scholarships/",
+  "sponsor": "North Carolina Space Grant",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "NC Space Grant Undergraduate Research Scholarship",
+  "trust": "verified_local"
+}

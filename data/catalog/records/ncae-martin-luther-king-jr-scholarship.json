@@ -1,0 +1,69 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "ncae-martin-luther-king-jr-scholarship",
+  "citizenship": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 2,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Freshman-year scholarship for NC public high school seniors, judged on character, community involvement, and scholastic achievement.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "North Carolina resident; public high school senior planning to continue their education; official transcript with a cumulative unweighted GPA of at least 2.5; all materials due electronically by the first Monday in February.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "north carolina",
+    "public school",
+    "community service"
+  ],
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 2.5,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: deadline ('first Monday in February' is a rule, not a date); letters; essay prompts. The page does not state the amount.",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "membership_org",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": "Paid for the fall and spring of freshman year only.",
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [
+      "How the philosophies and ideals of Dr. King influence your life (1 page or less).",
+      "Why you deserve this scholarship and your need for financial assistance (1 page or less)."
+    ],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 2,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.ncae.org/mlkjrscholarshipinfo",
+  "sponsor": "North Carolina Association of Educators / NC Foundation for Public School Children",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "NCAE Dr. Martin Luther King Jr. Scholarship",
+  "trust": "verified_local"
+}

@@ -1,0 +1,70 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "penc-engineering-freshman-scholarship",
+  "citizenship": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 5,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Two-year scholarship for incoming NC freshmen entering an ABET-accredited engineering program; awarded each spring.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Incoming freshman intending to major in engineering in an ABET-EAC accredited curriculum; citizen and permanent resident of North Carolina; must remain in engineering with at least a 3.0 GPA after freshman year to keep the second year. The 2026 signature page certifies study at North Carolina State University.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "engineering",
+    "north carolina",
+    "abet"
+  ],
+  "majors_allowed": [
+    "engineering"
+  ],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: everything -- the source is a PDF and prefill returned the raw PDF bytes as text; the HTML page (penc.org/page/Scholarships) answers 403 to a scripted fetch. Amount is not stated in the 2026 packet; 2026 deadline was May 1, 2026.",
+  "provenance": {
+    "added_on": "2026-09-26",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "daedwards06",
+    "verified_on": "2026-09-26"
+  },
+  "religion": null,
+  "renewal_terms": "Two-year award; must remain in engineering with at least a 3.0 GPA at the end of freshman year.",
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [
+      "Up to 500 words: your interest in engineering, your major and specialization, the occupation you plan after graduation, your financial need, your long-term goals, and how the scholarship helps."
+    ],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 2,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://cdn.ymaws.com/penc.org/resource/resmgr/scholarships/2026_PENC_Freshman_Scholarsh.pdf",
+  "sponsor": "Professional Engineers of North Carolina (PENC Educational Foundation)",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "PENC Engineering Freshman Scholarship",
+  "trust": "verified_local"
+}
