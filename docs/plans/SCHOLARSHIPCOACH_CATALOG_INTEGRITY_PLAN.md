@@ -771,17 +771,26 @@ streamlit run app/main.py   # visual: every section renders in every mode as bef
 ```
 
 **Checklist:**
-- [ ] `app/sections/` with one module per section: `find`, `this_week`, `applications`,
+- [x] `app/sections/` with one module per section: `find`, `this_week`, `applications`,
       `essays`, `recommenders`, `timeline`, `colleges_money`, `catalog_inbox`, `what_if`,
       `outcomes`, `settings`; shared state helpers in `app/state.py`; sidebar in
       `app/sidebar.py`
-- [ ] `app/main.py` is the router and page config only, under 150 lines
-- [ ] `_apply_rank_filters` parameter `essay_required_only` renamed `no_essay_only` to match
+      *(2026-09-26: pure display helpers shared across sections — `money_text`,
+      `timeline_deadline`, `urgency_indicator`, `row_catalog_id`, … — went to `app/helpers.py`
+      rather than `state.py`. The unused `_weights_display_payload` was dropped.)*
+- [x] `app/main.py` is the router and page config only, under 150 lines *(63; routes through
+      `SECTION_RENDERERS`, and a test pins it to `modes.SECTION_LABELS`)*
+- [x] `_apply_rank_filters` parameter `essay_required_only` renamed `no_essay_only` to match
       its behavior and its call site
-- [ ] `python -m mypy app/` at 0 errors and added to CI
-- [ ] No behavior change: the visual pass covers every section in student, parent, and
+- [x] `python -m mypy app/` at 0 errors and added to CI *(four pre-existing errors in the Find
+      section fixed; CLAUDE.md's validation block updated to match CI)*
+- [x] No behavior change: the visual pass covers every section in student, parent, and
       operator mode
-- [ ] All four CI commands green
+      *(2026-09-26: checked headless, not in a browser — Streamlit AppTest rendered all 28
+      mode × section pages, including a full pipeline run under Find, before and after the
+      split against a copy of the family DB; the element trees, sidebar included, are
+      identical. `streamlit run` boots and reports healthy.)*
+- [x] All four CI commands green *(plus the new `mypy app/`)*
 
 ---
 

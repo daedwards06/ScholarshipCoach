@@ -150,3 +150,9 @@ def test_resolve_section_defaults_to_the_first_section_of_the_mode() -> None:
 def test_resolve_section_drops_a_section_the_mode_cannot_see() -> None:
     assert modes.resolve_section("settings", "parent") == "settings"
     assert modes.resolve_section("settings", "student") == "this_week"
+
+
+def test_every_nav_section_has_a_renderer() -> None:
+    from app.main import SECTION_RENDERERS
+
+    assert set(SECTION_RENDERERS) == set(modes.SECTION_LABELS)

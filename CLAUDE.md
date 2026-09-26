@@ -59,7 +59,7 @@ this protocol exactly:
 - **Source code:** `src/` — editable install via `pip install -e .` (`pyproject.toml`).
 - **Tests:** `pytest tests/ -q` — must stay green after every task.
 - **Lint:** `ruff check src/ scripts/ app/ tests/` — must stay at 0 errors.
-- **Types:** `python -m mypy src/` — must stay at 0 errors.
+- **Types:** `python -m mypy src/` and `python -m mypy app/` — must stay at 0 errors.
 - **Catalog:** `python scripts/validate_catalog.py` — must pass.
 
 ## Environment
@@ -72,7 +72,7 @@ this protocol exactly:
 
 ### Exact validation commands
 
-These four are exactly what CI runs. A task is not validated until all four are green —
+These are exactly what CI runs. A task is not validated until all of them are green —
 running only tests and lint is how a mypy break reached `main` after Task 1.4.
 
 ```powershell
@@ -84,6 +84,7 @@ ruff check src/ scripts/ app/ tests/
 
 # Type check — CI runs this and it is not covered by ruff
 python -m mypy src/
+python -m mypy app/
 
 # Curated catalog schema validation — CI runs this whenever catalog records change
 python scripts/validate_catalog.py

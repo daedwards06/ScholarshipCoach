@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 import pandas as pd
@@ -220,3 +221,56 @@ def _coerce_float(value: Any) -> float | None:
     if pd.isna(numeric):
         return None
     return numeric
+
+
+def csv_text(values: Any) -> str:
+    return ", ".join(str(value) for value in (values or []))
+
+
+def csv_list(raw: Any) -> list[str]:
+    return [part.strip() for part in str(raw or "").split(",") if part.strip()]
+
+
+def money_text(value: float | None) -> str:
+    return "—" if value is None else f"${value:,.0f}"
+
+
+def award_count_text(count: int) -> str:
+    return f"{count} award" if count == 1 else f"{count} awards"
+
+
+def days_until_deadline(deadline_str: str, today: date) -> int | None:
+    try:
+        deadline = pd.to_datetime(deadline_str)
+        return (deadline.date() - today).days
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def timeline_deadline(row: pd.Series, today: date) -> tuple[str, bool]:
+    """Return the deadline to display and whether it is a projected cycle date."""
+    deadline = coerce_text(row.get("deadline"))
+    days_until = days_until_deadline(deadline, today)
+    if deadline and days_until is not None and days_until >= 0:
+        return deadline, False
+    projected = row.get("projected_deadline")
+    if projected is not None and not pd.isna(projected):
+        return pd.Timestamp(projected).date().isoformat(), True
+    return deadline, False
+
+
+def urgency_indicator(days_until_deadline: int | None) -> tuple[str, str]:
+    if days_until_deadline is None:
+        return ("⚠️ Unknown deadline", "#666666")
+    if days_until_deadline < 0:
+        return ("⏰ Passed", "#888888")
+    if days_until_deadline <= 7:
+        return ("🔴 URGENT (≤7 days)", "#FF4444")
+    if days_until_deadline <= 30:
+        return ("🟡 Soon (≤30 days)", "#FFAA00")
+    return ("🟢 Later", "#00AA00")
+
+
+def row_catalog_id(row: pd.Series) -> str:
+    """The stable id to track an award under, falling back to the snapshot id."""
+    return coerce_text(row.get("catalog_id")) or coerce_text(row.get("scholarship_id"))

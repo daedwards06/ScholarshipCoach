@@ -64,6 +64,10 @@ jobs:
         if: ${{ !cancelled() && (steps.install.outcome == 'success' || steps.install_drift.outcome == 'success') }}
         run: python -m mypy src/
 
+      - name: Type check (app)
+        if: ${{ !cancelled() && (steps.install.outcome == 'success' || steps.install_drift.outcome == 'success') }}
+        run: python -m mypy app/
+
       - name: Test
         if: ${{ !cancelled() && (steps.install.outcome == 'success' || steps.install_drift.outcome == 'success') }}
         run: python -m pytest tests/ -q --tb=short
