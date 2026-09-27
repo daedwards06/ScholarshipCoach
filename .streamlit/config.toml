@@ -1,13 +1,116 @@
+# "Study Hall" theme. Values come from design-system/scholarshipcoach/MASTER.md
+# and are contrast-checked by tests/test_theme_config.py. Light and dark follow
+# the device's system setting.
 [theme]
-primaryColor = "#4ECDC4"
-backgroundColor = "#0E1117"
-secondaryBackgroundColor = "#1A1A2E"
-textColor = "#FAFAFA"
-font = "sans serif"
+font = "Nunito Sans, sans-serif"
+headingFont = "Nunito, sans-serif"
+baseFontSize = 16
+headingFontSizes = ["1.75rem", "1.375rem", "1.125rem", "1rem"]
+headingFontWeights = [800, 700, 700, 700]
+baseRadius = "0.75rem"
+buttonRadius = "0.75rem"
+showWidgetBorder = true
+
+# Self-hosted (app/static/fonts/, SIL OFL) so no family phone ever calls Google Fonts.
+[[theme.fontFaces]]
+family = "Nunito"
+url = "app/static/fonts/nunito-latin-700-normal.woff2"
+weight = 700
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Nunito"
+url = "app/static/fonts/nunito-latin-800-normal.woff2"
+weight = 800
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Nunito Sans"
+url = "app/static/fonts/nunito-sans-latin-400-normal.woff2"
+weight = 400
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Nunito Sans"
+url = "app/static/fonts/nunito-sans-latin-600-normal.woff2"
+weight = 600
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Nunito Sans"
+url = "app/static/fonts/nunito-sans-latin-700-normal.woff2"
+weight = 700
+style = "normal"
+
+[theme.light]
+backgroundColor = "#F6FAF9"
+secondaryBackgroundColor = "#E7F0EE"
+textColor = "#12302C"
+grayTextColor = "#4B625E"
+primaryColor = "#0F766E"
+linkColor = "#0F766E"
+borderColor = "#739690"
+redColor = "#B42318"
+redTextColor = "#B42318"
+redBackgroundColor = "#FEE4E2"
+orangeColor = "#B54708"
+orangeTextColor = "#B54708"
+orangeBackgroundColor = "#FEF0C7"
+yellowColor = "#93370D"
+yellowTextColor = "#93370D"
+yellowBackgroundColor = "#FEF7C3"
+greenColor = "#067647"
+greenTextColor = "#067647"
+greenBackgroundColor = "#DCFAE6"
+blueColor = "#1D4ED8"
+blueTextColor = "#1D4ED8"
+blueBackgroundColor = "#DBEAFE"
+violetColor = "#5B21B6"
+violetTextColor = "#5B21B6"
+violetBackgroundColor = "#EDE9FE"
+grayColor = "#475467"
+grayBackgroundColor = "#EAECF0"
+
+[theme.light.sidebar]
+backgroundColor = "#EEF5F3"
+
+[theme.dark]
+backgroundColor = "#0F1917"
+secondaryBackgroundColor = "#182624"
+textColor = "#E4F1EE"
+grayTextColor = "#9DB5B0"
+primaryColor = "#11807A"
+linkColor = "#5FE0CD"
+borderColor = "#4F6964"
+redColor = "#F97066"
+redTextColor = "#F97066"
+redBackgroundColor = "#3B1716"
+orangeColor = "#F5A524"
+orangeTextColor = "#F5A524"
+orangeBackgroundColor = "#3A2A0B"
+yellowColor = "#FDE272"
+yellowTextColor = "#FDE272"
+yellowBackgroundColor = "#36300B"
+greenColor = "#47CD89"
+greenTextColor = "#47CD89"
+greenBackgroundColor = "#0E3222"
+blueColor = "#7CB4FF"
+blueTextColor = "#7CB4FF"
+blueBackgroundColor = "#132A4A"
+violetColor = "#BDB4FE"
+violetTextColor = "#BDB4FE"
+violetBackgroundColor = "#2A2150"
+grayColor = "#B0BEBA"
+grayBackgroundColor = "#24302E"
+
+[theme.dark.sidebar]
+backgroundColor = "#131F1D"
 
 [server]
 headless = true
-# Left unset on purpose: the app binds to localhost unless the family hosting
+# Serves app/static/ (the self-hosted fonts) at app/static/.
+enableStaticServing = true
+# Address left unset on purpose: the app binds to localhost unless the family hosting
 # script passes --server.address 0.0.0.0. See docs/operations.md.
 
 [browser]

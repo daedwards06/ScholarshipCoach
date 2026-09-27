@@ -34,7 +34,8 @@ from app.modes import PARENT_SECTIONS, STUDENT_SECTIONS
 from src.store.db import PRIVATE_DIR
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-ENTRY_SCRIPT = Path(__file__).resolve().parent / "screenshot_entry.py"
+# Beside app/main.py so Streamlit serves the same app/static/ (fonts) in a sweep.
+ENTRY_SCRIPT = ROOT_DIR / "app" / "screenshot_entry.py"
 PRIVATE_DIR_ENV = "COACH_SHOT_PRIVATE_DIR"
 
 VIEWPORTS: tuple[tuple[int, int], ...] = ((400, 860), (1366, 900))

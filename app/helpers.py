@@ -22,6 +22,11 @@ _MIN_TAP_TARGET_REM = 2.75
 # not zoom back out -- which is how the essay editor becomes unusable.
 _MIN_INPUT_FONT_REM = 1.0
 
+# st.caption paints body text at 60% opacity and ignores the theme's
+# grayTextColor, which is 3.9:1 on the light background. 75% gives 6.2:1 light
+# and 9.1:1 dark, the muted-text ratios in the design system.
+CAPTION_OPACITY = 0.75
+
 
 def phone_width_css() -> str:
     """Return the stylesheet that makes the student surfaces usable at ~400px.
@@ -29,8 +34,13 @@ def phone_width_css() -> str:
     Streamlit class names are not a public API, so every rule here is an
     improvement on a layout that already works without it: if a selector stops
     matching, the page degrades to Streamlit's own responsive behaviour.
+    The caption rule is the one rule at every width: it fixes a contrast gap
+    the theme cannot reach.
     """
     return f"""<style>
+[data-testid="stCaptionContainer"] {{
+  opacity: {CAPTION_OPACITY};
+}}
 @media (max-width: {PHONE_BREAKPOINT_PX}px) {{
   [data-testid="stMainBlockContainer"] {{
     padding: 1.5rem 1rem 4rem;

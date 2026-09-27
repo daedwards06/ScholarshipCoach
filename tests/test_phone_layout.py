@@ -14,8 +14,12 @@ def test_breakpoint_matches_streamlits_own_column_stacking_width() -> None:
 def test_css_is_scoped_to_the_phone_breakpoint() -> None:
     css = phone_width_css()
     assert f"@media (max-width: {PHONE_BREAKPOINT_PX}px)" in css
-    # Every rule sits inside the one media query, so desktop is untouched.
+    # Every phone rule sits inside the one media query, so desktop is untouched;
+    # the caption contrast fix is the only rule outside it.
     assert css.count("@media") == 1
+    outside = css.split("@media")[0]
+    assert outside.count("{") == 1
+    assert '[data-testid="stCaptionContainer"]' in outside
 
 
 def test_css_is_a_single_style_block_with_no_script() -> None:

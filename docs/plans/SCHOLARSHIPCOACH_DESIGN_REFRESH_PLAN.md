@@ -171,25 +171,25 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] `.streamlit/config.toml`: `[theme]` holds shared keys (`font`, `headingFont`,
+- [x] `.streamlit/config.toml`: `[theme]` holds shared keys (`font`, `headingFont`,
       `baseFontSize = 16`, `headingFontSizes`, `headingFontWeights`, `baseRadius`,
       `buttonRadius`, `showWidgetBorder = true`); `[theme.light]` and `[theme.dark]` hold every
       color in MASTER "Core" and "Status" (`<c>Color`, `<c>BackgroundColor`, `<c>TextColor` for
       red/orange/yellow/green/blue/violet/gray), plus `linkColor` and `borderColor`;
       `[theme.light.sidebar]` / `[theme.dark.sidebar]` set the sidebar background. Every option name
       is checked against Streamlit 1.54 (`streamlit config show`); an unknown key fails silently
-- [ ] Nunito (700, 800) and Nunito Sans (400, 600, 700) `.woff2` under `app/static/fonts/` with
+- [x] Nunito (700, 800) and Nunito Sans (400, 600, 700) `.woff2` under `app/static/fonts/` with
       `OFL.txt`; `[[theme.fontFaces]]` entries; `[server] enableStaticServing = true`
-- [ ] `tests/test_theme_config.py`: parses `config.toml` and asserts WCAG ratios per theme:
+- [x] `tests/test_theme_config.py`: parses `config.toml` and asserts WCAG ratios per theme:
       text/background ≥ 4.5, gray text/background ≥ 4.5, white/primary ≥ 4.5, primary/background
       ≥ 3.0, border/background ≥ 3.0, each status text/background pair ≥ 4.5. It also asserts that
       no key points at `fonts.googleapis.com`. The ratio function lives in the test, not `src/`
-- [ ] Sampled from a screenshot, not trusted from config: the rendered primary button fill and
+- [x] Sampled from a screenshot, not trusted from config: the rendered primary button fill and
       its label give ≥ 4.5:1 in both themes (Streamlit may shade the configured primary)
-- [ ] Browser network log during a sweep shows no request to `fonts.googleapis.com` /
+- [x] Browser network log during a sweep shows no request to `fonts.googleapis.com` /
       `fonts.gstatic.com`
-- [ ] Sweep reviewed in light and dark at 400px and 1366px; no unreadable element in either
-- [ ] All five CI commands green
+- [x] Sweep reviewed in light and dark at 400px and 1366px; no unreadable element in either
+- [x] All five CI commands green
 
 ---
 

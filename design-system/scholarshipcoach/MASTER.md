@@ -46,10 +46,14 @@ was measured: body text ≥ 4.5:1, UI boundaries and large text ≥ 3:1.
 | Surface (inputs, code, secondary) | `#E7F0EE` | `#182624` | `secondaryBackgroundColor` | — |
 | Sidebar background | `#EEF5F3` | `#131F1D` | `sidebar.backgroundColor` | — |
 | Text | `#12302C` | `#E4F1EE` | `textColor` | 13.4:1 / 15.5:1 on bg |
-| Muted text (captions) | `#4B625E` | `#9DB5B0` | `grayTextColor` | 6.2:1 / 8.3:1 on bg |
+| Muted text (captions) | `#4B625E` | `#9DB5B0` | `grayTextColor` (+ caption opacity, below) | 6.2:1 / 8.3:1 on bg |
 | Primary (buttons, active radio, slider) | `#0F766E` | `#11807A` | `primaryColor` | white label 5.5:1 / 4.8:1; vs bg 5.2:1 / 3.8:1 |
 | Link | `#0F766E` | `#5FE0CD` | `linkColor` | 5.2:1 / 11.1:1 on bg |
 | Border (widgets **and** containers) | `#739690` | `#4F6964` | `borderColor` + `showWidgetBorder = true` | 3.1:1 / 3.0:1 on bg |
+
+`st.caption` does not use `grayTextColor`: Streamlit 1.54 paints it as body text at 60% opacity,
+which is only 3.9:1 on the light background. `phone_width_css()` raises caption opacity to 0.75
+(`CAPTION_OPACITY`), which gives 6.2:1 light and 9.1:1 dark and is tested per theme and surface.
 
 The dark primary is deliberately a mid-tone. Streamlit paints primary-button labels white, and the
 current bright `#4ECDC4` (rendered `#2D9F98`) gives white text only 3.2:1. A bright teal is used
@@ -68,7 +72,8 @@ for dark-mode *links* instead, via `linkColor`.
 | Later, passed, neutral | `gray` | `#475467` / `#EAECF0` | `#B0BEBA` / `#24302E` | 6.5 / 7.1 |
 
 Set each as `<name>Color`, `<name>BackgroundColor` and `<name>TextColor` under `[theme.light]` and
-`[theme.dark]`. `primary` badges use the primary color, so `#0F766E` on `#CCFBEF` (4.9:1) light and
+`[theme.dark]`. Gray is the exception: Streamlit 1.54 has no gray badge text key, so gray badges
+use `grayTextColor`, the muted-text token (`#4B625E` / `#9DB5B0`, 5.5 / 6.3 on the gray bg). `primary` badges use the primary color, so `#0F766E` on `#CCFBEF` (4.9:1) light and
 `#5FE0CD` on `#113A36` (7.8:1) dark.
 
 Color never carries meaning alone. Every badge has a text label and a Material icon.
