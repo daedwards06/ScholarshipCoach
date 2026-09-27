@@ -71,3 +71,6 @@ reports/weight_tuning/artifacts/
 # Catalog inbox proposals -- local working state; confirm or reject them, do not commit
 data/catalog/inbox/*.json
 data/catalog/inbox/rejected/
+
+# Claude Code skills installed locally (third-party dev tooling, not part of the app)
+.claude/skills/
