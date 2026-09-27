@@ -1,0 +1,13 @@
+# Push catalog edits made on the server to the `server` branch. Started nightly
+# by scholarshipcoach-catalog-sync.timer; installed by deploy/bootstrap.sh.
+[Unit]
+Description=ScholarshipCoach catalog sync to the server branch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=coach
+Group=coach
+WorkingDirectory=/srv/scholarshipcoach
+ExecStart=/srv/scholarshipcoach/deploy/catalog_sync.sh

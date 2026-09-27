@@ -1,0 +1,15 @@
+# Monthly catalog re-verification. Started by scholarshipcoach-verify.timer;
+# installed by deploy/bootstrap.sh. Exit 0 for any completed pass: dead links
+# and blocked hosts are findings, read in reports/catalog_verify/ or the inbox.
+[Unit]
+Description=ScholarshipCoach catalog re-verification
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=coach
+Group=coach
+WorkingDirectory=/srv/scholarshipcoach
+ExecStart=/srv/scholarshipcoach/.venv/bin/python scripts/verify_catalog.py
+TimeoutStartSec=2h

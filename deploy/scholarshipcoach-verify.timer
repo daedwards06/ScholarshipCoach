@@ -1,0 +1,11 @@
+# First Sunday of each month, 07:00 server time. Persistent=true runs a missed
+# pass at the next boot.
+[Unit]
+Description=Monthly ScholarshipCoach catalog re-verification
+
+[Timer]
+OnCalendar=Sun *-*-01..07 07:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

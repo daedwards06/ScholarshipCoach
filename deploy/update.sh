@@ -36,8 +36,11 @@ echo "==> Backup before pull"
 deploy/backup.sh || fail "backup failed; not pulling (coach.db may be migrated by the update)"
 
 before=$(git rev-parse HEAD)
-echo "==> git pull"
-git pull --ff-only origin main
+# The checkout is on the `server` branch, which may hold catalog commits main
+# has not merged yet, so main is merged in rather than fast-forwarded.
+echo "==> git pull (merge origin/main into $(git symbolic-ref --short HEAD))"
+git pull -q --no-rebase --no-edit origin main \
+    || fail "merging origin/main conflicted; resolve it (or git merge --abort) before updating"
 
 added=$(git diff --name-only --diff-filter=A "$before" HEAD -- src/store/migrations/)
 if [[ -n $added ]]; then

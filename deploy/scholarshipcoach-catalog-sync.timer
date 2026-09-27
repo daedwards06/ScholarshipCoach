@@ -1,0 +1,11 @@
+# Nightly at 04:15 server time, after the 03:30 backup. Persistent=true runs a
+# missed sync at the next boot.
+[Unit]
+Description=Nightly ScholarshipCoach catalog sync
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

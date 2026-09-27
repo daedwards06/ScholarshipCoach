@@ -221,16 +221,21 @@ python scripts/validate_catalog.py
 ```
 
 **Checklist:**
-- [ ] `deploy/scholarshipcoach-verify.service` + `.timer`: `scripts/verify_catalog.py` on the
+- [x] `deploy/scholarshipcoach-verify.service` + `.timer`: `scripts/verify_catalog.py` on the
       first Sunday of each month, `Persistent=true`
-- [ ] `deploy/catalog_sync.sh`: if `data/catalog/records/` has changes, runs
+- [x] `deploy/catalog_sync.sh`: if `data/catalog/records/` has changes, runs
       `scripts/validate_catalog.py`, commits only that directory to the `server` branch with a
       message listing the changed `catalog_id`s, and pushes; stops and reports rather than
       committing when validation fails or anything outside `records/` is dirty
-- [ ] `deploy/scholarshipcoach-catalog-sync.service` + `.timer`: nightly, after the backup
-- [ ] Push credential documented as a repo-scoped **deploy key with write access**, held only
+- [x] `deploy/scholarshipcoach-catalog-sync.service` + `.timer`: nightly, after the backup
+- [x] Push credential documented as a repo-scoped **deploy key with write access**, held only
       by the `coach` user; no personal token on the server
-- [ ] All four CI commands green
+- [x] All four CI commands green
+      *(2026-09-27: the server checkout lives on a local `server` branch, so `update.sh` now
+      merges `origin/main` into it instead of `--ff-only`. `catalog_sync.sh` pushes only when
+      the server holds record changes main lacks, so a squash-merged, auto-deleted branch is
+      not recreated. `bootstrap.sh` creates the branch, the deploy key (printed for the owner),
+      an SSH push URL, and enables the verify and catalog-sync timers)*
 
 ---
 

@@ -9,9 +9,12 @@
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/daedwards06/ScholarshipCoach.git}"
+PUSH_URL="${PUSH_URL:-git@github.com:daedwards06/ScholarshipCoach.git}"
 APP_DIR=/srv/scholarshipcoach
 APP_USER=coach
 SERVICE=scholarshipcoach
+SYNC_BRANCH=server
+DEPLOY_KEY=/home/$APP_USER/.ssh/scholarshipcoach_deploy
 
 log() { printf '\n==> %s\n' "$*"; }
 as_coach() { sudo -u "$APP_USER" -H "$@"; }
@@ -55,6 +58,25 @@ if [[ ! -d $APP_DIR/.git ]]; then
     as_coach git clone "$REPO_URL" "$APP_DIR"
 fi
 
+log "Catalog edits commit to the $SYNC_BRANCH branch, pushed with a deploy key"
+git_app() { as_coach git -C "$APP_DIR" "$@"; }
+if ! git_app show-ref --verify --quiet "refs/heads/$SYNC_BRANCH"; then
+    if git_app ls-remote --exit-code --heads origin "$SYNC_BRANCH" >/dev/null; then
+        git_app switch -c "$SYNC_BRANCH" "origin/$SYNC_BRANCH"
+    else
+        git_app switch -c "$SYNC_BRANCH"
+    fi
+fi
+git_app config user.name "ScholarshipCoach server"
+git_app config user.email "coach@scholarshipcoach.invalid"
+# Fetches stay on anonymous HTTPS; only pushes use SSH and the deploy key.
+git_app config remote.origin.pushurl "$PUSH_URL"
+git_app config core.sshCommand "ssh -i $DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+if [[ ! -f $DEPLOY_KEY ]]; then
+    as_coach install -d -m 700 "$(dirname "$DEPLOY_KEY")"
+    as_coach ssh-keygen -q -t ed25519 -N "" -C "scholarshipcoach server catalog sync" -f "$DEPLOY_KEY"
+fi
+
 log "Virtualenv"
 [[ -x $APP_DIR/.venv/bin/python ]] || as_coach python3.12 -m venv "$APP_DIR/.venv"
 as_coach "$APP_DIR/.venv/bin/pip" install -q --upgrade pip
@@ -85,12 +107,16 @@ systemctl daemon-reload
 systemctl enable "$SERVICE"
 systemctl restart "$SERVICE"
 
-log "Nightly backup timer"
+log "Timers: nightly backup, monthly re-verification, nightly catalog sync"
 install -d -m 755 /etc/scholarshipcoach
-install -m 644 "$APP_DIR/deploy/$SERVICE-backup.service" "/etc/systemd/system/$SERVICE-backup.service"
-install -m 644 "$APP_DIR/deploy/$SERVICE-backup.timer" "/etc/systemd/system/$SERVICE-backup.timer"
+for job in backup verify catalog-sync; do
+    install -m 644 "$APP_DIR/deploy/$SERVICE-$job.service" "/etc/systemd/system/$SERVICE-$job.service"
+    install -m 644 "$APP_DIR/deploy/$SERVICE-$job.timer" "/etc/systemd/system/$SERVICE-$job.timer"
+done
 systemctl daemon-reload
-systemctl enable --now "$SERVICE-backup.timer"
+for job in backup verify catalog-sync; do
+    systemctl enable --now "$SERVICE-$job.timer"
+done
 
 cat <<EOF
 
@@ -108,4 +134,11 @@ Backups (and deploy/update.sh) fail until /etc/scholarshipcoach/restic.env exist
   chown $APP_USER:$APP_USER /etc/scholarshipcoach/restic.env
   chmod 600 /etc/scholarshipcoach/restic.env
 then, as $APP_USER: set -a; . /etc/scholarshipcoach/restic.env; restic init
+
+Catalog sync (deploy/catalog_sync.sh) cannot push until this public key is a
+deploy key on the GitHub repo (Settings -> Deploy keys -> Add deploy key, tick
+"Allow write access"). It is scoped to this one repo and held only by $APP_USER;
+do not put a personal access token on this server.
+$(cat "$DEPLOY_KEY.pub")
+Check, as $APP_USER: ssh -i $DEPLOY_KEY -o IdentitiesOnly=yes -T git@github.com
 EOF
