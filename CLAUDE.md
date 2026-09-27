@@ -46,6 +46,7 @@ this protocol exactly:
 | `docs/plans/SCHOLARSHIPCOACH_FAMILY_PRODUCT_PLAN.md` | Family product track (from 2026-09-12 product review): curated catalog + stable IDs, expanded profile/eligibility axes, timeline buckets, deterministic ingest automation, tracker/essays/modes, hosting; defers LLM Plan Tasks 6–9 |
 | `docs/plans/SCHOLARSHIPCOACH_CATALOG_INTEGRITY_PLAN.md` | Post-implementation fixes (from 2026-09-13 review of the Family Product Plan): rebuild carry-forward + blocking guardrail, trust enforced in Stage 1, cross-source dedupe, blocked-vs-dead verification, `needs_date` bucket, NC local award seeding, student onboarding, Outcomes page, `app/main.py` split; closes Family Plan 3.2/4.3 leftovers and UI Plan Task 6 |
 | `docs/plans/SCHOLARSHIPCOACH_CLOUD_HOSTING_PLAN.md` | Move hosting off the home PC to a small cloud server reachable only over Tailscale (from 2026-09-26 hosting discussion): `deploy/` service/bootstrap/update scripts, nightly restic backups + restore drill, server-side catalog edits flow back via a `server` branch PR, family phone onboarding; supersedes the home-PC hosting in `docs/operations.md` |
+| `docs/plans/SCHOLARSHIPCOACH_DESIGN_REFRESH_PLAN.md` | "Study Hall" design refresh (from 2026-09-26 `ui-ux-pro-max` audit at 400px/1366px): screenshot harness, light+dark contrast-tested theme with self-hosted fonts, emoji-free deadline badges, top `st.navigation`, results-first Find with compact cards, empty states, Parent form/timeline density; spec lives in `design-system/scholarshipcoach/` (MASTER + student/parent overrides); supersedes UI Redesign Plan theme values |
 
 *(Add new plan files to this table as they are created.)*
 
@@ -79,6 +80,10 @@ this protocol exactly:
 - Small inline HTML fragments via `st.markdown(unsafe_allow_html=True)` are allowed only when no
   native element does the job; never interpolate user or catalog text into them unescaped.
 - Student surfaces are checked at ~400px width (see `docs/operations.md` "Phone width").
+- Design source of truth: `design-system/scholarshipcoach/MASTER.md`, with overrides in
+  `design-system/scholarshipcoach/pages/` (`student-mode.md`, `parent-mode.md`) that win over
+  MASTER for their mode. Tokens there are translated into config.toml / the CSS helper, not
+  pasted as-is. The design system decides *what*; these rules decide *how*.
 
 ## Environment
 
