@@ -1,0 +1,11 @@
+# Nightly backup at 03:30 server time. Persistent=true runs a missed backup at
+# the next boot.
+[Unit]
+Description=Nightly ScholarshipCoach backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

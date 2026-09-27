@@ -85,6 +85,13 @@ systemctl daemon-reload
 systemctl enable "$SERVICE"
 systemctl restart "$SERVICE"
 
+log "Nightly backup timer"
+install -d -m 755 /etc/scholarshipcoach
+install -m 644 "$APP_DIR/deploy/$SERVICE-backup.service" "/etc/systemd/system/$SERVICE-backup.service"
+install -m 644 "$APP_DIR/deploy/$SERVICE-backup.timer" "/etc/systemd/system/$SERVICE-backup.timer"
+systemctl daemon-reload
+systemctl enable --now "$SERVICE-backup.timer"
+
 cat <<EOF
 
 Done. The clone has only what git tracks. Copy these from the dev PC as $APP_USER,
@@ -95,4 +102,10 @@ then run: sudo systemctl restart $SERVICE
   data/processed/embeddings/         (optional; rebuilt on demand)
   data/processed/win_model/          (optional)
 Check: curl -fsS http://127.0.0.1:8501/_stcore/health
+
+Backups (and deploy/update.sh) fail until /etc/scholarshipcoach/restic.env exists:
+  RESTIC_REPOSITORY, RESTIC_PASSWORD, B2_ACCOUNT_ID, B2_ACCOUNT_KEY
+  chown $APP_USER:$APP_USER /etc/scholarshipcoach/restic.env
+  chmod 600 /etc/scholarshipcoach/restic.env
+then, as $APP_USER: set -a; . /etc/scholarshipcoach/restic.env; restic init
 EOF

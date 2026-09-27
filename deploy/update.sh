@@ -30,8 +30,20 @@ if [[ -n $(git status --porcelain --untracked-files=all -- "$RECORDS_DIR") ]]; t
     fi
 fi
 
+# A pull can add files under src/store/migrations/, and src/store/db.py applies
+# them to coach.db on the first connection after the restart -- irreversibly.
+echo "==> Backup before pull"
+deploy/backup.sh || fail "backup failed; not pulling (coach.db may be migrated by the update)"
+
+before=$(git rev-parse HEAD)
 echo "==> git pull"
 git pull --ff-only origin main
+
+added=$(git diff --name-only --diff-filter=A "$before" HEAD -- src/store/migrations/)
+if [[ -n $added ]]; then
+    echo "==> New migrations (applied to coach.db on restart):"
+    printf '    %s\n' $added
+fi
 
 echo "==> pip install"
 .venv/bin/pip install -q -e . -c constraints-ci.txt

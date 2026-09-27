@@ -175,24 +175,27 @@ python scripts/validate_catalog.py
 ```
 
 **Checklist:**
-- [ ] `deploy/backup.sh`: takes a consistent copy with `sqlite3 coach.db ".backup ..."` (safe
+- [x] `deploy/backup.sh`: takes a consistent copy with `sqlite3 coach.db ".backup ..."` (safe
       while the app is running, unlike a file copy), then `restic backup` of that copy,
       `data/private/students/`, `data/catalog/inbox/`, and `.streamlit/secrets.toml`; retention
       `--keep-daily 14 --keep-weekly 8 --keep-monthly 12`; reads repository and password from
       `/etc/scholarshipcoach/restic.env` (mode 600, never in git)
-- [ ] `deploy/restore.sh <snapshot-id|latest>`: stops the service, moves `data/private/` aside
+- [x] `deploy/restore.sh <snapshot-id|latest>`: stops the service, moves `data/private/` aside
       to `private_before_restore_<stamp>`, restores, checks `coach.db` opens and prints row
       counts per table, starts the service
-- [ ] `deploy/scholarshipcoach-backup.service` + `.timer`: nightly at 03:30 server time,
+- [x] `deploy/scholarshipcoach-backup.service` + `.timer`: nightly at 03:30 server time,
       `Persistent=true`
-- [ ] `deploy/update.sh` runs `deploy/backup.sh` before `git pull` and stops if the backup
+- [x] `deploy/update.sh` runs `deploy/backup.sh` before `git pull` and stops if the backup
       fails. The pull can bring new files under `src/store/migrations/`, and `src/store/db.py`
       applies them on the first connection after the restart, so an update may change `coach.db`
       irreversibly. The Roles & Product Plan is expected to add migrations. The update log names
       any migration files the pull added
-- [ ] `tests/test_deploy_config.py` extended: `restic.env` is referenced by path only and is
+- [x] `tests/test_deploy_config.py` extended: `restic.env` is referenced by path only and is
       not present in the repo; `update.sh` calls `backup.sh` before `git pull`
-- [ ] All four CI commands green
+- [x] All four CI commands green
+      *(2026-09-27: `restore.sh` runs as root and fetches the snapshot before stopping the
+      service; `inbox/` and `secrets.toml` are restored only when the server has none.
+      `bootstrap.sh` now creates `/etc/scholarshipcoach/` and enables the backup timer)*
 
 ---
 

@@ -50,3 +50,30 @@ def test_update_health_check_fetches_a_real_font() -> None:
     match = re.search(r"FONT_PATH=(/app/static/fonts/\S+\.woff2)", text)
     assert match is not None
     assert (ROOT_DIR / match.group(1).lstrip("/")).is_file()
+
+
+RESTIC_ENV = "/etc/scholarshipcoach/restic.env"
+
+
+def test_restic_env_is_referenced_by_path_and_not_in_repo() -> None:
+    for name in ("backup.sh", "restore.sh"):
+        text = (DEPLOY_DIR / name).read_text(encoding="utf-8")
+        assert f"ENV_FILE={RESTIC_ENV}" in text, name
+    assert not list(ROOT_DIR.rglob("restic.env"))
+
+
+def test_update_backs_up_before_pull() -> None:
+    lines = UPDATE_PATH.read_text(encoding="utf-8").splitlines()
+    commands = [line.strip() for line in lines if not line.strip().startswith(("#", "echo"))]
+    backup = next(i for i, line in enumerate(commands) if line.startswith("deploy/backup.sh"))
+    pull = next(i for i, line in enumerate(commands) if line.startswith("git pull"))
+    assert backup < pull
+    assert "|| fail" in commands[backup]
+
+
+def test_backup_timer_is_nightly_and_persistent() -> None:
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
+    parser.optionxform = str  # type: ignore[assignment,method-assign]
+    parser.read(DEPLOY_DIR / "scholarshipcoach-backup.timer", encoding="utf-8")
+    assert parser["Timer"]["OnCalendar"] == "*-*-* 03:30:00"
+    assert parser["Timer"]["Persistent"] == "true"

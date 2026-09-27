@@ -1,0 +1,13 @@
+# Encrypted off-server backup. Started nightly by scholarshipcoach-backup.timer;
+# installed by deploy/bootstrap.sh.
+[Unit]
+Description=ScholarshipCoach restic backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=coach
+Group=coach
+WorkingDirectory=/srv/scholarshipcoach
+ExecStart=/srv/scholarshipcoach/deploy/backup.sh
