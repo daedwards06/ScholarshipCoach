@@ -63,6 +63,23 @@ this protocol exactly:
 - **Types:** `python -m mypy src/` and `python -m mypy app/` — must stay at 0 errors.
 - **Catalog:** `python scripts/validate_catalog.py` — must pass.
 
+## UI/UX rules
+
+- The app is Streamlit (1.54). Never generate React, Vue, Svelte, Tailwind, shadcn, or standalone
+  HTML pages/components. Do not use the `ui-styling`, `design`, `brand`, `banner-design`, or
+  `slides` skills for this app.
+- Use `ui-ux-pro-max` for design decisions only: palette, typography, spacing, UX guidelines,
+  chart choices, anti-patterns. It has no Streamlit stack; ignore its stack-specific code.
+- Apply designs in this order:
+  1. `.streamlit/config.toml` `[theme]` — colors, fonts, radius (check option names against 1.54)
+  2. Native layout — `st.columns`, `st.container`, `st.tabs`, `st.expander`, `st.badge`, etc.
+  3. CSS only where theming can't reach, added to `phone_width_css()` in `app/helpers.py`
+     (the single injected stylesheet). Target `data-testid` attributes or `.st-key-<key>`
+     classes from keyed containers — never `st-emotion-cache-*` class names.
+- Small inline HTML fragments via `st.markdown(unsafe_allow_html=True)` are allowed only when no
+  native element does the job; never interpolate user or catalog text into them unescaped.
+- Student surfaces are checked at ~400px width (see `docs/operations.md` "Phone width").
+
 ## Environment
 
 - Python 3.12, Windows 11 / PowerShell.
