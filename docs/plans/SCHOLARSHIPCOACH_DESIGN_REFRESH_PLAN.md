@@ -5,6 +5,10 @@
 > Design system: `design-system/scholarshipcoach/MASTER.md` + `pages/student-mode.md`,
 > `pages/parent-mode.md` (read these before any task; page files override Master)
 > Executor: Claude via Claude Code | Est. effort: 5 phases, 11 tasks
+> **Updated 2026-09-27:** the owner is moving toward a "student path + parent money view" role
+> model (see "Relationship to other plans"). Phase 2 is **on hold** and expected to move to the
+> Roles & Product Plan; Task 1.3 is narrowed to the navigation *mechanism*; Execution Order
+> rewritten across all three active plans.
 
 ---
 
@@ -64,10 +68,23 @@ and the plain-English reasons from `explain_ranked_row()`.
 **Relationship to other plans:**
 - **UI Redesign Plan:** complete except its screenshot follow-up. This plan supersedes its Task 1
   theme values (`#4ECDC4` / `#0E1117` / `#1A1A2E`) and re-takes its README screenshots in Task 4.2.
-- **Cloud Hosting Plan:** independent. The 2026-09-26 hosting discussion deferred the design refresh
-  until after hosting. This plan touches `.streamlit/config.toml` (`[theme*]`, and
-  `server.enableStaticServing` in Task 1.1) and `app/`; hosting touches `deploy/` and
-  `docs/operations.md`. If both run at once, merge the `[server]` block by hand.
+- **Cloud Hosting Plan:** runs in parallel. This plan touches `.streamlit/config.toml` and
+  `app/`; hosting touches `deploy/` and `docs/operations.md`. Task 1.1 already added
+  `enableStaticServing = true` to `[server]` (fonts in `app/static/`), and the hosting plan's
+  Task 1.1 now checks that the server picks it up. Task 4.1's real-phone check uses the hosted
+  address once hosting Phase 2 is live.
+- **Roles & Product Plan** (`docs/plans/SCHOLARSHIPCOACH_ROLES_PRODUCT_PLAN.md`, to be written by
+  the roles/UX review): after 2026-09-27 discussions the leading role model is **Student mode as
+  her path to college** (starting from her first target school and intended CS major) with
+  **Parent mode as the money and strategy view**, tested first as a light version. Ownership
+  between the plans:
+  - *Roles & Product Plan* owns **what** exists: roles, the page list and grouping, what each
+    page is for and shows, data and catalog changes.
+  - *This plan* owns **how it looks**: theme, badges, components, page chrome, phone-width rules,
+    the screenshot harness, and the final sweep.
+  - So Phase 2 (student page content) is on hold and expected to move there, and the
+    design-system student-card rules ("money is the headline") are revisited by that plan. Under
+    the leading model, money-first cards become a `parent-mode.md` rule.
 - **Operator mode** keeps every pipeline control removed from Student view (F4). Nothing is
   deleted, only moved.
 
@@ -80,7 +97,7 @@ and the plain-English reasons from `explain_ranked_row()`.
 | D1 | Direction | **A — Study Hall** (decided 2026-09-26) | B, C above |
 | D2 | Light/dark | Follow the device's system setting | Force light; force dark |
 | D3 | Navigation | `st.navigation(position="top")` | Sidebar `st.navigation` with sections (fallback if top overflows at 400px) |
-| D4 | Find on arrival | Rank automatically with the saved profile (cached) | Keep the Run button |
+| D4 | Find on arrival | *Moved to the Roles & Product Plan with Task 2.1* (was: rank automatically with the saved profile, cached) | Keep the Run button |
 | D5 | Fonts | Nunito + Nunito Sans, self-hosted `.woff2` in `app/static/fonts/` | System font stack (zero files, less personality) |
 
 ---
@@ -239,10 +256,18 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 **Why:** F2 and F3. Navigation is the frame every other screen sits in, and fixing it after the
 sections are restyled would mean restyling twice.
 
+**Scope (2026-09-27):** the *mechanism* only, built over **today's sections**: top navigation,
+one URL per page, per-mode layout, no global title, the profile page. Which pages exist, how they
+are grouped, and what they are called belong to the Roles & Product Plan. Build it so that a later
+page-list change is an edit to `pages_for_mode` and `SECTION_LABELS` and nothing else. This task
+can run in parallel with the roles/UX review.
+
 **Preflight Files:**
 - `design-system/scholarshipcoach/MASTER.md` ("Navigation and page chrome"), both `pages/*.md`
   ("Layout overrides")
 - `app/main.py`, `app/modes.py`, `app/sidebar.py`, `app/state.py`
+- `app/screenshot_entry.py`, `scripts/screenshot_app.py` (`section_url`; the harness navigates
+  through the state this task replaces)
 - `tests/test_app_modes.py`
 
 **Validation Commands:**
@@ -260,11 +285,13 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
       the existing `SECTION_RENDERERS` and calls `st.navigation(..., position="top")` with only the
       pages the resolved mode may see. A deep link to a parent-only URL in Student mode lands on
       This Week, not an error
-- [ ] Student nav shows at most five items (This Week, Find, Applications, Essays, and a "More"
-      section with Recommenders, What If, My Profile); Parent groups "Student views" / "Family
-      tools" per `parent-mode.md`
-- [ ] Checked at 400px: the top bar does not wrap into more than one row or push content below
-      the fold. If it does, fall back to D3's sidebar alternative and record why in
+- [ ] Nav lists today's sections for each mode, in the order `sections_for_mode` gives, plus My
+      Profile. `pages_for_mode` may return grouped sections (a `dict` for `st.navigation`), but
+      the grouping chosen here is provisional; the final page list and grouping ("More",
+      "Student views" / "Family tools" in `pages/*.md`) come from the Roles & Product Plan
+- [ ] Checked at 400px in Student mode (7 items) and Parent mode (12 items): the top bar does not
+      wrap into more than one row or push content below the fold. If it does, group the pages
+      (Parent first) or fall back to D3's sidebar alternative, and record which and why in
       `docs/decisions.md`
 - [ ] `st.set_page_config(layout="centered")` in Student mode, `"wide"` in Parent/Operator
 - [ ] The global `st.title("Scholarship Coach")` and caption are removed; each section opens with
@@ -272,6 +299,11 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 - [ ] Profile form moves from the sidebar to a "My Profile" page (`app/sections/profile.py`); the
       sidebar keeps only the mode switch, PIN prompt and mode caption (plus operator tools in
       Operator mode)
+- [ ] Screenshot harness updated in the same task: `app/screenshot_entry.py` currently opens a
+      page by writing `?shot_section=` into `SECTION_STATE_KEY`, which `st.navigation` no longer
+      reads. `section_url()` in `scripts/screenshot_app.py` opens each page by its `url_path` (keeping
+      `shot_mode` for the mode and PIN unlock); a full `--theme both --scratch-db --seed` sweep
+      captures every page of both modes, and each capture is the requested page, not This Week
 - [ ] Pure page-list functions in `app/modes.py` (`pages_for_mode`) are unit-tested: every section
       has a URL path and icon, no duplicates, parent-only pages absent from Student, PIN still gates
       Parent. Existing `test_app_modes.py` tests updated rather than deleted
@@ -280,6 +312,16 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ---
 
 # Phase 2 — Student Surfaces
+
+> **ON HOLD (2026-09-27) — expected to move to the Roles & Product Plan.** These tasks assume the
+> student's job is applying for scholarships. The leading role model makes Student mode her path
+> to college and moves money-first views to Parent mode, which changes what Find, This Week and
+> the tracker pages are for. Do not implement them from this plan. When the Roles & Product Plan
+> is written it should absorb each task (marking it here "MOVED → <plan> Task N", the convention
+> the Portfolio → UI Redesign handoff used) or release it back unchanged. The checklists below are
+> kept as a starting point. The visual pieces (compact card layout, badge rows, one primary action,
+> `render_empty_state`, phone-width CSS scoping) still follow this plan's design system wherever
+> they end up.
 
 ## Task 2.1: Find — Results First, Compact Award Cards
 
@@ -437,6 +479,11 @@ python scripts/screenshot_app.py --theme both --scratch-db
 
 **Why:** F8 on the page where it is loudest, plus dense views parents compare across a year.
 
+**Depends on (2026-09-27):** the Roles & Product Plan deciding who the Timeline belongs to
+(parent-only, shared, or split into her milestones and the family's money dates) and what
+Colleges & Money holds once target schools exist. Run this task after that
+decision. Task 3.1 has no such dependency.
+
 **Preflight Files:**
 - `design-system/scholarshipcoach/pages/parent-mode.md` ("Timeline", "Colleges & Money",
   "Outcomes")
@@ -472,6 +519,10 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 
 **Why:** Tasks land one page at a time. Drift between pages is only visible when they are seen
 side by side.
+
+**When (2026-09-27):** after the Roles & Product Plan's page work ships, so the sweep and
+reconciliation cover the pages the family will actually use. It includes pages that plan built
+with this design system.
 
 **Preflight Files:**
 - `design-system/scholarshipcoach/MASTER.md` ("Pre-delivery checklist"), both `pages/*.md`
@@ -536,19 +587,39 @@ python scripts/validate_catalog.py
 
 ## Execution Order
 
+Done: 0.1 harness → 1.1 theme + fonts → 1.2 status vocabulary.
+
+Revised 2026-09-27 across the three active plans (this one, Cloud Hosting, and the Roles &
+Product Plan to be written):
+
 ```
-Phase 0  0.1 screenshot harness
-Phase 1  1.1 theme + fonts → 1.2 status vocabulary → 1.3 top nav + page chrome
-Phase 2  2.1 Find → 2.2 This Week + empty states → 2.3 tracker pages
-Phase 3  3.1 Catalog & Settings → 3.2 Timeline, Money, Outcomes
-Phase 4  4.1 full sweep + reconcile → 4.2 screenshots + docs
+Now, in parallel:
+  Hosting Phase 1–2: repo scripts, server, backups, restore drill (no app changes)
+  Refresh 1.3: nav/chrome mechanism over today's pages
+  Refresh 3.1: catalog form tabs, Settings order
+  Owner: observation session with the student + parent notes (no code)
+  Owner: the first target school's merit awards and grade-scoped milestones entered
+    via Catalog & Inbox and Settings (re-verify dates; researched values are for the
+    2026–27 cycle)
+
+Then: roles/UX review → writes the Roles & Product Plan
+  Decides the role model, page list and grouping, parent visibility of essays,
+  identity vs family PIN; absorbs or releases Refresh Phase 2
+
+Roles & Product Plan, Phase A (light version), built with this design system
+  Refresh 3.2 once the Timeline's owner is settled
+
+Hosting 3.1 family onboarding (after the identity decision and Phase A ship)
+  → about a month of real use → the Roles & Product Plan's go/no-go gate for its Phase B
+
+Last, across everything:
+  Refresh 4.1 full sweep + reconcile → 4.2 screenshots + docs
 ```
 
-0.1 comes first because every later task is checked with it. 1.1 comes before any page work so
-nothing is tuned against the old palette. 1.2 comes before 1.3 and the page tasks because they all
-render its badges. 1.3 comes before Phase 2 because the page chrome and layout mode change what
-fits at 400px. Phase 3 can run before Phase 2 if the parents' catalog work is more pressing. 4.2
-runs last, after the screenshots stop changing.
+Within this plan the original reasons still hold. 0.1 came first because every task is checked
+with it. 1.1 came before page work so nothing is tuned against the old palette. 1.2 came before
+page tasks because they render its badges. 1.3 comes before any page content because the chrome
+and layout mode change what fits at 400px. 4.2 runs last, after the screenshots stop changing.
 
 ## Success Criteria
 
@@ -558,7 +629,8 @@ runs last, after the screenshots stop changing.
    its own URL.
 3. On This Week at 400×860, the first due item or the empty state's "Next up" is visible without
    scrolling.
-4. Find shows ranked results on arrival; a typical card is ≤ 260px tall at 400px.
+4. A typical card on any list page is ≤ 260px tall at 400px. (Whether Find ranks on arrival, and
+   what Student mode lists at all, moved to the Roles & Product Plan with Phase 2.)
 5. No emoji status icons, no "URGENT", and no pipeline vocabulary on any Student or Parent page;
    Operator mode keeps every control it had.
 6. No request leaves the server for fonts.

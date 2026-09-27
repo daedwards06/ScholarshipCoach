@@ -52,7 +52,21 @@ What the app needs from a host, measured the same day:
 
 **Relationship to other plans:**
 - Replaces the hosting half of Family Product Plan Task 4.1; its PIN and phone-width work stand.
-- The design refresh (UI UX Pro Max) is a separate, later plan. Nothing here touches `app/` UI.
+- **Design Refresh Plan** (updated 2026-09-27): runs in parallel; nothing here touches `app/` UI.
+  Its Task 1.1 already put `[server] enableStaticServing = true` in `.streamlit/config.toml` and
+  self-hosted fonts in `app/static/fonts/`. The service must therefore run from the repo root, so
+  that config and static directory are picked up (Task 1.1 checks this).
+- **Roles & Product Plan** (`docs/plans/SCHOLARSHIPCOACH_ROLES_PRODUCT_PLAN.md`, to be written by
+  the roles/UX review; leading model: Student mode as her path to college, Parent mode as the
+  money view). Two dependencies run through this plan:
+  - *Schema changes on a live database.* `src/store/db.py` applies numbered migrations from
+    `src/store/migrations/` automatically on connect, so the first request after an update
+    migrates `coach.db` on the server. Task 1.2 makes `update.sh` take a backup before it pulls.
+  - *Identity.* That plan decides whether parent access stays a family PIN or becomes per-person
+    identity, for example the signed-in Tailscale user that `tailscale serve` can pass to the app.
+    This must be decided before Task 3.1 onboards phones, and it constrains D3.
+  - *Timing.* Task 3.1 onboarding waits for that plan's light version (its Phase A) to ship, so the
+    family's first weeks on their phones are the real-use test that plan's go/no-go gate needs.
 
 ---
 
@@ -62,7 +76,7 @@ What the app needs from a host, measured the same day:
 |---|---|---|---|
 | D1 | Provider and size | Hetzner Cloud, smallest shared-vCPU plan with **4 GB RAM**, a US location | DigitalOcean / Linode 4 GB (more expensive); a home mini PC |
 | D2 | OS | Ubuntu 24.04 LTS (ships Python 3.12, matching CI) | Debian 12 + deadsnakes Python |
-| D3 | Tailscale accounts | One family tailnet; check the free plan's current user limit against the number of family members | Everyone on one shared login |
+| D3 | Tailscale accounts | One family tailnet with **one account per person**; check the free plan's current user limit against the number of family members | Everyone on one shared login (rules out per-person identity if the Roles & Product Plan chooses it) |
 | D4 | Backup destination | `restic` to Backblaze B2 (encrypted client-side, pennies a month) | Hetzner Storage Box; nightly pull to a home machine |
 | D5 | Catalog edits | Server commits to a `server` branch, owner merges by PR | Catalog edits only on the dev PC; server catalog read-only |
 
@@ -126,6 +140,12 @@ python scripts/validate_catalog.py
 - [ ] `tests/test_deploy_config.py`: the unit's `ExecStart` binds `--server.address 127.0.0.1`
       and nothing in `deploy/` contains `0.0.0.0` or `tailscale funnel` — a guard against a
       future edit exposing the app on the server's public interface
+- [ ] The unit sets `WorkingDirectory=/srv/scholarshipcoach`, so `.streamlit/config.toml` (theme,
+      `enableStaticServing`) and `app/static/` are found; `update.sh`'s health check also fetches
+      one self-hosted font file under `/app/static/fonts/` and requires HTTP 200
+- [ ] The `[server]` comment in `.streamlit/config.toml` that mentions passing
+      `--server.address 0.0.0.0` is rewritten to describe the server setup (127.0.0.1 behind
+      `tailscale serve`), since 0.0.0.0 is now the thing the deploy test forbids
 - [ ] All four CI commands green
 
 ---
@@ -139,7 +159,9 @@ leave the machine, be encrypted before it does, and be restorable by a script.
 **Preflight Files:**
 - `scripts/backup_private.ps1` (current backup, retention of 8)
 - `docs/operations.md` ("Back up `data/private/`" and "Restore" sections)
-- `src/store/db.py` (`PRIVATE_DIR`, how `coach.db` is opened)
+- `src/store/db.py` (`PRIVATE_DIR`, how `coach.db` is opened, `apply_migrations` on connect)
+- `src/store/migrations/` (numbered SQL files applied automatically)
+- `deploy/update.sh` (from Task 1.1)
 
 **Validation Commands:**
 ```powershell
@@ -161,8 +183,13 @@ python scripts/validate_catalog.py
       counts per table, starts the service
 - [ ] `deploy/scholarshipcoach-backup.service` + `.timer`: nightly at 03:30 server time,
       `Persistent=true`
+- [ ] `deploy/update.sh` runs `deploy/backup.sh` before `git pull` and stops if the backup
+      fails. The pull can bring new files under `src/store/migrations/`, and `src/store/db.py`
+      applies them on the first connection after the restart, so an update may change `coach.db`
+      irreversibly. The Roles & Product Plan is expected to add migrations. The update log names
+      any migration files the pull added
 - [ ] `tests/test_deploy_config.py` extended: `restic.env` is referenced by path only and is
-      not present in the repo
+      not present in the repo; `update.sh` calls `backup.sh` before `git pull`
 - [ ] All four CI commands green
 
 ---
@@ -299,8 +326,14 @@ systemctl list-timers 'scholarshipcoach-*'               # backup, verify, catal
 **Why:** The goal is a home-screen icon that works from school, not a server that works from
 the dev PC.
 
+**Prerequisites (2026-09-27):** the Roles & Product Plan has (1) decided how parent access works
+(family PIN or per-person identity) and (2) shipped its light version (Phase A). Onboarding
+starts the month of real use that plan's go/no-go gate depends on. Onboarding earlier just
+shows the family the version that is about to change.
+
 **Preflight Files:**
 - `docs/operations.md` ("Set the family PIN first", "Phone width")
+- The Roles & Product Plan's identity / access decision
 
 **Validation Commands:** none automated; the checklist is the test.
 
@@ -309,7 +342,9 @@ the dev PC.
 - [ ] Each phone opens `https://coach.<tailnet>.ts.net` **on cellular data, Wi-Fi off**, the test
       that proves it is not reaching anything at home
 - [ ] "Add to Home Screen" on each phone
-- [ ] Student mode opens without a PIN; Parent mode asks for one
+- [ ] Access works as the Roles & Product Plan decided: with the family PIN, Student mode opens
+      without it and Parent mode asks for it; with per-person identity, each family member's own
+      Tailscale login lands in the right mode and the student cannot reach parent-only pages
 - [ ] Any phone that also runs a VPN app (NordVPN): confirm which one wins, since phones
       generally allow one active VPN at a time; note the outcome in `docs/operations.md`
 
@@ -362,6 +397,17 @@ Phase 1 needs no server and can land before the owner signs up anywhere. Task 2.
 no student data reaches a machine that still has a public SSH port. Task 2.3 before 3.1 so the
 family never depends on a server whose backups have not been restored once. Task 3.2 last, after
 the home PC's tasks are no longer the thing keeping the app alive.
+
+**Across plans (2026-09-27):** Phases 1–2 run now, in parallel with Design Refresh Tasks 1.3 and
+3.1 and the roles/UX review. Task 3.1 waits for the Roles & Product Plan's access decision and its
+Phase A, per the prerequisites in that task. Task 1.2's backup-before-update must be in place
+before any Roles & Product Plan migration reaches the server.
+
+**One copy of record.** From Task 2.2 on, the server's `data/private/` and catalog records are
+the live copies. Owner data entry (target-school awards and milestones, profile edits) happens in the
+browser against `https://coach.<tailnet>.ts.net`, never against a dev-PC run. Local development
+uses `scripts/screenshot_app.py --scratch-db` or a copy, so the two databases never diverge.
+Before Task 2.2, entry on the dev PC is fine; Task 2.2 copies it over.
 
 ## Success Criteria
 
