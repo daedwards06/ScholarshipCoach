@@ -218,19 +218,19 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] `app/helpers.py`: pure `deadline_badge(days_until, *, kind="deadline"|"milestone",
+- [x] `app/helpers.py`: pure `deadline_badge(days_until, *, kind="deadline"|"milestone",
       projected=False, deadline=None) -> DeadlineBadge(label, icon, color)` implementing MASTER
       "Deadline states"; milestones never return red/orange or the word "urgent"
-- [ ] `friendly_date(d, today)` → `Fri, Oct 10` within the school year, `Oct 10, 2027` beyond it;
+- [x] `friendly_date(d, today)` → `Fri, Oct 10` within the school year, `Oct 10, 2027` beyond it;
       "Unknown" amounts render as "Amount not listed"
-- [ ] `urgency_indicator` removed; the four sections render `st.badge(label, icon=, color=)`
-- [ ] `explain_ranked_row`: the "Deadline soon" reason appears only when the deadline is ≤ 14
+- [x] `urgency_indicator` removed; the four sections render `st.badge(label, icon=, color=)`
+- [x] `explain_ranked_row`: the "Deadline soon" reason appears only when the deadline is ≤ 14
       days away; the wording changes, the scores do not
-- [ ] Emoji removed from app chrome: "📊 Win Model Summary", "✓ Saved" (→ green "Saved" badge),
+- [x] Emoji removed from app chrome: "📊 Win Model Summary", "✓ Saved" (→ green "Saved" badge),
       "⚠️" strings. `grep` for common emoji ranges in `app/` returns only user-data paths
-- [ ] Tests: every `deadline_badge` state; milestone never red; `friendly_date` year boundary;
+- [x] Tests: every `deadline_badge` state; milestone never red; `friendly_date` year boundary;
       the F9 case (40 days → no "soon")
-- [ ] All five CI commands green
+- [x] All five CI commands green
 
 ---
 

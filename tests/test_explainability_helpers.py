@@ -33,7 +33,7 @@ def test_explain_ranked_row_is_stable_and_prioritizes_strong_signals() -> None:
 @pytest.mark.parametrize(
     "amount_min,amount_max,expected",
     [
-        (None, None, "Unknown"),
+        (None, None, "Amount not listed"),
         (None, 5000, "Up to $5,000"),
         (2500, None, "$2,500+"),
         (4000, 4000, "$4,000"),
@@ -135,3 +135,26 @@ def test_needs_date_awards_falls_back_to_the_minimum_amount() -> None:
 def test_needs_date_awards_handles_frames_without_the_column() -> None:
     assert needs_date_awards(pd.DataFrame([{"scholarship_id": "a"}])).empty
     assert needs_date_awards(None).empty
+
+
+def test_deadline_reason_needs_the_deadline_within_two_weeks() -> None:
+    # F9: a 40-day deadline still earns e^(-40/30) of urgency boost, and the
+    # card used to call it "soon" next to a "Later" badge.
+    far = pd.Series(
+        {"tfidf_sim": 0.1, "urgency_boost": 0.26, "days_to_deadline": 40, "essay_required": True}
+    )
+    near = pd.Series(
+        {"tfidf_sim": 0.1, "urgency_boost": 0.72, "days_to_deadline": 10, "essay_required": True}
+    )
+
+    assert "Due within two weeks" not in explain_ranked_row(far)
+    assert explain_ranked_row(near)[0] == "Due within two weeks"
+
+
+def test_deadline_reason_falls_back_to_the_boost_without_a_day_count() -> None:
+    assert "Due within two weeks" not in explain_ranked_row(
+        pd.Series({"urgency_boost": 0.26, "essay_required": True})
+    )
+    assert "Due within two weeks" in explain_ranked_row(
+        pd.Series({"urgency_boost": 0.72, "essay_required": True})
+    )

@@ -6,7 +6,7 @@ from typing import Any
 import streamlit as st
 
 from app import modes, state
-from app.helpers import days_until_deadline, urgency_indicator
+from app.helpers import days_until_deadline, deadline_badge, friendly_date, parse_date
 from app.sections.essays import render_prompt_slot
 from src.store import essays, repo, tracker
 from src.store.db import open_db
@@ -118,10 +118,16 @@ def _render_application_detail(
 
     with st.expander(header, expanded=False):
         if application.deadline:
-            days_until = days_until_deadline(application.deadline, today_value)
-            urgency_text, _ = urgency_indicator(days_until)
-            st.caption(f"Deadline: {application.deadline} · {urgency_text}")
-        if application.submitted_on:
+            badge = deadline_badge(
+                days_until_deadline(application.deadline, today_value),
+                deadline=parse_date(application.deadline),
+                owed=status not in ("submitted", *tracker.DECIDED_STATUSES),
+            )
+            st.badge(badge.label, icon=badge.icon, color=badge.color)
+        submitted_on = parse_date(application.submitted_on)
+        if submitted_on is not None:
+            st.caption(f"Submitted {friendly_date(submitted_on, today_value)}")
+        elif application.submitted_on:
             st.caption(f"Submitted {application.submitted_on}")
         if application.source_url:
             st.link_button("Apply at Source", application.source_url)

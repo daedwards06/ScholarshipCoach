@@ -186,8 +186,8 @@ Timeline `calendar_month`, Colleges & Money `payments`, Outcomes `emoji_events`,
 - Reasons are one joined line, not one paragraph per bullet.
 - One primary action per card: **Save** until saved, then the card shows a green "Saved" badge and
   **Apply** becomes primary.
-- The urgency reason must not contradict the deadline badge. Only say "deadline soon" when the
-  badge is orange or red.
+- The urgency reason must not contradict the deadline badge. It appears only when the deadline is
+  ≤ 14 days away and states a fact ("Due within two weeks"), never an alarm.
 
 ### Status badge
 `st.badge(label, icon=":material/…:", color=…)` using the deadline and status mappings above.

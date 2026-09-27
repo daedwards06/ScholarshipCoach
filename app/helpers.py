@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from datetime import date
-from typing import Any
+import math
+from datetime import date, timedelta
+from typing import Any, Literal, NamedTuple
 
 import pandas as pd
 
+from src.profile.grade_levels import school_year_end
 from src.rank.stage1_eligibility import UNVERIFIED_AXIS_LABELS
 from src.rank.stage3_rerank import effort_counts, is_local_award
 from src.text_utils import coerce_text
@@ -74,7 +76,7 @@ def format_amount_range(amount_min: Any, amount_max: Any) -> str:
     min_value = _coerce_amount(amount_min)
     max_value = _coerce_amount(amount_max)
     if min_value is None and max_value is None:
-        return "Unknown"
+        return "Amount not listed"
     if min_value is None:
         return f"Up to ${max_value:,.0f}"
     if max_value is None:
@@ -149,8 +151,8 @@ def explain_ranked_row(
             "High direct keyword overlap",
         ),
         (
-            float(_coerce_float(row.get("urgency_boost")) or 0.0),
-            "Deadline soon, boosted for urgency",
+            _due_soon_score(row),
+            "Due within two weeks",
         ),
     ]
     if operator_mode:
@@ -269,16 +271,102 @@ def timeline_deadline(row: pd.Series, today: date) -> tuple[str, bool]:
     return deadline, False
 
 
-def urgency_indicator(days_until_deadline: int | None) -> tuple[str, str]:
-    if days_until_deadline is None:
-        return ("⚠️ Unknown deadline", "#666666")
-    if days_until_deadline < 0:
-        return ("⏰ Passed", "#888888")
-    if days_until_deadline <= 7:
-        return ("🔴 URGENT (≤7 days)", "#FF4444")
-    if days_until_deadline <= 30:
-        return ("🟡 Soon (≤30 days)", "#FFAA00")
-    return ("🟢 Later", "#00AA00")
+BadgeColor = Literal["red", "orange", "yellow", "blue", "green", "violet", "gray"]
+
+
+class DeadlineBadge(NamedTuple):
+    label: str
+    icon: str
+    color: BadgeColor
+
+
+# The ranking's urgency boost is e^(-days/30), so it is positive for any
+# upcoming deadline. A reason only says "due soon" inside this window, or it
+# contradicts the card's own "Due Nov 5" badge.
+DUE_SOON_REASON_DAYS = 14
+
+
+def friendly_date(d: date, today: date, *, weekday: bool = True) -> str:
+    """``Fri, Oct 10`` inside the current school year, ``Oct 10, 2027`` beyond it."""
+    if school_year_end(d) != school_year_end(today):
+        return f"{d:%b} {d.day}, {d.year}"
+    day = f"{d:%b} {d.day}"
+    return f"{d:%a}, {day}" if weekday else day
+
+
+def deadline_badge(
+    days_until: int | None,
+    *,
+    kind: Literal["deadline", "milestone"] = "deadline",
+    projected: bool = False,
+    deadline: date | None = None,
+    owed: bool = True,
+) -> DeadlineBadge:
+    """The one deadline status used on every page (MASTER "Deadline states").
+
+    ``owed`` is False for dates nobody has committed to -- a catalog award the
+    student never saved, or an application already sent -- so a past date is
+    "Passed", not "Overdue". Milestones mark something opening, not a deadline,
+    so they are never red or orange.
+    """
+    def when(*, weekday: bool = False) -> str:
+        if deadline is None or days_until is None:
+            return ""
+        return friendly_date(deadline, deadline - timedelta(days=days_until), weekday=weekday)
+
+    if projected:
+        return DeadlineBadge(
+            f"Usually ~{when()}" if deadline and days_until is not None else "Date projected",
+            ":material/update:",
+            "gray",
+        )
+    if days_until is None:
+        return DeadlineBadge("Date not posted yet", ":material/help:", "yellow")
+    if days_until < 0:
+        if kind == "deadline" and owed:
+            label = f"Overdue · was {when()}" if deadline else "Overdue"
+            return DeadlineBadge(label, ":material/error:", "red")
+        return DeadlineBadge("Passed", ":material/history:", "gray")
+
+    countdown = _countdown_text(days_until)
+    if kind == "milestone":
+        date_text = when(weekday=days_until <= 7)
+        label = date_text if days_until > 30 else " · ".join(p for p in (date_text, countdown) if p)
+        return DeadlineBadge(label or countdown.capitalize(), ":material/flag:", "blue")
+    if days_until <= 7:
+        label = f"Due {when(weekday=True)} · {countdown}" if deadline else _due_in(countdown)
+        return DeadlineBadge(label, ":material/schedule:", "orange")
+    if days_until <= 30:
+        label = f"Due {when()} · {countdown}" if deadline else _due_in(countdown)
+        return DeadlineBadge(label, ":material/event:", "blue")
+    return DeadlineBadge(f"Due {when()}" if deadline else "Due later", ":material/event:", "gray")
+
+
+def parse_date(value: Any) -> date | None:
+    text = coerce_text(value)
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
+def _countdown_text(days_until: int) -> str:
+    if days_until == 0:
+        return "today"
+    return "1 day" if days_until == 1 else f"{days_until} days"
+
+
+def _due_in(countdown: str) -> str:
+    return "Due today" if countdown == "today" else f"Due in {countdown}"
+
+
+def _due_soon_score(row: pd.Series) -> float:
+    boost = float(_coerce_float(row.get("urgency_boost")) or 0.0)
+    days = _coerce_float(row.get("days_to_deadline"))
+    if days is None:
+        # Rows without the day count still carry the boost it came from.
+        return boost if boost >= math.exp(-DUE_SOON_REASON_DAYS / 30.0) else 0.0
+    return boost if 0 <= days <= DUE_SOON_REASON_DAYS else 0.0
 
 
 def row_catalog_id(row: pd.Series) -> str:

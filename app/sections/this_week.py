@@ -5,7 +5,7 @@ from datetime import timedelta
 import streamlit as st
 
 from app import modes, state
-from app.helpers import urgency_indicator
+from app.helpers import deadline_badge, friendly_date, parse_date
 from src.store import tracker
 from src.store.db import open_db
 
@@ -14,7 +14,8 @@ def render() -> None:
     st.subheader(modes.SECTION_LABELS["this_week"])
     today_value = state.effective_today(st.session_state.profile)
     st.caption(
-        f"Due on or before {today_value + timedelta(days=tracker.THIS_WEEK_DAYS)}, "
+        "Due on or before "
+        f"{friendly_date(today_value + timedelta(days=tracker.THIS_WEEK_DAYS), today_value)}, "
         "plus anything already overdue."
     )
     try:
@@ -30,12 +31,12 @@ def render() -> None:
         return
 
     for due in due_items:
-        urgency_text, _ = urgency_indicator(due.days_until)
+        badge = deadline_badge(due.days_until, deadline=parse_date(due.due_on))
         with st.container(border=True):
-            col_what, col_when = st.columns([0.7, 0.3])
+            col_what, col_when = st.columns([0.6, 0.4])
             with col_what:
                 st.markdown(f"**{due.label}**")
                 st.caption(due.award_title)
             with col_when:
-                st.text(due.due_on)
-                st.caption(f"{urgency_text} · {tracker.STATUS_LABELS[due.status]}")
+                st.badge(badge.label, icon=badge.icon, color=badge.color)
+                st.caption(tracker.STATUS_LABELS[due.status])

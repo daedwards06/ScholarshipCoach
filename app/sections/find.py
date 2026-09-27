@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -13,14 +13,15 @@ from app import state
 from app.helpers import (
     award_count_text,
     days_until_deadline,
+    deadline_badge,
     explain_ranked_row,
     format_amount_range,
+    friendly_date,
     needs_date_awards,
     reasons_to_text,
     row_catalog_id,
     timeline_deadline,
     unverified_to_text,
-    urgency_indicator,
 )
 from src.embeddings.cache import ensure_embedding_store_for_df
 from src.profile.store import to_stage2_profile
@@ -164,16 +165,21 @@ def _render_scholarship_card(
     source_url = coerce_text(row.get("source_url"))
 
     days_until = days_until_deadline(deadline, today_value)
-    urgency_text, urgency_color = urgency_indicator(days_until)
+    deadline_date = (
+        None if days_until is None else today_value + timedelta(days=days_until)
+    )
+    badge = deadline_badge(
+        days_until, projected=deadline_is_projected, deadline=deadline_date, owed=False
+    )
 
     with st.container(border=True):
-        col1, col2 = st.columns([0.85, 0.15])
+        col1, col2 = st.columns([0.6, 0.4])
         with col1:
             st.markdown(f"**{title}**")
             if sponsor:
                 st.caption(sponsor)
         with col2:
-            st.markdown(f"<div style='text-align: right; font-size: 0.85em;'>{urgency_text}</div>", unsafe_allow_html=True)
+            st.badge(badge.label, icon=badge.icon, color=badge.color)
 
         col_amt, col_deadline = st.columns(2)
         with col_amt:
@@ -181,11 +187,14 @@ def _render_scholarship_card(
             if amount_not_published:
                 st.caption("Amount not published — ranked on fit alone")
         with col_deadline:
+            deadline_text = (
+                friendly_date(deadline_date, today_value) if deadline_date else deadline
+            )
             if deadline and deadline_is_projected:
-                st.text(f"Next deadline: ~{deadline}")
+                st.text(f"Next deadline: ~{deadline_text}")
                 st.caption("Projected from this award's usual cycle")
             elif deadline:
-                st.text(f"Deadline: {deadline}")
+                st.text(f"Deadline: {deadline_text}")
             else:
                 st.text("Deadline not on record")
                 st.caption("Check the source before you plan around it")
@@ -205,10 +214,10 @@ def _render_scholarship_card(
         col_save, col_apply = st.columns([0.25, 0.75])
         with col_save:
             if already_saved:
-                st.button(
-                    "✓ Saved",
-                    key=f"save_{catalog_id}",
-                    disabled=True,
+                st.badge(
+                    "Saved",
+                    icon=":material/check_circle:",
+                    color="green",
                     help="Already under My Applications.",
                 )
             elif st.button("Save", key=f"save_{catalog_id}", type="secondary"):
@@ -366,7 +375,9 @@ def render() -> None:
         st.subheader(f"Top Ranked Scholarships ({len(top_df)} shown)")
         win_summary = _topk_win_model_summary(top_df) if operator_mode else None
         if win_summary is not None:
-            with st.expander("📊 Win Model Summary", expanded=False):
+            with st.expander(
+                "Win model summary", icon=":material/analytics:", expanded=False
+            ):
                 col1, col2 = st.columns(2)
                 with col1:
                     st.metric("Mean P(Win)", f"{round(win_summary['mean_p_win'], 4)}")

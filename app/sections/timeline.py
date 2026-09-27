@@ -9,11 +9,11 @@ import streamlit as st
 from app import modes, state
 from app.helpers import (
     award_count_text,
+    deadline_badge,
     format_amount_range,
     needs_date_awards,
     row_catalog_id,
     timeline_deadline,
-    urgency_indicator,
 )
 from src.rank.timeline import TIMELINE_BUCKET_LABELS
 from src.store import calendar_feed, milestones
@@ -68,7 +68,12 @@ def _render_calendar_event(event: calendar_feed.CalendarEvent, today_value: date
     when = event.starts_on.strftime("%a %d")
     if event.ends_on is not None and event.ends_on != event.starts_on:
         when = f"{when} – {event.ends_on.strftime('%a %d')}"
-    urgency_text, _ = urgency_indicator(event.days_until(today_value))
+    badge = deadline_badge(
+        event.days_until(today_value),
+        kind="milestone" if event.kind == "milestone" else "deadline",
+        deadline=event.starts_on,
+        owed=event.kind != "award",
+    )
 
     col_when, col_what = st.columns([0.18, 0.82])
     with col_when:
@@ -79,7 +84,7 @@ def _render_calendar_event(event: calendar_feed.CalendarEvent, today_value: date
         if caption:
             st.caption(caption)
         if event.bucket == "now":
-            st.caption(urgency_text)
+            st.badge(badge.label, icon=badge.icon, color=badge.color)
 
 
 def _render_timeline_bucket(
