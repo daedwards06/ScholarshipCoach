@@ -29,6 +29,11 @@ dev = [
   "pytest-cov==7.1.0",
   "mypy==2.1.0",
 ]
+# Screenshot harness (scripts/screenshot_app.py). Not installed by CI; it drives
+# the system Edge, so no browser download is needed.
+ui = [
+  "playwright==1.63.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

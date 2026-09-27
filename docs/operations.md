@@ -104,6 +104,18 @@ trimmed page padding. Navigation lives in the sidebar, which Streamlit collapses
 hamburger on a phone. `client.toolbarMode = "minimal"` keeps the developer toolbar off the
 student's screen.
 
+**Checking it.** `scripts/screenshot_app.py` photographs every Student and Parent section at
+400×860 and 1366×900, in light and dark, as `<width>_<mode>_<section>_<theme>.png`. It needs the
+`ui` extra (`pip install -e ".[ui]"`) and drives the installed Edge, so nothing is downloaded. It
+runs against a scratch copy of `data/private/` unless `--live-db` is passed; `--seed` saves three
+Find results and adds an essay and a recommender first, so populated pages are captured too.
+Screenshots go to the temp folder by default and are not committed.
+
+```powershell
+python scripts/screenshot_app.py --out $env:TEMP\coach_shots --scratch-db --seed
+python scripts/screenshot_app.py --theme dark --sections find this_week
+```
+
 ### Back up `data/private/`
 
 `data/private/` is git-ignored, which means git is not a backup. It holds `coach.db` (awards,

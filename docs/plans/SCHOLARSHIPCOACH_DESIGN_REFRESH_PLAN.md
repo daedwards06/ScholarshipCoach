@@ -127,22 +127,22 @@ python scripts/screenshot_app.py --out $env:TEMP\coach_shots --scratch-db
 ```
 
 **Checklist:**
-- [ ] `pyproject.toml`: new optional group `ui = ["playwright==1.63.0"]`, pinned like `dev`, not
+- [x] `pyproject.toml`: new optional group `ui = ["playwright==1.63.0"]`, pinned like `dev`, not
       installed by CI
-- [ ] `scripts/screenshot_app.py`: starts the app on a free port, drives the system Edge through
+- [x] `scripts/screenshot_app.py`: starts the app on a free port, drives the system Edge through
       Playwright (`channel="msedge"`, so no browser download), walks every section of Student and
       Parent mode at 400×860 and 1366×900, measures the scroll height of `[data-testid="stMain"]`
       and resizes before capturing, and writes `<width>_<mode>_<section>_<theme>.png`
-- [ ] `--theme light|dark|both` via Playwright `color_scheme`
-- [ ] `--scratch-db`: copies `data/private/` to a temp dir and points `DEFAULT_DB_PATH` /
+- [x] `--theme light|dark|both` via Playwright `color_scheme`
+- [x] `--scratch-db`: copies `data/private/` to a temp dir and points `DEFAULT_DB_PATH` /
       `STUDENTS_DIR` there through a wrapper entry script, so a sweep never writes the family's
       database. Default **on**; `--live-db` must be passed explicitly
-- [ ] `--seed`: through the UI, saves the top 3 Find results, adds one essay and one recommender
+- [x] `--seed`: through the UI, saves the top 3 Find results, adds one essay and one recommender
       (in the scratch DB), so populated states are captured
-- [ ] Output goes outside the repo by default; screenshots are not committed except Task 4.2's
+- [x] Output goes outside the repo by default; screenshots are not committed except Task 4.2's
       README set
-- [ ] `docs/operations.md` "Phone width" gains a "Checking it" paragraph naming the script
-- [ ] All five CI commands green
+- [x] `docs/operations.md` "Phone width" gains a "Checking it" paragraph naming the script
+- [x] All five CI commands green
 
 ---
 
