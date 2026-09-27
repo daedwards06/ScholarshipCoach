@@ -125,28 +125,30 @@ python scripts/validate_catalog.py
 ```
 
 **Checklist:**
-- [ ] `deploy/scholarshipcoach.service`: systemd unit running
+- [x] `deploy/scholarshipcoach.service`: systemd unit running
       `.venv/bin/streamlit run app/main.py --server.address 127.0.0.1 --server.port 8501` as a
       non-root `coach` user from `/srv/scholarshipcoach`; `Restart=always`
-- [ ] `deploy/bootstrap.sh` (idempotent, run once as root on a fresh Ubuntu 24.04): packages
+- [x] `deploy/bootstrap.sh` (idempotent, run once as root on a fresh Ubuntu 24.04): packages
       (`python3.12-venv`, `git`, `sqlite3`, `restic`, `ufw`, `unattended-upgrades`), a 2 GB
       swap file, the `coach` user, the clone, the venv with CPU-only torch installed before
       `pip install -e .` (same order as CI), `ufw` default-deny inbound with `tailscale0` and
       UDP 41641 allowed, the unit installed and enabled
-- [ ] `deploy/update.sh` (run as `coach`): refuses to run with uncommitted changes outside
+- [x] `deploy/update.sh` (run as `coach`): refuses to run with uncommitted changes outside
       `data/catalog/records/`, runs the catalog sync from Task 1.3 first, `git pull` from
       `origin/main`, `pip install -e .`, restarts the service, and fails loudly unless
       `curl -fsS http://127.0.0.1:8501/_stcore/health` answers `ok` within 60 seconds
-- [ ] `tests/test_deploy_config.py`: the unit's `ExecStart` binds `--server.address 127.0.0.1`
+      *(2026-09-27: calls `deploy/catalog_sync.sh` when present; until Task 1.3 adds it,
+      stops if `records/` has edits rather than pulling over them)*
+- [x] `tests/test_deploy_config.py`: the unit's `ExecStart` binds `--server.address 127.0.0.1`
       and nothing in `deploy/` contains `0.0.0.0` or `tailscale funnel` — a guard against a
       future edit exposing the app on the server's public interface
-- [ ] The unit sets `WorkingDirectory=/srv/scholarshipcoach`, so `.streamlit/config.toml` (theme,
+- [x] The unit sets `WorkingDirectory=/srv/scholarshipcoach`, so `.streamlit/config.toml` (theme,
       `enableStaticServing`) and `app/static/` are found; `update.sh`'s health check also fetches
       one self-hosted font file under `/app/static/fonts/` and requires HTTP 200
-- [ ] The `[server]` comment in `.streamlit/config.toml` that mentions passing
+- [x] The `[server]` comment in `.streamlit/config.toml` that mentions passing
       `--server.address 0.0.0.0` is rewritten to describe the server setup (127.0.0.1 behind
       `tailscale serve`), since 0.0.0.0 is now the thing the deploy test forbids
-- [ ] All four CI commands green
+- [x] All four CI commands green
 
 ---
 

@@ -1,0 +1,23 @@
+# ScholarshipCoach on the cloud server. Installed by deploy/bootstrap.sh.
+# Streamlit listens on loopback only; `tailscale serve` is the one way in.
+[Unit]
+Description=ScholarshipCoach (Streamlit, loopback only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=coach
+Group=coach
+# Run from the repo root so .streamlit/config.toml (theme, enableStaticServing)
+# and app/static/ are found.
+WorkingDirectory=/srv/scholarshipcoach
+ExecStart=/srv/scholarshipcoach/.venv/bin/streamlit run app/main.py --server.address 127.0.0.1 --server.port 8501
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

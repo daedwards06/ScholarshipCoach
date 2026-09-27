@@ -110,8 +110,9 @@ backgroundColor = "#131F1D"
 headless = true
 # Serves app/static/ (the self-hosted fonts) at app/static/.
 enableStaticServing = true
-# Address left unset on purpose: the app binds to localhost unless the family hosting
-# script passes --server.address 0.0.0.0. See docs/operations.md.
+# Address left unset: a dev run stays on localhost. On the server,
+# deploy/scholarshipcoach.service passes --server.address 127.0.0.1 and
+# `tailscale serve` is the only way in; nothing listens on a public interface.
 
 [browser]
 # Personal profile and application data live in this app; no telemetry leaves
