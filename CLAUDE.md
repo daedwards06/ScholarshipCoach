@@ -45,6 +45,7 @@ this protocol exactly:
 | `docs/plans/SCHOLARSHIPCOACH_LLM_EXTRACTION_PLAN.md` | Generative-LLM structured extraction at the ingest boundary (cached, fill-only, measured vs. parser gold; optional UI explanations) |
 | `docs/plans/SCHOLARSHIPCOACH_FAMILY_PRODUCT_PLAN.md` | Family product track (from 2026-09-12 product review): curated catalog + stable IDs, expanded profile/eligibility axes, timeline buckets, deterministic ingest automation, tracker/essays/modes, hosting; defers LLM Plan Tasks 6–9 |
 | `docs/plans/SCHOLARSHIPCOACH_CATALOG_INTEGRITY_PLAN.md` | Post-implementation fixes (from 2026-09-13 review of the Family Product Plan): rebuild carry-forward + blocking guardrail, trust enforced in Stage 1, cross-source dedupe, blocked-vs-dead verification, `needs_date` bucket, NC local award seeding, student onboarding, Outcomes page, `app/main.py` split; closes Family Plan 3.2/4.3 leftovers and UI Plan Task 6 |
+| `docs/plans/SCHOLARSHIPCOACH_CLOUD_HOSTING_PLAN.md` | Move hosting off the home PC to a small cloud server reachable only over Tailscale (from 2026-09-26 hosting discussion): `deploy/` service/bootstrap/update scripts, nightly restic backups + restore drill, server-side catalog edits flow back via a `server` branch PR, family phone onboarding; supersedes the home-PC hosting in `docs/operations.md` |
 
 *(Add new plan files to this table as they are created.)*
 
