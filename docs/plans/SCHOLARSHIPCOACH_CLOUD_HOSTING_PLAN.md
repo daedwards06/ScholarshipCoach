@@ -304,19 +304,34 @@ systemctl is-active scholarshipcoach                     # active
 ss -tlnp | grep 8501                                     # 127.0.0.1:8501 only
 curl -fsS http://127.0.0.1:8501/_stcore/health           # ok
 tailscale serve status                                   # https://coach.<tailnet>.ts.net -> 127.0.0.1:8501
+# (reading status works as coach; setting serve up needs the ubuntu admin login)
 ```
 
 **Checklist:**
-- [ ] Stop the app on the dev PC first, so `coach.db` is not written during the copy
-- [ ] Copy over Tailscale (`scp`): `data/private/`, `.streamlit/secrets.toml` (then `chmod 600`),
+- [x] Stop the app on the dev PC first, so `coach.db` is not written during the copy
+- [x] Copy over Tailscale (`scp`): `data/private/`, `.streamlit/secrets.toml` (then `chmod 600`),
       the latest `data/processed/scholarships_snapshot_*.parquet`, `data/processed/embeddings/`,
       `data/processed/win_model/`, `data/processed/llm_extractions/`
-- [ ] Server hostname set to `coach` in the Tailscale admin console; `tailscale serve --bg 8501`
-- [ ] From the dev PC browser: the HTTPS name loads, ranking returns results, Parent mode asks
+      *(2026-09-27: `secrets.toml` never existed on the dev PC, so the owner wrote it on the
+      server instead (`600`, before the restart). `data/private/` is `700`, `coach.db` `600`;
+      integrity `ok` and row counts match the dev PC. Snapshot copied: `20260926`)*
+- [x] Server hostname set to `coach` in the Tailscale admin console; `tailscale serve --bg 8501`
+      *(2026-09-27: run as `ubuntu`, not `coach`: `coach`'s sudoers entry covers only
+      `systemctl restart|status scholarshipcoach`. Serve had to be enabled once for the tailnet
+      in the admin console, which turns on HTTPS certificates. `tailscale serve status` shows
+      `(tailnet only)`; `/_stcore/health` over the HTTPS name returns `ok` from the dev PC)*
+- [x] From the dev PC browser: the HTTPS name loads, ranking returns results, Parent mode asks
       for the PIN, and an edit in My Applications survives a `systemctl restart`
-- [ ] "Rebuild snapshot" run once on the server; the result carries every record forward
-      (fetches from a datacenter IP may come back `blocked` more often than from home; that is
-      the Catalog Integrity Plan's "check by hand" path, not a failure)
+      *(2026-09-27, Claude via headless Edge against the HTTPS name, `coach.db` backed up first:
+      Find ranked 21 cards; a wrong PIN showed "Incorrect PIN." and kept Parent sections hidden;
+      a saved award stayed in My Applications and `coach.db` across a restart (new PID); the
+      backup was then restored and row counts matched the copy again. The owner confirmed the
+      correct PIN unlocks Parent mode)*
+- [x] "Rebuild snapshot" run once on the server; the result carries every record forward
+      *(2026-09-27: the button runs the curated source only, with no network, so `blocked`
+      fetches cannot occur here; they belong to the monthly verify job. Ran the same
+      `run_ingest(only_sources=[curated])` call as `coach`: 133 records, 34 curated + 99
+      `open_scholarships` carried forward, no IDs missing vs. `20260926`)*
 
 ---
 
@@ -343,6 +358,10 @@ systemctl list-timers 'scholarshipcoach-*'               # backup, verify, catal
 - [ ] One manual backup, then a full restore with row counts matching the pre-restore counts
 - [ ] Owner: deploy key added to the GitHub repo; one `catalog_sync.sh` run pushes (or reports
       nothing to push)
+      *(2026-09-28: the Task 2.2 rebuild left an untracked `data/processed/changes_20260928.json`,
+      which `catalog_sync.sh` treated as stray and refused to sync. Delta reports are tracked in
+      git by design, so the script now commits them to `server` too; they push only alongside a
+      record change)*
 - [ ] All three timers enabled and listed
 
 ---
