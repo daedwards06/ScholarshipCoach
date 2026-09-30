@@ -40,9 +40,10 @@ sqlite3 "$DB" ".backup '$STAGE/coach.db'"
 [[ $(sqlite3 "$STAGE/coach.db" "PRAGMA integrity_check") == ok ]] \
     || fail "integrity_check failed on the copy of $DB"
 
-paths=("$STAGE/coach.db")
+# All of data/private/ (students/, eval/ worksheets, ...) except the live
+# database, which only the .backup copy above captures consistently.
+paths=("$STAGE/coach.db" "$APP_DIR/data/private")
 for extra in \
-    "$APP_DIR/data/private/students" \
     "$APP_DIR/data/catalog/inbox" \
     "$APP_DIR/.streamlit/secrets.toml"; do
     if [[ -e $extra ]]; then
@@ -53,7 +54,9 @@ for extra in \
 done
 
 echo "==> restic backup"
-restic backup --tag "$TAG" "${paths[@]}"
+restic backup --tag "$TAG" \
+    --exclude "$DB" --exclude "$DB-journal" --exclude "$DB-wal" --exclude "$DB-shm" \
+    "${paths[@]}"
 
 echo "==> restic forget (14 daily, 8 weekly, 12 monthly)"
 # Group by tag, not host+paths: a rebuilt server or a newly present inbox
