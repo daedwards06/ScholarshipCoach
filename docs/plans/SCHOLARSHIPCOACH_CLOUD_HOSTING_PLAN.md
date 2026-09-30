@@ -3,7 +3,7 @@
 > Generated: 2026-09-26 | Scope from a hosting discussion after the Catalog Integrity Plan
 > Supersedes the "Family hosting" section of `docs/operations.md` (home PC on the LAN)
 > Executor: Claude via Claude Code, with owner-dependent provisioning tasks called out as such
-> Est. effort: 3 phases, 8 tasks | Running cost: one small cloud server (~$5/month) + backup storage (cents)
+> Est. effort: 3 phases, 8 tasks | Running cost: one small cloud server (~$4.54/month, billed 12 months upfront) + backup storage (cents)
 
 ---
 
@@ -74,13 +74,20 @@ What the app needs from a host, measured the same day:
 
 | # | Decision | Default | Alternatives |
 |---|---|---|---|
-| D1 | Provider and size | Hetzner Cloud, smallest shared-vCPU plan with **4 GB RAM**, a US location | DigitalOcean / Linode 4 GB (more expensive); a home mini PC |
+| D1 | Provider and size | **OVHcloud US VPS-1** (2 vCore, 4 GB RAM, 40 GB NVMe, IPv4 included), US East (Vint Hill, VA), 12-month upfront | Hetzner CX23 in Germany (~$7.09/mo, no US plan); DigitalOcean / Linode 4 GB ($24/mo); a home mini PC (~$250 upfront) |
 | D2 | OS | Ubuntu 24.04 LTS (ships Python 3.12, matching CI) | Debian 12 + deadsnakes Python |
 | D3 | Tailscale accounts | One family tailnet with **one account per person**; check the free plan's current user limit against the number of family members | Everyone on one shared login (rules out per-person identity if the Roles & Product Plan chooses it) |
-| D4 | Backup destination | `restic` to Backblaze B2 (encrypted client-side, pennies a month) | Hetzner Storage Box; nightly pull to a home machine |
+| D4 | Backup destination | `restic` to Backblaze B2 (encrypted client-side; first 10 GB free) | OVHcloud Object Storage; nightly pull to a home machine |
 | D5 | Catalog edits | Server commits to a `server` branch, owner merges by PR | Catalog edits only on the dev PC; server catalog read-only |
 
 Check current prices and plan names at signup; the figures here are approximate.
+
+*(2026-09-27: D1 moved from Hetzner to OVHcloud. Hetzner's 15 June 2026 price adjustment
+took its US 4 GB plan (CPX21) from $13.99 to $37.49/mo plus IPv4, and its cheap CX line is
+EU-only. VPS-1 at $4.54/mo requires the 12-month upfront term; check the renewal price at
+checkout. Whatever the provider, the server needs a public IPv4, because GitHub has no IPv6
+and `bootstrap.sh` clones from it. OVH's included daily VPS backup does not replace restic:
+it is kept by the same provider and holds only the last 24 hours.)*
 
 ---
 
@@ -259,13 +266,24 @@ Test-NetConnection <server-public-ip> -Port 8501   # TcpTestSucceeded : False
 ```
 
 **Checklist:**
-- [ ] Owner: provider account (D1), server created with Ubuntu 24.04 (D2) and the owner's SSH key
-- [ ] Owner: Tailscale on the server (`tailscale up --ssh`), on the dev PC, and in the family
+- [x] Owner: provider account (D1), server created with Ubuntu 24.04 (D2) and the owner's SSH key
+- [x] Owner: Tailscale on the server (`tailscale up --ssh`), on the dev PC, and in the family
       tailnet (D3)
-- [ ] Owner: `deploy/bootstrap.sh` run as root; Claude reviews its output
-- [ ] Owner: provider cloud firewall allows only UDP 41641 inbound; port 22 removed once
-      Tailscale SSH is confirmed working; password login disabled
-- [ ] Both `Test-NetConnection` checks against the public IP fail
+- [x] Owner: `deploy/bootstrap.sh` run as root; Claude reviews its output
+- [x] Owner: once Tailscale SSH is confirmed working, OVH Edge Network Firewall enabled on the
+      VPS's IPv4 with no port 22 rule; password login disabled. The Edge firewall is stateless,
+      so it needs reply rules for the server's own outbound traffic: 0 TCP *established*,
+      1 UDP source port 53 (DNS), 2 UDP source port 123 (NTP), 3 UDP destination port 41641
+      (Tailscale), 4 ICMP, 19 refuse IPv4. It does not cover IPv6; `ufw` from `bootstrap.sh`
+      does, and is the rule that matters on both
+- [x] Both `Test-NetConnection` checks against the public IP fail
+      *(2026-09-27: ports 22 and 8501 on the public IPv4 both `TcpTestSucceeded : False`;
+      Tailscale connects direct on 41641; ICMP answers by design)*
+      *(2026-09-27: OVH VPS-1, Ubuntu 24.04.5 LTS, Tailscale name `coach`. `sshd -T` shows
+      `passwordauthentication no`; the `ubuntu` password is locked. Bootstrap log clean, `ufw`
+      default-deny inbound with only `tailscale0` and 41641/udp allowed on v4 and v6, 2 GB swap,
+      service active, three timers scheduled. The backup timer fails nightly until Task 2.3
+      creates `restic.env`; the deploy key is not yet on GitHub)*
 
 ---
 
@@ -286,19 +304,34 @@ systemctl is-active scholarshipcoach                     # active
 ss -tlnp | grep 8501                                     # 127.0.0.1:8501 only
 curl -fsS http://127.0.0.1:8501/_stcore/health           # ok
 tailscale serve status                                   # https://coach.<tailnet>.ts.net -> 127.0.0.1:8501
+# (reading status works as coach; setting serve up needs the ubuntu admin login)
 ```
 
 **Checklist:**
-- [ ] Stop the app on the dev PC first, so `coach.db` is not written during the copy
-- [ ] Copy over Tailscale (`scp`): `data/private/`, `.streamlit/secrets.toml` (then `chmod 600`),
+- [x] Stop the app on the dev PC first, so `coach.db` is not written during the copy
+- [x] Copy over Tailscale (`scp`): `data/private/`, `.streamlit/secrets.toml` (then `chmod 600`),
       the latest `data/processed/scholarships_snapshot_*.parquet`, `data/processed/embeddings/`,
       `data/processed/win_model/`, `data/processed/llm_extractions/`
-- [ ] Server hostname set to `coach` in the Tailscale admin console; `tailscale serve --bg 8501`
-- [ ] From the dev PC browser: the HTTPS name loads, ranking returns results, Parent mode asks
+      *(2026-09-27: `secrets.toml` never existed on the dev PC, so the owner wrote it on the
+      server instead (`600`, before the restart). `data/private/` is `700`, `coach.db` `600`;
+      integrity `ok` and row counts match the dev PC. Snapshot copied: `20260926`)*
+- [x] Server hostname set to `coach` in the Tailscale admin console; `tailscale serve --bg 8501`
+      *(2026-09-27: run as `ubuntu`, not `coach`: `coach`'s sudoers entry covers only
+      `systemctl restart|status scholarshipcoach`. Serve had to be enabled once for the tailnet
+      in the admin console, which turns on HTTPS certificates. `tailscale serve status` shows
+      `(tailnet only)`; `/_stcore/health` over the HTTPS name returns `ok` from the dev PC)*
+- [x] From the dev PC browser: the HTTPS name loads, ranking returns results, Parent mode asks
       for the PIN, and an edit in My Applications survives a `systemctl restart`
-- [ ] "Rebuild snapshot" run once on the server; the result carries every record forward
-      (fetches from a datacenter IP may come back `blocked` more often than from home; that is
-      the Catalog Integrity Plan's "check by hand" path, not a failure)
+      *(2026-09-27, Claude via headless Edge against the HTTPS name, `coach.db` backed up first:
+      Find ranked 21 cards; a wrong PIN showed "Incorrect PIN." and kept Parent sections hidden;
+      a saved award stayed in My Applications and `coach.db` across a restart (new PID); the
+      backup was then restored and row counts matched the copy again. The owner confirmed the
+      correct PIN unlocks Parent mode)*
+- [x] "Rebuild snapshot" run once on the server; the result carries every record forward
+      *(2026-09-27: the button runs the curated source only, with no network, so `blocked`
+      fetches cannot occur here; they belong to the monthly verify job. Ran the same
+      `run_ingest(only_sources=[curated])` call as `coach`: 133 records, 34 curated + 99
+      `open_scholarships` carried forward, no IDs missing vs. `20260926`)*
 
 ---
 
@@ -325,6 +358,10 @@ systemctl list-timers 'scholarshipcoach-*'               # backup, verify, catal
 - [ ] One manual backup, then a full restore with row counts matching the pre-restore counts
 - [ ] Owner: deploy key added to the GitHub repo; one `catalog_sync.sh` run pushes (or reports
       nothing to push)
+      *(2026-09-28: the Task 2.2 rebuild left an untracked `data/processed/changes_20260928.json`,
+      which `catalog_sync.sh` treated as stray and refused to sync. Delta reports are tracked in
+      git by design, so the script now commits them to `server` too; they push only alongside a
+      record change)*
 - [ ] All three timers enabled and listed
 
 ---

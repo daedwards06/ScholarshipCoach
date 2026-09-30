@@ -114,6 +114,14 @@ def test_catalog_sync_validates_then_commits_only_records() -> None:
     assert commit_line.rstrip().endswith('-- "$RECORDS_DIR"')
 
 
+def test_catalog_sync_commits_delta_reports_instead_of_blocking() -> None:
+    text = (DEPLOY_DIR / "catalog_sync.sh").read_text(encoding="utf-8")
+    assert "DELTA_REPORTS='data/processed/changes_*.json'" in text
+    stray_line = next(line for line in text.splitlines() if line.startswith("stray="))
+    assert r"^data/processed/changes_[0-9]*\.json$" in stray_line
+    assert 'git commit -q -m "Snapshot delta report(s) from the server" -- "$DELTA_REPORTS"' in text
+
+
 def test_pushes_use_a_deploy_key_not_a_token() -> None:
     bootstrap = (DEPLOY_DIR / "bootstrap.sh").read_text(encoding="utf-8")
     assert 'PUSH_URL="${PUSH_URL:-git@github.com:' in bootstrap

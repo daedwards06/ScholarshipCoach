@@ -16,6 +16,9 @@ set -euo pipefail
 APP_DIR=/srv/scholarshipcoach
 BRANCH=server
 RECORDS_DIR=data/catalog/records/
+# Snapshot delta reports are tracked in git (.gitignore), and "Rebuild snapshot"
+# on the server writes one, so they are committed here rather than blocking.
+DELTA_REPORTS='data/processed/changes_*.json'
 
 cd "$APP_DIR"
 fail() { echo "catalog_sync.sh: $*" >&2; exit 1; }
@@ -23,7 +26,7 @@ fail() { echo "catalog_sync.sh: $*" >&2; exit 1; }
 current=$(git symbolic-ref --quiet --short HEAD || echo "a detached HEAD")
 [[ $current == "$BRANCH" ]] || fail "checkout is on $current, expected $BRANCH"
 
-stray=$(git status --porcelain --untracked-files=all | cut -c4- | grep -v "^$RECORDS_DIR" || true)
+stray=$(git status --porcelain --untracked-files=all | cut -c4- | grep -v -e "^$RECORDS_DIR" -e '^data/processed/changes_[0-9]*\.json$' || true)
 if [[ -n $stray ]]; then
     fail "uncommitted changes outside $RECORDS_DIR; nothing committed:
 $stray"
@@ -42,6 +45,14 @@ if [[ -n $changed ]]; then
     git commit -q -m "Catalog: server edits to $count record(s)" -m "$ids" -- "$RECORDS_DIR"
 else
     echo "==> No catalog edits to commit"
+fi
+
+deltas=$(git status --porcelain --untracked-files=all -- "$DELTA_REPORTS" | cut -c4-)
+if [[ -n $deltas ]]; then
+    echo "==> Commit snapshot delta report(s) to $BRANCH"
+    printf '    %s\n' $deltas
+    git add --all -- "$DELTA_REPORTS"
+    git commit -q -m "Snapshot delta report(s) from the server" -- "$DELTA_REPORTS"
 fi
 
 # Push only records the server changed that main does not already have: after a
