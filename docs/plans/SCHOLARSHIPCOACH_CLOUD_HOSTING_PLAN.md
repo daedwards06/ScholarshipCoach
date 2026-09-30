@@ -365,7 +365,10 @@ systemctl list-timers 'scholarshipcoach-*'               # backup, verify, catal
       (outcomes export, hand-labeling worksheet) was dropped, and the restore, running as root,
       left `data/private` `755` and `coach.db` `644`. `backup.sh` now takes all of
       `data/private/` except the live database files; `restore.sh` restores it all and resets
-      modes to `700`/`600`. Re-drill with the fixed scripts pending)*
+      modes to `700`/`600`. Second drill attempt: `update.sh` refused to pull because
+      `data/private_before_restore_*` was not git-ignored, so it showed as untracked; the old
+      scripts ran again and repeated both defects. `.gitignore` now covers those folders.
+      Re-drill with the fixed scripts pending)*
 - [x] Owner: deploy key added to the GitHub repo; one `catalog_sync.sh` run pushes (or reports
       nothing to push)
       *(2026-09-28: the Task 2.2 rebuild left an untracked `data/processed/changes_20260928.json`,

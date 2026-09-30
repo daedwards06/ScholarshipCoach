@@ -122,6 +122,10 @@ def test_backup_covers_all_private_data_and_restore_keeps_it_private() -> None:
     assert "install -d -m 700" in restore
     assert restore.index('cp -a "$WORK$APP_DIR/data/private/."') < restore.index('cp "$SNAP_DB"')
     assert restore.index('cp "$SNAP_DB"') < restore.index("chmod -R go-rwx data/private")
+    # The moved-aside copy holds the same personal data and must never look like a git change.
+    assert "ASIDE=data/private_before_restore_$STAMP" in restore
+    gitignore = (ROOT_DIR / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert "data/private_before_restore_*/" in gitignore
 
 
 def test_delta_reports_are_synced_not_treated_as_stray() -> None:

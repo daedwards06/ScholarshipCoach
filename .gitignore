@@ -43,6 +43,7 @@ data/processed/llm_extractions/
 # Personal data -- profiles, tracker, essays, outcomes (never committed)
 student_profile.json
 data/private/
+data/private_before_restore_*/
 
 # Run-specific logs
 reports/ingest_runs/
