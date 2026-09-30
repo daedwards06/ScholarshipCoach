@@ -351,18 +351,32 @@ systemctl list-timers 'scholarshipcoach-*'               # backup, verify, catal
 ```
 
 **Checklist:**
-- [ ] Owner: B2 bucket (D4), application key scoped to that bucket, `/etc/scholarshipcoach/restic.env`
+- [x] Owner: B2 bucket (D4), application key scoped to that bucket, `/etc/scholarshipcoach/restic.env`
       written, `restic init` run
+      *(2026-09-30: `restic.env` is `600 coach:coach`; repository `3a9bf958` opens with it. The
+      03:30 timer run on 09-30 failed because it fired while the file was still empty, 48 s
+      before it was saved)*
 - [ ] Owner: restic password stored somewhere off the server (password manager); without it the
       backups cannot be read
 - [ ] One manual backup, then a full restore with row counts matching the pre-restore counts
-- [ ] Owner: deploy key added to the GitHub repo; one `catalog_sync.sh` run pushes (or reports
+      *(2026-09-30, first drill: snapshot `cde9f6f9` restored, row counts matched (4 migrations,
+      1 settings, 1 student, rest 0), integrity `ok`, app healthy. It exposed two defects, now
+      fixed in the repo: the backup took only `students/` from `data/private/`, so `eval/`
+      (outcomes export, hand-labeling worksheet) was dropped, and the restore, running as root,
+      left `data/private` `755` and `coach.db` `644`. `backup.sh` now takes all of
+      `data/private/` except the live database files; `restore.sh` restores it all and resets
+      modes to `700`/`600`. Re-drill with the fixed scripts pending)*
+- [x] Owner: deploy key added to the GitHub repo; one `catalog_sync.sh` run pushes (or reports
       nothing to push)
       *(2026-09-28: the Task 2.2 rebuild left an untracked `data/processed/changes_20260928.json`,
       which `catalog_sync.sh` treated as stray and refused to sync. Delta reports are tracked in
       git by design, so the script now commits them to `server` too; they push only alongside a
-      record change)*
-- [ ] All three timers enabled and listed
+      record change. 2026-09-30: `update.sh` had the same stray check and gets the same
+      exemption, handing delta reports to `catalog_sync.sh`. The stuck report was committed to
+      `server` by hand once so the old `update.sh` could run. `ssh -T` answers as a deploy key on
+      this repo, a dry-run push was accepted, and `catalog_sync.sh` reports "Nothing to push")*
+- [x] All three timers enabled and listed
+      *(2026-09-30: backup 03:30 daily, catalog-sync 04:15 daily, verify first Sunday 07:00)*
 
 ---
 

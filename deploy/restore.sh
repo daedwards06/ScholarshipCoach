@@ -48,12 +48,14 @@ if [[ -d data/private ]]; then
     mv data/private "$ASIDE"
     echo "    moved data/private -> $ASIDE"
 fi
-install -d -o "$APP_USER" -g "$APP_USER" data/private
-cp "$SNAP_DB" data/private/coach.db
-if [[ -d $WORK$APP_DIR/data/private/students ]]; then
-    cp -a "$WORK$APP_DIR/data/private/students" data/private/students
+install -d -m 700 -o "$APP_USER" -g "$APP_USER" data/private
+if [[ -d $WORK$APP_DIR/data/private ]]; then
+    cp -a "$WORK$APP_DIR/data/private/." data/private/
 fi
+cp "$SNAP_DB" data/private/coach.db
 chown -R "$APP_USER:$APP_USER" data/private
+# Copies made as root come out 644; the essays and names stay coach-only.
+chmod -R go-rwx data/private
 
 for extra in data/catalog/inbox .streamlit/secrets.toml; do
     if [[ -e $extra ]]; then

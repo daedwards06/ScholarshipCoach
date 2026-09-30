@@ -9,19 +9,21 @@ SERVICE=scholarshipcoach
 BASE_URL=http://127.0.0.1:8501
 FONT_PATH=/app/static/fonts/nunito-latin-700-normal.woff2
 RECORDS_DIR=data/catalog/records/
+DELTA_REPORTS='data/processed/changes_*.json'
 
 cd "$APP_DIR"
 fail() { echo "update.sh: $*" >&2; exit 1; }
 
-# Catalog edits made in the app are the only local changes allowed; anything
-# else means someone hand-edited the server, and a pull would bury it.
-stray=$(git status --porcelain --untracked-files=all | cut -c4- | grep -v "^$RECORDS_DIR" || true)
+# Catalog edits made in the app, and the delta reports "Rebuild snapshot"
+# writes, are the only local changes allowed; anything else means someone
+# hand-edited the server, and a pull would bury it.
+stray=$(git status --porcelain --untracked-files=all | cut -c4- | grep -v -e "^$RECORDS_DIR" -e '^data/processed/changes_[0-9]*\.json$' || true)
 if [[ -n $stray ]]; then
     fail "uncommitted changes outside $RECORDS_DIR; resolve them first:
 $stray"
 fi
 
-if [[ -n $(git status --porcelain --untracked-files=all -- "$RECORDS_DIR") ]]; then
+if [[ -n $(git status --porcelain --untracked-files=all -- "$RECORDS_DIR" "$DELTA_REPORTS") ]]; then
     if [[ -x deploy/catalog_sync.sh ]]; then
         echo "==> Catalog sync"
         deploy/catalog_sync.sh

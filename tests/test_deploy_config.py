@@ -114,12 +114,25 @@ def test_catalog_sync_validates_then_commits_only_records() -> None:
     assert commit_line.rstrip().endswith('-- "$RECORDS_DIR"')
 
 
-def test_catalog_sync_commits_delta_reports_instead_of_blocking() -> None:
-    text = (DEPLOY_DIR / "catalog_sync.sh").read_text(encoding="utf-8")
-    assert "DELTA_REPORTS='data/processed/changes_*.json'" in text
-    stray_line = next(line for line in text.splitlines() if line.startswith("stray="))
-    assert r"^data/processed/changes_[0-9]*\.json$" in stray_line
-    assert 'git commit -q -m "Snapshot delta report(s) from the server" -- "$DELTA_REPORTS"' in text
+def test_backup_covers_all_private_data_and_restore_keeps_it_private() -> None:
+    backup = (DEPLOY_DIR / "backup.sh").read_text(encoding="utf-8")
+    assert 'paths=("$STAGE/coach.db" "$APP_DIR/data/private")' in backup
+    assert '--exclude "$DB" --exclude "$DB-journal" --exclude "$DB-wal"' in backup
+    restore = (DEPLOY_DIR / "restore.sh").read_text(encoding="utf-8")
+    assert "install -d -m 700" in restore
+    assert restore.index('cp -a "$WORK$APP_DIR/data/private/."') < restore.index('cp "$SNAP_DB"')
+    assert restore.index('cp "$SNAP_DB"') < restore.index("chmod -R go-rwx data/private")
+
+
+def test_delta_reports_are_synced_not_treated_as_stray() -> None:
+    sync = (DEPLOY_DIR / "catalog_sync.sh").read_text(encoding="utf-8")
+    update = UPDATE_PATH.read_text(encoding="utf-8")
+    for text in (sync, update):
+        assert "DELTA_REPORTS='data/processed/changes_*.json'" in text
+        stray_line = next(line for line in text.splitlines() if line.startswith("stray="))
+        assert r"^data/processed/changes_[0-9]*\.json$" in stray_line
+    assert 'git commit -q -m "Snapshot delta report(s) from the server" -- "$DELTA_REPORTS"' in sync
+    assert '-- "$RECORDS_DIR" "$DELTA_REPORTS")' in update
 
 
 def test_pushes_use_a_deploy_key_not_a_token() -> None:
