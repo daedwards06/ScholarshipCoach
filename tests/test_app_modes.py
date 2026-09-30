@@ -68,7 +68,7 @@ def test_student_sections_visible_in_every_mode(section: str) -> None:
 
 
 def test_every_section_has_a_label() -> None:
-    assert set(modes.SECTION_LABELS) == set(modes.PARENT_SECTIONS)
+    assert set(modes.SECTION_LABELS) == set(modes.nav_sections("parent"))
 
 
 def test_parent_reads_essays_student_writes_them() -> None:
@@ -150,6 +150,51 @@ def test_resolve_section_defaults_to_the_first_section_of_the_mode() -> None:
 def test_resolve_section_drops_a_section_the_mode_cannot_see() -> None:
     assert modes.resolve_section("settings", "parent") == "settings"
     assert modes.resolve_section("settings", "student") == "this_week"
+
+
+@pytest.mark.parametrize("mode", ["student", "parent", "operator"])
+def test_pages_for_mode_follow_section_order_plus_profile(mode: modes.Mode) -> None:
+    assert modes.nav_sections(mode) == modes.sections_for_mode(mode) + ("profile",)
+
+
+@pytest.mark.parametrize("mode", ["student", "parent", "operator"])
+def test_every_page_has_a_label_icon_and_unique_url_path(mode: modes.Mode) -> None:
+    sections = modes.nav_sections(mode)
+    assert len(set(sections)) == len(sections)
+    paths = [modes.section_url_path(section) for section in sections]
+    assert len(set(paths)) == len(paths)
+    for section, path in zip(sections, paths, strict=True):
+        assert modes.SECTION_LABELS[section]
+        assert modes.SECTION_ICONS[section].startswith(":material/")
+        assert path and "/" not in path and "_" not in path
+
+
+def test_every_nav_page_has_a_purpose_caption_except_this_week() -> None:
+    # This Week's caption is the live "due on or before" line.
+    assert set(modes.SECTION_CAPTIONS) == set(modes.nav_sections("parent")) - {"this_week"}
+
+
+@pytest.mark.parametrize("section", modes.PARENT_ONLY_SECTIONS)
+def test_parent_only_pages_absent_from_student_nav(section: str) -> None:
+    assert section not in modes.nav_sections("student")
+    assert section in modes.nav_sections("parent")
+
+
+def test_profile_page_is_in_every_mode() -> None:
+    for mode in ("student", "parent", "operator"):
+        assert modes.can_view(mode, "profile")
+
+
+def test_pin_still_gates_the_parent_pages() -> None:
+    granted = modes.resolve_mode("parent", operator_enabled=False, pin="4321")
+    assert granted == "student"
+    assert "settings" not in modes.nav_sections(granted)
+
+
+def test_layout_is_centered_for_student_and_wide_otherwise() -> None:
+    assert modes.layout_for_mode("student") == "centered"
+    assert modes.layout_for_mode("parent") == "wide"
+    assert modes.layout_for_mode("operator") == "wide"
 
 
 def test_every_nav_section_has_a_renderer() -> None:

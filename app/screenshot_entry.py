@@ -2,8 +2,9 @@
 
 It repoints the private data paths before any ``app`` module is imported
 (``app.state`` resolves the profile path at import time), then lets the
-harness open a section directly with ``?shot_mode=...&shot_section=...``
-so a capture does not have to drive the navigation widgets.
+harness pick the mode with ``?shot_mode=...`` so a capture does not have to
+drive the mode switch or type the PIN.  The page itself comes from the URL
+path, as it would for anyone opening a bookmark.
 """
 from __future__ import annotations
 
@@ -32,12 +33,9 @@ from app.main import main  # noqa: E402
 if not st.session_state.get(_APPLIED_STATE_KEY):
     st.session_state[_APPLIED_STATE_KEY] = True
     requested_mode = st.query_params.get("shot_mode")
-    requested_section = st.query_params.get("shot_section")
     if requested_mode:
         st.session_state[modes.MODE_REQUEST_STATE_KEY] = modes.normalize_mode(requested_mode)
         # A configured family PIN would otherwise stop every parent capture.
         st.session_state[modes.UNLOCK_STATE_KEY] = True
-    if requested_section:
-        st.session_state[modes.SECTION_STATE_KEY] = requested_section
 
 main()

@@ -17,6 +17,8 @@
 - Navigation groups the pages into two `st.navigation` sections: **Student views** (This Week,
   Find, Applications, Essays (read-only), Recommenders, What If) and **Family tools** (Catalog &
   Inbox, Timeline, Colleges & Money, Outcomes, Settings).
+  *Not built yet:* Task 1.3 ships one ungrouped list per mode; grouping waits on the Roles &
+  Product Plan (`docs/decisions.md`, 2026-09-30).
 - Multi-column forms are fine here; `st.columns` still stacks below 640px.
 
 ## Spacing overrides (dense)

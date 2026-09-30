@@ -47,7 +47,7 @@ def _outcomes_csv_callable(
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["outcomes"])
+    modes.render_page_header("outcomes")
     profile = st.session_state.profile
     today_value = state.effective_today(profile)
     try:

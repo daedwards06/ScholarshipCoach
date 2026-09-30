@@ -358,7 +358,7 @@ systemctl list-timers 'scholarshipcoach-*'               # backup, verify, catal
       before it was saved)*
 - [ ] Owner: restic password stored somewhere off the server (password manager); without it the
       backups cannot be read
-- [ ] One manual backup, then a full restore with row counts matching the pre-restore counts
+- [x] One manual backup, then a full restore with row counts matching the pre-restore counts
       *(2026-09-30, first drill: snapshot `cde9f6f9` restored, row counts matched (4 migrations,
       1 settings, 1 student, rest 0), integrity `ok`, app healthy. It exposed two defects, now
       fixed in the repo: the backup took only `students/` from `data/private/`, so `eval/`
@@ -368,7 +368,9 @@ systemctl list-timers 'scholarshipcoach-*'               # backup, verify, catal
       modes to `700`/`600`. Second drill attempt: `update.sh` refused to pull because
       `data/private_before_restore_*` was not git-ignored, so it showed as untracked; the old
       scripts ran again and repeated both defects. `.gitignore` now covers those folders.
-      Re-drill with the fixed scripts pending)*
+      Third drill, fixed scripts (server at `1d0be7a4`): snapshot `34aa1b8b` holds
+      `data/private`; restore brought back `eval/` byte-identical, `data/private` `700`,
+      `coach.db` `600`, same row counts, integrity `ok`, app healthy, checkout clean)*
 - [x] Owner: deploy key added to the GitHub repo; one `catalog_sync.sh` run pushes (or reports
       nothing to push)
       *(2026-09-28: the Task 2.2 rebuild left an untracked `data/processed/changes_20260928.json`,

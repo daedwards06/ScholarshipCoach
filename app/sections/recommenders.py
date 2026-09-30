@@ -134,7 +134,7 @@ def _render_recommender_detail(
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["recommenders"])
+    modes.render_page_header("recommenders")
     today_value = state.effective_today(st.session_state.profile)
     try:
         with open_db() as conn:

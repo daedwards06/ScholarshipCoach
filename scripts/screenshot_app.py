@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
-from app.modes import PARENT_SECTIONS, STUDENT_SECTIONS
+from app.modes import nav_sections, section_url_path
 from src.store.db import PRIVATE_DIR
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -40,8 +40,8 @@ PRIVATE_DIR_ENV = "COACH_SHOT_PRIVATE_DIR"
 
 VIEWPORTS: tuple[tuple[int, int], ...] = ((400, 860), (1366, 900))
 MODE_SECTIONS: dict[str, tuple[str, ...]] = {
-    "student": STUDENT_SECTIONS,
-    "parent": PARENT_SECTIONS,
+    "student": nav_sections("student"),
+    "parent": nav_sections("parent"),
 }
 THEMES = ("light", "dark")
 
@@ -81,7 +81,9 @@ def plan_captures(themes: tuple[str, ...], sections: set[str] | None = None) -> 
 
 
 def section_url(base_url: str, mode: str, section: str) -> str:
-    return f"{base_url}/?{urlencode({'shot_mode': mode, 'shot_section': section})}"
+    # The first page is the default one, which Streamlit serves at the root.
+    path = "" if section == MODE_SECTIONS[mode][0] else section_url_path(section)
+    return f"{base_url}/{path}?{urlencode({'shot_mode': mode})}"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -115,7 +117,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--sections",
         nargs="+",
-        choices=PARENT_SECTIONS,
+        choices=MODE_SECTIONS["parent"],
         help="Capture only these sections",
     )
     args = parser.parse_args(argv)

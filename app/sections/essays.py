@@ -151,7 +151,7 @@ def _render_open_prompts(
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["essays"])
+    modes.render_page_header("essays")
     can_edit = modes.can_edit_essays(state.current_mode())
     if not can_edit:
         st.caption("Parent view reads the essay bank. Switch to Student to edit.")

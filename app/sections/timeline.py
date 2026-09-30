@@ -132,7 +132,7 @@ def _render_needs_date_bucket() -> None:
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["timeline"])
+    modes.render_page_header("timeline")
     today_value = state.effective_today(st.session_state.profile)
     grade_level = str(st.session_state.profile.get("grade_level") or "")
 
@@ -149,10 +149,6 @@ def render() -> None:
     family_only = list(events)
     events = calendar_feed.sort_events([*events, *_award_calendar_events(today_value)])
 
-    st.caption(
-        "Deadlines, tasks, letters and milestones by month. Milestone dates are typical, "
-        "not guaranteed — confirm each one with the college or agency."
-    )
     if st.session_state.get("eligible_df") is None:
         st.caption("Run the pipeline under Find Scholarships to add catalog award cycles here.")
 

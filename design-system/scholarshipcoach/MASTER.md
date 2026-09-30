@@ -156,6 +156,8 @@ Timeline `calendar_month`, Colleges & Money `payments`, Outcomes `emoji_events`,
   two sidebar radios. That gives each section its own URL, so a phone bookmark opens Essays directly,
   and removes the hamburger step. Verify the top bar's overflow behaviour at 400px before
   committing; fall back to `position="sidebar"` with grouped sections if it wraps badly.
+  Checked 2026-09-30 (Task 1.3): at 1366px it overflows into a "N more" menu on one row; at 400px
+  Streamlit folds it into the sidebar list behind `»`. See `docs/decisions.md`.
 - The mode switch (Student / Parent, PIN) stays in the sidebar or on Settings. It is a rare action.
 - **Profile becomes its own page** ("My Profile"). The sidebar stops being a 30-field form under the
   navigation.

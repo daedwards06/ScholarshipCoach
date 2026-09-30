@@ -13,7 +13,7 @@ lock.  With no secrets file there is no PIN and the selector is open, which is
 what a trusting household wants by default.
 
 Every decision function here is pure so it can be tested without Streamlit;
-only the two ``render_*`` helpers touch the page.
+only the ``render_*`` helpers touch the page.
 """
 from __future__ import annotations
 
@@ -45,7 +45,6 @@ PARENT_PIN_SECRET = "parent_pin"
 MODE_STATE_KEY = "mode"
 MODE_REQUEST_STATE_KEY = "mode_request"
 UNLOCK_STATE_KEY = "mode_unlocked"
-SECTION_STATE_KEY = "section"
 PIN_STATE_KEY = "mode_pin"
 
 SECTION_LABELS: dict[str, str] = {
@@ -60,7 +59,45 @@ SECTION_LABELS: dict[str, str] = {
     "colleges_money": "Colleges & Money",
     "outcomes": "Outcomes",
     "settings": "Settings",
+    "profile": "My Profile",
 }
+
+SECTION_ICONS: dict[str, str] = {
+    "this_week": ":material/today:",
+    "find": ":material/search:",
+    "applications": ":material/assignment:",
+    "essays": ":material/edit_note:",
+    "recommenders": ":material/group:",
+    "what_if": ":material/tune:",
+    "catalog_inbox": ":material/inbox:",
+    "timeline": ":material/calendar_month:",
+    "colleges_money": ":material/payments:",
+    "outcomes": ":material/emoji_events:",
+    "settings": ":material/settings:",
+    "profile": ":material/person:",
+}
+
+SECTION_CAPTIONS: dict[str, str] = {
+    "find": "Awards that match your profile, best fit first.",
+    "applications": "Every award you have saved and how far along each one is.",
+    "essays": "Your essay drafts and the prompts they can answer.",
+    "recommenders": "The people writing your letters and which awards need them.",
+    "what_if": (
+        "Change one thing about the profile and see which awards open up. "
+        "Nothing here is saved — the stored profile is untouched."
+    ),
+    "catalog_inbox": "Add awards to the catalog and review new leads.",
+    "timeline": (
+        "Deadlines, tasks, letters and milestones by month. Milestone dates are typical, "
+        "not guaranteed — confirm each one with the college or agency."
+    ),
+    "colleges_money": "Each college's net price and how much of it the awards won so far cover.",
+    "outcomes": "What each decided application brought in.",
+    "settings": "Operator tools and the family milestone dates.",
+    "profile": "What the app uses to match you with awards.",
+}
+
+PROFILE_SECTION = "profile"
 
 # "find" is today's ranked-results surface. It sits in the student list because
 # saving an award (Task 3.3) starts from a ranked card.  "what_if" is a student
@@ -107,8 +144,27 @@ def sections_for_mode(mode: Mode) -> tuple[str, ...]:
     return PARENT_SECTIONS
 
 
+def pages_for_mode(mode: Mode) -> dict[str, tuple[str, ...]]:
+    """Return the top-nav groups for ``mode``: group header -> sections, in nav order.
+
+    The ``""`` header holds ungrouped pages.  The grouping is provisional; the
+    page list and grouping belong to the Roles & Product Plan, and changing
+    them should only touch this function and ``SECTION_LABELS``.
+    """
+    return {"": sections_for_mode(mode) + (PROFILE_SECTION,)}
+
+
+def nav_sections(mode: Mode) -> tuple[str, ...]:
+    """Every page in ``mode``'s navigation, flattened in nav order."""
+    return tuple(section for group in pages_for_mode(mode).values() for section in group)
+
+
+def section_url_path(section: str) -> str:
+    return section.replace("_", "-")
+
+
 def can_view(mode: Mode, section: str) -> bool:
-    return section in sections_for_mode(mode)
+    return section in nav_sections(mode)
 
 
 def essays_read_only(mode: Mode) -> bool:
@@ -118,6 +174,11 @@ def essays_read_only(mode: Mode) -> bool:
 
 def can_edit_essays(mode: Mode) -> bool:
     return not essays_read_only(mode)
+
+
+def layout_for_mode(mode: Mode) -> Literal["centered", "wide"]:
+    """Student reads in a centered column; parent and operator get dense wide pages."""
+    return "centered" if normalize_mode(mode) == "student" else "wide"
 
 
 def show_operator_tools(mode: Mode, operator_enabled: bool) -> bool:
@@ -172,9 +233,17 @@ def resolve_mode(
 
 def resolve_section(requested: object, mode: Mode) -> str:
     """Return a section visible in ``mode``, defaulting to its first."""
-    sections = sections_for_mode(mode)
+    sections = nav_sections(mode)
     text = str(requested or "").strip().casefold()
     return text if text in sections else sections[0]
+
+
+def render_page_header(section: str, caption: str | None = None) -> None:
+    """Open a page with its own h1 and one line saying what the page is for."""
+    st.title(SECTION_LABELS[section])
+    line = caption if caption is not None else SECTION_CAPTIONS.get(section)
+    if line:
+        st.caption(line)
 
 
 def render_mode_selector(*, operator_enabled: bool, pin: str | None = None) -> Mode:
@@ -217,23 +286,3 @@ def render_mode_selector(*, operator_enabled: bool, pin: str | None = None) -> M
 
     st.session_state[MODE_STATE_KEY] = mode
     return mode
-
-
-def render_section_selector(mode: Mode) -> str:
-    """Draw the sidebar section nav for ``mode`` and return the chosen section."""
-    sections = sections_for_mode(mode)
-    # Leaving parent mode while a parent-only section is selected would leave
-    # the widget holding a value its own options no longer contain.
-    st.session_state[SECTION_STATE_KEY] = resolve_section(
-        st.session_state.get(SECTION_STATE_KEY), mode
-    )
-    with st.sidebar:
-        section = str(
-            st.radio(
-                "Section",
-                options=sections,
-                format_func=lambda name: SECTION_LABELS[str(name)],
-                key=SECTION_STATE_KEY,
-            )
-        )
-    return section

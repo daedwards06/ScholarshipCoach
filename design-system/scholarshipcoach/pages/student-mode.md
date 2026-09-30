@@ -23,6 +23,8 @@ component choices, not colors.
 - Top navigation (`st.navigation(position="top")`) is limited to **five** student destinations:
   This Week, Find, Applications, Essays, and **More** (a `st.navigation` section holding
   Recommenders, What If, My Profile). Verify at 400px; see Master "Navigation".
+  *Not built yet:* Task 1.3 ships one ungrouped list per mode; grouping waits on the Roles &
+  Product Plan (`docs/decisions.md`, 2026-09-30).
 
 ## Spacing overrides (comfortable)
 
