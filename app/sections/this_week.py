@@ -11,12 +11,12 @@ from src.store.db import open_db
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["this_week"])
     today_value = state.effective_today(st.session_state.profile)
-    st.caption(
+    modes.render_page_header(
+        "this_week",
         "Due on or before "
         f"{friendly_date(today_value + timedelta(days=tracker.THIS_WEEK_DAYS), today_value)}, "
-        "plus anything already overdue."
+        "plus anything already overdue.",
     )
     try:
         with open_db() as conn:

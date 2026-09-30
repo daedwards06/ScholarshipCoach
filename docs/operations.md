@@ -100,11 +100,13 @@ The student surfaces — ranked cards, This Week, the essay editor — are check
 Streamlit stacks `st.columns` to full width below 640px on its own; `phone_width_css()` in
 `app/helpers.py` adds what stacking does not: 44px tap targets on buttons and expander headers,
 a 16px floor on input text so mobile Safari stops zooming when the essay editor takes focus, and
-trimmed page padding. Navigation lives in the sidebar, which Streamlit collapses behind the
-hamburger on a phone. `client.toolbarMode = "minimal"` keeps the developer toolbar off the
+trimmed page padding. Navigation is `st.navigation(position="top")`, one URL per page (a bookmark
+to `/essays` opens Essays). On a desktop it is a top bar; on a phone Streamlit folds it into the
+sidebar behind the `»` button, above the Student/Parent switch. The profile form is its own
+"My Profile" page, not a sidebar panel. `client.toolbarMode = "minimal"` keeps the developer toolbar off the
 student's screen.
 
-**Checking it.** `scripts/screenshot_app.py` photographs every Student and Parent section at
+**Checking it.** `scripts/screenshot_app.py` photographs every Student and Parent page (opened by its URL) at
 400×860 and 1366×900, in light and dark, as `<width>_<mode>_<section>_<theme>.png`. It needs the
 `ui` extra (`pip install -e ".[ui]"`) and drives the installed Edge, so nothing is downloaded. It
 runs against a scratch copy of `data/private/` unless `--live-db` is passed; `--seed` saves three

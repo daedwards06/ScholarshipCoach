@@ -281,33 +281,33 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] `app/main.py` builds `st.Page` objects (title, `:material/…:` icon, stable `url_path`) from
+- [x] `app/main.py` builds `st.Page` objects (title, `:material/…:` icon, stable `url_path`) from
       the existing `SECTION_RENDERERS` and calls `st.navigation(..., position="top")` with only the
       pages the resolved mode may see. A deep link to a parent-only URL in Student mode lands on
       This Week, not an error
-- [ ] Nav lists today's sections for each mode, in the order `sections_for_mode` gives, plus My
+- [x] Nav lists today's sections for each mode, in the order `sections_for_mode` gives, plus My
       Profile. `pages_for_mode` may return grouped sections (a `dict` for `st.navigation`), but
       the grouping chosen here is provisional; the final page list and grouping ("More",
       "Student views" / "Family tools" in `pages/*.md`) come from the Roles & Product Plan
-- [ ] Checked at 400px in Student mode (7 items) and Parent mode (12 items): the top bar does not
+- [x] Checked at 400px in Student mode (7 items) and Parent mode (12 items): the top bar does not
       wrap into more than one row or push content below the fold. If it does, group the pages
       (Parent first) or fall back to D3's sidebar alternative, and record which and why in
       `docs/decisions.md`
-- [ ] `st.set_page_config(layout="centered")` in Student mode, `"wide"` in Parent/Operator
-- [ ] The global `st.title("Scholarship Coach")` and caption are removed; each section opens with
+- [x] `st.set_page_config(layout="centered")` in Student mode, `"wide"` in Parent/Operator
+- [x] The global `st.title("Scholarship Coach")` and caption are removed; each section opens with
       its own h1 and a one-line purpose caption
-- [ ] Profile form moves from the sidebar to a "My Profile" page (`app/sections/profile.py`); the
+- [x] Profile form moves from the sidebar to a "My Profile" page (`app/sections/profile.py`); the
       sidebar keeps only the mode switch, PIN prompt and mode caption (plus operator tools in
       Operator mode)
-- [ ] Screenshot harness updated in the same task: `app/screenshot_entry.py` currently opens a
+- [x] Screenshot harness updated in the same task: `app/screenshot_entry.py` currently opens a
       page by writing `?shot_section=` into `SECTION_STATE_KEY`, which `st.navigation` no longer
       reads. `section_url()` in `scripts/screenshot_app.py` opens each page by its `url_path` (keeping
       `shot_mode` for the mode and PIN unlock); a full `--theme both --scratch-db --seed` sweep
       captures every page of both modes, and each capture is the requested page, not This Week
-- [ ] Pure page-list functions in `app/modes.py` (`pages_for_mode`) are unit-tested: every section
+- [x] Pure page-list functions in `app/modes.py` (`pages_for_mode`) are unit-tested: every section
       has a URL path and icon, no duplicates, parent-only pages absent from Student, PIN still gates
       Parent. Existing `test_app_modes.py` tests updated rather than deleted
-- [ ] All five CI commands green
+- [x] All five CI commands green
 
 ---
 

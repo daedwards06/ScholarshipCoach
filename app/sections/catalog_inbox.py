@@ -589,7 +589,7 @@ def _render_rebuild_snapshot() -> None:
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["catalog_inbox"])
+    modes.render_page_header("catalog_inbox")
     if state.current_mode() == "student":
         st.info("Adding and reviewing awards lives in Parent view.")
         return

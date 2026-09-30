@@ -151,7 +151,7 @@ def _render_money_summary(summary: money.MoneySummary) -> None:
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["colleges_money"])
+    modes.render_page_header("colleges_money")
     if state.current_mode() == "student":
         st.info("Colleges and money live in Parent view.")
         return

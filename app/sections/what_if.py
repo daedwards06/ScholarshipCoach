@@ -31,11 +31,7 @@ def _render_what_if_award_list(
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["what_if"])
-    st.caption(
-        "Change one thing about the profile and see which awards open up. "
-        "Nothing here is saved — the stored profile is untouched."
-    )
+    modes.render_page_header("what_if")
 
     snapshot_path_text = state.active_snapshot_path()
     if snapshot_path_text is None:

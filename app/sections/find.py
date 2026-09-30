@@ -9,7 +9,7 @@ from typing import Any, Literal
 import pandas as pd
 import streamlit as st
 
-from app import state
+from app import modes, state
 from app.helpers import (
     award_count_text,
     days_until_deadline,
@@ -249,6 +249,7 @@ def _render_scholarship_card(
 
 
 def render() -> None:
+    modes.render_page_header("find")
     tuned_weights_payload = None
     try:
         tuned_weights_payload = state.load_weights_profile(

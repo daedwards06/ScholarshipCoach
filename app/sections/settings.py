@@ -92,7 +92,7 @@ def _render_milestone_settings(conn: Any) -> None:
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["settings"])
+    modes.render_page_header("settings")
     try:
         with open_db() as conn:
             enabled = repo.get_flag(conn, modes.OPERATOR_ENABLED_SETTING)

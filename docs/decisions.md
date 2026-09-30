@@ -5,6 +5,30 @@ Newest first. A decision stays here after it is reversed; the reversal is a new 
 
 ---
 
+## 2026-09-30 — Top navigation, ungrouped for now; Streamlit folds it into the sidebar on phones
+
+**Context.** Design Refresh Task 1.3 replaced the two sidebar radios with
+`st.navigation(position="top")` and asked for a check at 400px: Student mode has 7 pages, Parent 12.
+If the bar wrapped or pushed content down, the pages were to be grouped or moved back to the sidebar
+(D3).
+
+**Evidence.** Screenshots at 1366px: Student's 7 pages fit on one row; Parent's 12 show 8 and a
+"4 more" menu, still on one row. At 400px Streamlit 1.54 does not draw a top bar. It folds the nav
+into the sidebar behind `»` as a single list, above the mode switch. The page content starts at
+the top of the screen in both modes.
+
+**Decision.** Keep `position="top"` with one ungrouped list per mode (`pages_for_mode` returns a
+single `""` group). Nothing wraps, so grouping is not needed yet. The final page list and grouping
+belong to the Roles & Product Plan. On a phone, changing page still takes the `»` tap, but the
+sidebar now holds only the page list and the mode switch, with no 30-field form below them.
+
+**Rejected.** Grouping Parent into "Student views" / "Family tools" now. On a desktop that turns
+two clicks into three for no layout gain, and the roles review is about to redraw the groups
+anyway. Sidebar navigation (D3's fallback) would put desktop back behind the sidebar with no phone
+gain.
+
+---
+
 ## 2026-09-26 — Scholarship America is disabled; its awards go through the inbox
 
 **Context.** `sources.json` enabled the `scholarship_america` scrape, but every ingest ran with

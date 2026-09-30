@@ -165,7 +165,7 @@ def _render_application_detail(
 
 
 def render() -> None:
-    st.subheader(modes.SECTION_LABELS["applications"])
+    modes.render_page_header("applications")
     today_value = state.effective_today(st.session_state.profile)
     try:
         with open_db() as conn:
