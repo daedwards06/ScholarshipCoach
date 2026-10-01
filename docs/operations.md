@@ -94,6 +94,27 @@ anywhere the phone has data, with no port forwarded and no DNS record. The app s
 `--server.address 0.0.0.0` to accept the connection, and the PIN still gates Parent mode. This
 is the only sanctioned way to reach the app from outside the house.
 
+### Deploying an update (cloud server)
+
+The app now runs on the cloud server (`coach` on the tailnet; see the Cloud Hosting Plan), which
+serves whatever its checkout has merged from `main`. After pushing to `main`, from the dev PC:
+
+```powershell
+.\scripts\deploy.ps1
+```
+
+It refuses unless local `main` is exactly `origin/main`, waits for the GitHub CI run on that
+commit and stops if it is not green, then runs `deploy/update.sh` over Tailscale SSH
+(`ssh coach@coach`). `update.sh` backs up, merges `main`, reinstalls, restarts and
+health-checks; its output is printed, and a failure exits non-zero. `-SkipCi` skips the CI wait
+for emergencies only. Set `GITHUB_TOKEN` if the unauthenticated API rate limit (60/hour) is hit.
+
+Deploy after a push, not necessarily after every task: each update restarts the app, so batch
+when the family is using it. Deploy promptly when the push adds a file under
+`src/store/migrations/`, so the backup sits next to the change. Never deploy from a GitHub
+Action or a server-side timer: one needs a tailnet key in a public repo, the other applies
+migrations with nobody watching.
+
 ### Phone width
 
 The student surfaces — ranked cards, This Week, the essay editor — are checked at ~400px.

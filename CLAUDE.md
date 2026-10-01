@@ -33,6 +33,16 @@ this protocol exactly:
   change `- [ ]` to `- [x]` in the plan file.
 - Only check off items you can confirm — do not speculatively mark things done.
 
+### Step 5 — Deploy (only after a push the user asked for)
+- Committing and pushing still need the user's say-so. Once `main` is pushed, offer to deploy;
+  run it only when the user agrees.
+- Deploy with `.\scripts\deploy.ps1` (PowerShell). It waits for green CI on the pushed commit,
+  then runs `deploy/update.sh` on the server over Tailscale SSH. Show its full output.
+- If it fails, report the failing step from the output. Do not retry with `-SkipCi`, and do not
+  SSH in to hand-fix the server, unless the user says to.
+- Mention it explicitly when the push adds a file under `src/store/migrations/`: the update
+  migrates the family database irreversibly (after a backup).
+
 ---
 
 ## Plan Files
