@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from app import modes, state
-from app.helpers import csv_list, csv_text
+from app.helpers import DeadlineBadge, csv_list, csv_text
 from scripts.run_ingest import run_ingest
 from src.catalog import inbox
 from src.catalog import entry as catalog_entry
@@ -52,12 +52,25 @@ TRUST_LABELS = {
     "unverified": "Unverified",
 }
 
-PROPOSAL_KIND_LABELS = {
-    "prefill": "From a pasted URL",
-    "feed": "From a feed",
-    "reverify": "Re-verification found a change",
-    "manual": "Entered by hand",
+PROPOSAL_KIND_BADGES = {
+    "prefill": DeadlineBadge("From a pasted URL", ":material/link:", "blue"),
+    "feed": DeadlineBadge("From a feed", ":material/rss_feed:", "blue"),
+    "reverify": DeadlineBadge("Re-verification found a change", ":material/sync_problem:", "yellow"),
+    "manual": DeadlineBadge("Entered by hand", ":material/edit:", "gray"),
 }
+
+
+def proposal_kind_badge(kind: str, count: int) -> DeadlineBadge:
+    base = PROPOSAL_KIND_BADGES.get(kind, DeadlineBadge(kind, ":material/inbox:", "gray"))
+    return base._replace(label=f"{base.label} · {count}")
+
+
+def proposal_change_badge(changed_fields: int) -> DeadlineBadge:
+    """New awards are informational; a change to a catalog record needs checking."""
+    if not changed_fields:
+        return DeadlineBadge("New award", ":material/add_circle:", "blue")
+    noun = "field" if changed_fields == 1 else "fields"
+    return DeadlineBadge(f"Changes {changed_fields} {noun}", ":material/difference:", "yellow")
 
 
 def _catalog_tristate_label(value: bool | None) -> str:
@@ -210,189 +223,189 @@ def _award_form_values(values: dict[str, Any]) -> dict[str, Any]:
     """
     form = dict(values)
     with st.form("catalog_entry_form"):
-        st.markdown("**The award**")
-        col_title, col_id = st.columns(2)
-        form["title"] = col_title.text_input("Title", value=values["title"])
-        form["catalog_id"] = col_id.text_input(
-            "Catalog ID",
-            value=values["catalog_id"],
-            help="Stable lowercase slug; it is this award's identity across cycles. Leave it to derive one from the title.",
+        tab_basics, tab_money, tab_who, tab_requirements = st.tabs(
+            ["Basics", "Money & dates", "Who it's for", "Requirements"]
         )
-        col_sponsor, col_url = st.columns(2)
-        form["sponsor"] = col_sponsor.text_input("Sponsor", value=values["sponsor"])
-        form["source_url"] = col_url.text_input("Source URL", value=values["source_url"])
-        form["description"] = st.text_area("Description", value=values["description"], height=80)
-        form["eligibility_text"] = st.text_area(
-            "Eligibility text",
-            value=values["eligibility_text"],
-            height=80,
-            help="The page's own words about who may apply. Stage 2 scores against this.",
-        )
-
-        st.markdown("**Money and dates**")
-        col_min, col_max, col_status = st.columns(3)
-        form["amount_min"] = col_min.number_input(
-            "Amount minimum", min_value=0.0, step=500.0, value=values["amount_min"]
-        )
-        form["amount_max"] = col_max.number_input(
-            "Amount maximum", min_value=0.0, step=500.0, value=values["amount_max"]
-        )
-        status_options = catalog_entry.status_options()
-        form["status"] = col_status.selectbox(
-            "Status",
-            options=status_options,
-            index=status_options.index(values["status"]) if values["status"] in status_options else 0,
-        )
-        col_deadline, col_opens, col_month = st.columns(3)
-        with col_deadline:
-            deadline = st.date_input(
-                "Deadline",
-                value=date.fromisoformat(values["deadline"]) if values["deadline"] else None,
-                format="YYYY-MM-DD",
+        with tab_basics:
+            col_title, col_id = st.columns(2)
+            form["title"] = col_title.text_input("Title", value=values["title"])
+            form["catalog_id"] = col_id.text_input(
+                "Catalog ID",
+                value=values["catalog_id"],
+                help="Stable lowercase slug; it is this award's identity across cycles. Leave it to derive one from the title.",
             )
-            form["deadline"] = deadline
-        with col_opens:
-            form["cycle_opens_month"] = _month_select("Opens in", values["cycle_opens_month"])
-        with col_month:
-            form["cycle_deadline_month"] = _month_select(
-                "Deadline month", values["cycle_deadline_month"]
+            col_sponsor, col_url = st.columns(2)
+            form["sponsor"] = col_sponsor.text_input("Sponsor", value=values["sponsor"])
+            form["source_url"] = col_url.text_input("Source URL", value=values["source_url"])
+            form["description"] = st.text_area("Description", value=values["description"], height=80)
+            st.markdown("**Where it came from**")
+            col_trust, col_kind = st.columns(2)
+            trust_options = catalog_entry.trust_options()
+            form["trust"] = col_trust.selectbox(
+                "Trust",
+                options=trust_options,
+                index=trust_options.index(values["trust"]) if values["trust"] in trust_options else 0,
+                format_func=lambda name: TRUST_LABELS.get(str(name), str(name)),
+                help="verified_local means a person opened the URL and confirmed this record today.",
             )
-        form["cycle_recurring"] = _tristate_select(
-            "Runs every year", values["cycle_recurring"], help="Drives the projected next deadline."
-        )
-
-        st.markdown("**Who it is for**")
-        col_level, col_grades = st.columns(2)
-        level_options = ("", *catalog_entry.EDUCATION_LEVEL_OPTIONS)
-        form["education_level"] = col_level.selectbox(
-            "Education level",
-            options=level_options,
-            index=level_options.index(values["education_level"])
-            if values["education_level"] in level_options
-            else 0,
-            format_func=lambda name: str(name) or "Any",
-        )
-        form["grade_levels"] = col_grades.multiselect(
-            "Grade levels",
-            options=catalog_entry.GRADE_LEVEL_OPTIONS,
-            default=values["grade_levels"],
-            format_func=lambda level: GRADE_LEVEL_LABELS.get(str(level), str(level)),
-        )
-        form["majors_allowed"] = st.multiselect(
-            "Majors allowed (empty means any)",
-            options=_with_existing(catalog_entry.MAJOR_OPTIONS, values["majors_allowed"]),
-            default=values["majors_allowed"],
-            format_func=lambda major: str(major).title(),
-        )
-        col_states, col_counties = st.columns(2)
-        form["states_allowed"] = col_states.multiselect(
-            "States allowed (empty means national)",
-            options=catalog_entry.STATE_OPTIONS,
-            default=values["states_allowed"],
-        )
-        form["counties_allowed"] = col_counties.multiselect(
-            "NC counties allowed",
-            options=_with_existing(catalog_entry.COUNTY_OPTIONS, values["counties_allowed"]),
-            default=values["counties_allowed"],
-        )
-        col_gpa, col_sat, col_act = st.columns(3)
-        form["min_gpa"] = col_gpa.number_input(
-            "Minimum GPA", min_value=0.0, max_value=5.0, step=0.1, value=values["min_gpa"]
-        )
-        form["sat"] = col_sat.number_input(
-            "Minimum SAT", min_value=400, max_value=1600, step=10, value=values["sat"]
-        )
-        form["act"] = col_act.number_input(
-            "Minimum ACT", min_value=1, max_value=36, step=1, value=values["act"]
-        )
-        col_citizen, col_gender, col_religion = st.columns(3)
-        form["citizenship"] = col_citizen.text_input("Citizenship", value=values["citizenship"])
-        gender_options = ("", *catalog_entry.gender_options())
-        form["gender"] = col_gender.selectbox(
-            "Gender",
-            options=gender_options,
-            index=gender_options.index(values["gender"]) if values["gender"] in gender_options else 0,
-            format_func=lambda name: str(name).title() or "Not stated",
-        )
-        form["religion"] = col_religion.text_input("Religion", value=values["religion"])
-        col_need, col_first_gen, col_military, col_disability = st.columns(4)
-        with col_need:
-            form["need_based"] = _tristate_select("Need based", values["need_based"])
-        with col_first_gen:
-            form["first_gen_only"] = _tristate_select("First generation only", values["first_gen_only"])
-        with col_military:
-            form["military_family"] = _tristate_select("Military family", values["military_family"])
-        with col_disability:
-            form["disability"] = _tristate_select("Disability", values["disability"])
-        col_heritage, col_employer, col_membership = st.columns(3)
-        form["heritage"] = col_heritage.text_input(
-            "Heritage (comma separated)", value=csv_text(values["heritage"])
-        )
-        form["employer_restricted"] = col_employer.text_input(
-            "Employers (comma separated)", value=csv_text(values["employer_restricted"])
-        )
-        form["membership_required"] = col_membership.text_input(
-            "Memberships (comma separated)", value=csv_text(values["membership_required"])
-        )
-
-        st.markdown("**What it asks for**")
-        requirement_columns = st.columns(len(catalog_entry.REQUIREMENT_FLAGS))
-        evidence = values.get("requirement_evidence") or {}
-        for column, flag in zip(requirement_columns, catalog_entry.REQUIREMENT_FLAGS, strict=True):
-            with column:
-                form[f"req_{flag}"] = _tristate_select(
-                    REQUIREMENT_LABELS[flag],
-                    values[f"req_{flag}"],
-                    help=str(evidence.get(flag) or "") or None,
+            source_kinds = catalog_entry.source_kind_options()
+            form["source_kind"] = col_kind.selectbox(
+                "Source kind",
+                options=source_kinds,
+                index=source_kinds.index(values["source_kind"]) if values["source_kind"] in source_kinds else 0,
+                format_func=lambda name: str(name).replace("_", " ").capitalize(),
+            )
+            col_verified, col_by = st.columns(2)
+            with col_verified:
+                verified_on = st.date_input(
+                    "Verified on",
+                    value=date.fromisoformat(values["verified_on"]) if values["verified_on"] else None,
+                    format="YYYY-MM-DD",
                 )
-        col_letters, col_renewal = st.columns(2)
-        form["recommendation_letters"] = col_letters.number_input(
-            "Recommendation letters",
-            min_value=0,
-            max_value=10,
-            step=1,
-            value=values["recommendation_letters"],
-        )
-        form["renewal_terms"] = col_renewal.text_input(
-            "Renewal terms", value=values["renewal_terms"]
-        )
-        form["essay_prompts"] = st.text_area(
-            "Essay prompts (one per line)",
-            value="\n".join(values["essay_prompts"]),
-            height=68,
-        )
-        form["keywords"] = st.text_input(
-            "Keywords (comma separated)", value=csv_text(values["keywords"])
-        )
-
-        st.markdown("**Where it came from**")
-        col_trust, col_kind = st.columns(2)
-        trust_options = catalog_entry.trust_options()
-        form["trust"] = col_trust.selectbox(
-            "Trust",
-            options=trust_options,
-            index=trust_options.index(values["trust"]) if values["trust"] in trust_options else 0,
-            format_func=lambda name: TRUST_LABELS.get(str(name), str(name)),
-            help="verified_local means a person opened the URL and confirmed this record today.",
-        )
-        source_kinds = catalog_entry.source_kind_options()
-        form["source_kind"] = col_kind.selectbox(
-            "Source kind",
-            options=source_kinds,
-            index=source_kinds.index(values["source_kind"]) if values["source_kind"] in source_kinds else 0,
-            format_func=lambda name: str(name).replace("_", " ").capitalize(),
-        )
-        col_verified, col_by = st.columns(2)
-        with col_verified:
-            verified_on = st.date_input(
-                "Verified on",
-                value=date.fromisoformat(values["verified_on"]) if values["verified_on"] else None,
-                format="YYYY-MM-DD",
+                form["verified_on"] = verified_on
+            form["verified_by"] = col_by.text_input("Verified by", value=values["verified_by"])
+            form["notes"] = st.text_area("Notes", value=values["notes"], height=68)
+        with tab_money:
+            col_min, col_max, col_status = st.columns(3)
+            form["amount_min"] = col_min.number_input(
+                "Amount minimum", min_value=0.0, step=500.0, value=values["amount_min"]
             )
-            form["verified_on"] = verified_on
-        form["verified_by"] = col_by.text_input("Verified by", value=values["verified_by"])
-        form["notes"] = st.text_area("Notes", value=values["notes"], height=68)
+            form["amount_max"] = col_max.number_input(
+                "Amount maximum", min_value=0.0, step=500.0, value=values["amount_max"]
+            )
+            status_options = catalog_entry.status_options()
+            form["status"] = col_status.selectbox(
+                "Status",
+                options=status_options,
+                index=status_options.index(values["status"]) if values["status"] in status_options else 0,
+            )
+            col_deadline, col_opens, col_month = st.columns(3)
+            with col_deadline:
+                deadline = st.date_input(
+                    "Deadline",
+                    value=date.fromisoformat(values["deadline"]) if values["deadline"] else None,
+                    format="YYYY-MM-DD",
+                )
+                form["deadline"] = deadline
+            with col_opens:
+                form["cycle_opens_month"] = _month_select("Opens in", values["cycle_opens_month"])
+            with col_month:
+                form["cycle_deadline_month"] = _month_select(
+                    "Deadline month", values["cycle_deadline_month"]
+                )
+            form["cycle_recurring"] = _tristate_select(
+                "Runs every year", values["cycle_recurring"], help="Drives the projected next deadline."
+            )
+        with tab_who:
+            form["eligibility_text"] = st.text_area(
+                "Eligibility text",
+                value=values["eligibility_text"],
+                height=80,
+                help="The page's own words about who may apply. Stage 2 scores against this.",
+            )
+            col_level, col_grades = st.columns(2)
+            level_options = ("", *catalog_entry.EDUCATION_LEVEL_OPTIONS)
+            form["education_level"] = col_level.selectbox(
+                "Education level",
+                options=level_options,
+                index=level_options.index(values["education_level"])
+                if values["education_level"] in level_options
+                else 0,
+                format_func=lambda name: str(name) or "Any",
+            )
+            form["grade_levels"] = col_grades.multiselect(
+                "Grade levels",
+                options=catalog_entry.GRADE_LEVEL_OPTIONS,
+                default=values["grade_levels"],
+                format_func=lambda level: GRADE_LEVEL_LABELS.get(str(level), str(level)),
+            )
+            form["majors_allowed"] = st.multiselect(
+                "Majors allowed (empty means any)",
+                options=_with_existing(catalog_entry.MAJOR_OPTIONS, values["majors_allowed"]),
+                default=values["majors_allowed"],
+                format_func=lambda major: str(major).title(),
+            )
+            col_states, col_counties = st.columns(2)
+            form["states_allowed"] = col_states.multiselect(
+                "States allowed (empty means national)",
+                options=catalog_entry.STATE_OPTIONS,
+                default=values["states_allowed"],
+            )
+            form["counties_allowed"] = col_counties.multiselect(
+                "NC counties allowed",
+                options=_with_existing(catalog_entry.COUNTY_OPTIONS, values["counties_allowed"]),
+                default=values["counties_allowed"],
+            )
+            col_gpa, col_sat, col_act = st.columns(3)
+            form["min_gpa"] = col_gpa.number_input(
+                "Minimum GPA", min_value=0.0, max_value=5.0, step=0.1, value=values["min_gpa"]
+            )
+            form["sat"] = col_sat.number_input(
+                "Minimum SAT", min_value=400, max_value=1600, step=10, value=values["sat"]
+            )
+            form["act"] = col_act.number_input(
+                "Minimum ACT", min_value=1, max_value=36, step=1, value=values["act"]
+            )
+            col_citizen, col_gender, col_religion = st.columns(3)
+            form["citizenship"] = col_citizen.text_input("Citizenship", value=values["citizenship"])
+            gender_options = ("", *catalog_entry.gender_options())
+            form["gender"] = col_gender.selectbox(
+                "Gender",
+                options=gender_options,
+                index=gender_options.index(values["gender"]) if values["gender"] in gender_options else 0,
+                format_func=lambda name: str(name).title() or "Not stated",
+            )
+            form["religion"] = col_religion.text_input("Religion", value=values["religion"])
+            col_need, col_first_gen, col_military, col_disability = st.columns(4)
+            with col_need:
+                form["need_based"] = _tristate_select("Need based", values["need_based"])
+            with col_first_gen:
+                form["first_gen_only"] = _tristate_select("First generation only", values["first_gen_only"])
+            with col_military:
+                form["military_family"] = _tristate_select("Military family", values["military_family"])
+            with col_disability:
+                form["disability"] = _tristate_select("Disability", values["disability"])
+            col_heritage, col_employer, col_membership = st.columns(3)
+            form["heritage"] = col_heritage.text_input(
+                "Heritage (comma separated)", value=csv_text(values["heritage"])
+            )
+            form["employer_restricted"] = col_employer.text_input(
+                "Employers (comma separated)", value=csv_text(values["employer_restricted"])
+            )
+            form["membership_required"] = col_membership.text_input(
+                "Memberships (comma separated)", value=csv_text(values["membership_required"])
+            )
+        with tab_requirements:
+            requirement_columns = st.columns(len(catalog_entry.REQUIREMENT_FLAGS))
+            evidence = values.get("requirement_evidence") or {}
+            for column, flag in zip(requirement_columns, catalog_entry.REQUIREMENT_FLAGS, strict=True):
+                with column:
+                    form[f"req_{flag}"] = _tristate_select(
+                        REQUIREMENT_LABELS[flag],
+                        values[f"req_{flag}"],
+                        help=str(evidence.get(flag) or "") or None,
+                    )
+            col_letters, col_renewal = st.columns(2)
+            form["recommendation_letters"] = col_letters.number_input(
+                "Recommendation letters",
+                min_value=0,
+                max_value=10,
+                step=1,
+                value=values["recommendation_letters"],
+            )
+            form["renewal_terms"] = col_renewal.text_input(
+                "Renewal terms", value=values["renewal_terms"]
+            )
+            form["essay_prompts"] = st.text_area(
+                "Essay prompts (one per line)",
+                value="\n".join(values["essay_prompts"]),
+                height=68,
+            )
+            form["keywords"] = st.text_input(
+                "Keywords (comma separated)", value=csv_text(values["keywords"])
+            )
 
+        st.caption("One button saves all four tabs; check each before confirming.")
         submitted = st.form_submit_button("Confirm and add to the catalog", type="primary")
 
     if not submitted:
@@ -479,9 +492,11 @@ def _proposal_edit_record(proposal: inbox.Proposal) -> dict[str, Any]:
 def _render_proposal(proposal: inbox.Proposal) -> None:
     label = proposal.title or proposal.catalog_id or proposal.proposal_id
     with st.expander(f"{label} · {proposal.created_on}", expanded=False):
+        rows = catalog_entry.diff_rows(proposal.diff)
+        badge = proposal_change_badge(len(rows))
+        st.badge(badge.label, icon=badge.icon, color=badge.color)
         if proposal.notes:
             st.caption(proposal.notes)
-        rows = catalog_entry.diff_rows(proposal.diff)
         if rows:
             st.dataframe(
                 pd.DataFrame(
@@ -540,7 +555,8 @@ def _render_inbox_page() -> None:
         matching = [proposal for proposal in proposals if proposal.kind == kind]
         if not matching:
             continue
-        st.markdown(f"**{PROPOSAL_KIND_LABELS.get(kind, kind)}** ({len(matching)})")
+        badge = proposal_kind_badge(kind, len(matching))
+        st.badge(badge.label, icon=badge.icon, color=badge.color)
         for proposal in matching:
             _render_proposal(proposal)
 

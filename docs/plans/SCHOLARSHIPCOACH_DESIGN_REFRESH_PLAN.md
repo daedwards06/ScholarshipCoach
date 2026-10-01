@@ -460,18 +460,18 @@ python scripts/screenshot_app.py --theme both --scratch-db
 ```
 
 **Checklist:**
-- [ ] "Add an award" split into `st.tabs` *inside* the existing `st.form("catalog_entry_form")`:
+- [x] "Add an award" split into `st.tabs` *inside* the existing `st.form("catalog_entry_form")`:
       Basics · Money & dates · Who it's for · Requirements. The submit button stays in the form but
       below the tabs, so it is visible from every tab. "Read the page" stays the lead action
-- [ ] The dict `_award_form_values()` returns keeps the same keys, and its widgets stay keyless
+- [x] The dict `_award_form_values()` returns keeps the same keys, and its widgets stay keyless
       (prefill and proposal loading depend on that; see its docstring). The record still goes
       through `catalog_entry.validate_form` unchanged
-- [ ] Inbox list uses the MASTER status badges
-- [ ] Settings: Family milestones first; "Show operator tools" moves into a closing "Advanced"
+- [x] Inbox list uses the MASTER status badges
+- [x] Settings: Family milestones first; "Show operator tools" moves into a closing "Advanced"
       expander
-- [ ] Page height at 1366px ≤ 1,600px for the Add form's first tab (was ~3,000px for the whole
+- [x] Page height at 1366px ≤ 1,600px for the Add form's first tab (was ~3,000px for the whole
       form)
-- [ ] All five CI commands green
+- [x] All five CI commands green
 
 ---
 

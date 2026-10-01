@@ -19,7 +19,7 @@ def _milestone_window_text(milestone: milestones.Milestone) -> str:
 
 
 def _render_milestone_settings(conn: Any) -> None:
-    st.markdown("**Milestones**")
+    st.markdown("**Family milestones**")
     st.caption(
         "The general planning dates every family shares. Hide the ones that do not apply, "
         "and add your own — a district scholarship night, a counselor's deadline."
@@ -91,21 +91,29 @@ def _render_milestone_settings(conn: Any) -> None:
             st.rerun()
 
 
+def _render_advanced_settings(conn: Any) -> None:
+    with st.expander("Advanced", icon=":material/build:"):
+        st.caption(
+            "Student and Parent view are switched in the sidebar. Parent view asks for the "
+            "family PIN when one is set in `.streamlit/secrets.toml`."
+        )
+        enabled = repo.get_flag(conn, modes.OPERATOR_ENABLED_SETTING)
+        choice = st.checkbox(
+            "Show operator tools",
+            value=enabled,
+            help="Adds an Operator view with the ranking pipeline, ingest and win model controls.",
+        )
+        if choice != enabled:
+            repo.set_flag(conn, modes.OPERATOR_ENABLED_SETTING, choice)
+            st.rerun()
+
+
 def render() -> None:
     modes.render_page_header("settings")
     try:
         with open_db() as conn:
-            enabled = repo.get_flag(conn, modes.OPERATOR_ENABLED_SETTING)
-            choice = st.checkbox(
-                "Show operator tools",
-                value=enabled,
-                help="Adds an Operator view with the ranking pipeline, ingest and win model controls.",
-            )
-            if choice != enabled:
-                repo.set_flag(conn, modes.OPERATOR_ENABLED_SETTING, choice)
-                st.rerun()
-
-            st.divider()
             _render_milestone_settings(conn)
+            st.space("large")
+            _render_advanced_settings(conn)
     except Exception as exc:
         st.error(f"Could not open the family database: {exc}")

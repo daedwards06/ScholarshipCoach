@@ -93,7 +93,7 @@ SECTION_CAPTIONS: dict[str, str] = {
     ),
     "colleges_money": "Each college's net price and how much of it the awards won so far cover.",
     "outcomes": "What each decided application brought in.",
-    "settings": "Operator tools and the family milestone dates.",
+    "settings": "The family milestone dates, plus advanced switches.",
     "profile": "What the app uses to match you with awards.",
 }
 

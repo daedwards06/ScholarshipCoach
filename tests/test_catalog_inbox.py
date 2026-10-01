@@ -330,3 +330,25 @@ def test_cli_reports_a_schema_failure_without_writing(
     assert exit_code == 1
     assert "not a valid catalog record" in capsys.readouterr().out
     assert list(records.glob("*.json")) == []
+
+
+def test_inbox_page_badges_cover_every_proposal_kind() -> None:
+    from app.sections.catalog_inbox import PROPOSAL_KIND_BADGES, proposal_kind_badge
+    from src.catalog.inbox import PROPOSAL_KINDS
+
+    assert set(PROPOSAL_KIND_BADGES) == set(PROPOSAL_KINDS)
+    for badge in PROPOSAL_KIND_BADGES.values():
+        assert badge.icon.startswith(":material/")
+    assert proposal_kind_badge("reverify", 2).label == "Re-verification found a change · 2"
+    assert proposal_kind_badge("reverify", 2).color == "yellow"
+    assert proposal_kind_badge("mystery", 1).color == "gray"
+
+
+def test_inbox_page_change_badge_flags_edits_not_new_awards() -> None:
+    from app.sections.catalog_inbox import proposal_change_badge
+
+    assert proposal_change_badge(0).label == "New award"
+    assert proposal_change_badge(0).color == "blue"
+    assert proposal_change_badge(1).label == "Changes 1 field"
+    assert proposal_change_badge(3).label == "Changes 3 fields"
+    assert proposal_change_badge(3).color == "yellow"
