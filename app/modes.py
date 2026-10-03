@@ -10,7 +10,9 @@ student.
 
 A PIN in ``.streamlit/secrets.toml`` turns the parent selector into a soft
 lock.  With no secrets file there is no PIN and the selector is open, which is
-what a trusting household wants by default.
+what a trusting household wants by default.  When ``tailscale serve`` says who
+is signed in (``app/identity.py``), the login decides instead: a student login
+gets Student mode only, a parent login gets Parent mode without the PIN.
 
 Every decision function here is pure so it can be tested without Streamlit;
 only the ``render_*`` helpers touch the page.
@@ -22,6 +24,8 @@ from collections.abc import Mapping
 from typing import Any, Literal, cast
 
 import streamlit as st
+
+from app.identity import Identity
 
 Mode = Literal["student", "parent", "operator"]
 
@@ -221,11 +225,20 @@ def resolve_mode(
     operator_enabled: bool,
     pin: str | None = None,
     unlocked: bool = False,
+    identity: Identity | None = None,
 ) -> Mode:
-    """Return the mode actually granted for a request."""
+    """Return the mode actually granted for a request.
+
+    A student login never gets past Student, whatever the PIN state says; a
+    parent login skips the PIN.  No identity is the PIN path.
+    """
+    if identity is not None and identity.role == "student":
+        return "student"
     mode = normalize_mode(requested)
     if mode not in available_modes(operator_enabled):
-        return DEFAULT_MODE
+        return "parent" if identity is not None else DEFAULT_MODE
+    if identity is not None:
+        return mode
     if pin_required(mode, pin) and not unlocked:
         return DEFAULT_MODE
     return mode
@@ -246,8 +259,16 @@ def render_page_header(section: str, caption: str | None = None) -> None:
         st.caption(line)
 
 
-def render_mode_selector(*, operator_enabled: bool, pin: str | None = None) -> Mode:
+def render_mode_selector(
+    *, operator_enabled: bool, pin: str | None = None, identity: Identity | None = None
+) -> Mode:
     """Draw the sidebar mode selector (with PIN prompt) and return the mode."""
+    if identity is not None and identity.role == "student":
+        with st.sidebar:
+            st.caption(f"Signed in as {identity.name}")
+        st.session_state[MODE_STATE_KEY] = "student"
+        return "student"
+
     if pin is None:
         pin = parent_pin_from_secrets()
 
@@ -256,8 +277,12 @@ def render_mode_selector(*, operator_enabled: bool, pin: str | None = None) -> M
     # operator tools switched off) has to be cleared before the widget draws.
     if normalize_mode(st.session_state.get(MODE_REQUEST_STATE_KEY)) not in choices:
         st.session_state[MODE_REQUEST_STATE_KEY] = DEFAULT_MODE
+    if identity is not None:
+        st.session_state.setdefault(MODE_REQUEST_STATE_KEY, "parent")
 
     with st.sidebar:
+        if identity is not None:
+            st.caption(f"Signed in as {identity.name}")
         requested = cast(
             Mode,
             st.radio(
@@ -269,7 +294,7 @@ def render_mode_selector(*, operator_enabled: bool, pin: str | None = None) -> M
             ),
         )
         unlocked = bool(st.session_state.get(UNLOCK_STATE_KEY, False))
-        if pin_required(requested, pin) and not unlocked:
+        if identity is None and pin_required(requested, pin) and not unlocked:
             supplied = st.text_input("Family PIN", type="password", key=PIN_STATE_KEY)
             if not supplied:
                 st.caption(f"{MODE_LABELS[requested]} view needs the family PIN.")
@@ -280,7 +305,11 @@ def render_mode_selector(*, operator_enabled: bool, pin: str | None = None) -> M
                 st.error("Incorrect PIN.")
 
         mode = resolve_mode(
-            requested, operator_enabled=operator_enabled, pin=pin, unlocked=unlocked
+            requested,
+            operator_enabled=operator_enabled,
+            pin=pin,
+            unlocked=unlocked,
+            identity=identity,
         )
         st.caption(MODE_CAPTIONS[mode])
 

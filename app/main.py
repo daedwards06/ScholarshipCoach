@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import date
 
 import streamlit as st
 from streamlit.navigation.page import StreamlitPage
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
-from app import modes, sidebar, state
+from app import identity, modes, sidebar, state
 from app.helpers import phone_width_css
 from app.sections import (
     applications,
@@ -22,6 +23,10 @@ from app.sections import (
     timeline,
     what_if,
 )
+from src.store import repo
+from src.store.db import open_db
+
+ACTIVITY_STATE_KEY = "activity_last_counted"
 
 SECTION_RENDERERS: dict[str, Callable[[], None]] = {
     "find": find.render,
@@ -71,17 +76,41 @@ def _requests_hidden_page(visible: list[StreamlitPage], every: list[StreamlitPag
     return any(matches(page) for page in every) and not any(matches(page) for page in visible)
 
 
+def _record_activity(person: str, page: StreamlitPage) -> None:
+    """Count a page opened once per person, day and page change (D6), not per rerun."""
+    marker = (person, date.today().isoformat(), page.url_path)
+    if st.session_state.get(ACTIVITY_STATE_KEY) == marker:
+        return
+    st.session_state[ACTIVITY_STATE_KEY] = marker
+    try:
+        with open_db() as conn:
+            repo.record_activity(conn, person, marker[1])
+    except Exception:
+        # A missed count must never stop her page from opening.
+        pass
+
+
+def _render_identity_check() -> None:
+    """Operator-only check that tailscale serve's headers reach Streamlit (Task A.2)."""
+    presence = identity.header_presence(identity.headers_from_context())
+    with st.expander("Identity headers", expanded=False):
+        for name, present in presence.items():
+            st.caption(f"{name}: {'present' if present else 'absent'}")
+
+
 def main() -> None:
     state.ensure_session_state()
 
     operator_enabled = state.operator_enabled()
-    mode = modes.render_mode_selector(operator_enabled=operator_enabled)
+    who = identity.current_identity()
+    mode = modes.render_mode_selector(operator_enabled=operator_enabled, identity=who)
     st.set_page_config(page_title="Scholarship Coach", layout=modes.layout_for_mode(mode))
     st.markdown(phone_width_css(), unsafe_allow_html=True)
 
     if modes.show_operator_tools(mode, operator_enabled):
         with st.sidebar:
             sidebar.render_operator_sidebar()
+            _render_identity_check()
 
     st.session_state.profile = state.profile_from_widgets()
 
@@ -96,7 +125,9 @@ def main() -> None:
         st.navigation(every, position="hidden")
         st.switch_page(visible[0])
 
-    st.navigation(groups, position="top").run()
+    page = st.navigation(groups, position="top")
+    _record_activity(identity.activity_key(who, mode), page)
+    page.run()
 
 
 if __name__ == "__main__":
