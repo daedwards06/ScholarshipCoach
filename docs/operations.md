@@ -83,6 +83,32 @@ Stop-ScheduledTask    -TaskName "ScholarshipCoach app"     # take it down
 Start-ScheduledTask   -TaskName "ScholarshipCoach app"     # bring it back
 ```
 
+### Who sees what (`[family]` in secrets)
+
+On the server, `tailscale serve` tells the app who is signed in (the `Tailscale-User-Login`
+header). A `[family]` table in the server's `.streamlit/secrets.toml` maps each login to a role:
+
+```toml
+parent_pin = "4417"
+
+[family]
+"student-login@example.com" = "student"
+"parent-login@example.com" = "parent"
+```
+
+- A **student** login gets Student mode only. There is no mode switch and no PIN prompt, and
+  the PIN cannot open Parent mode from her devices.
+- A **parent** login opens in Parent mode with no PIN, and can still switch to Student to see
+  her view (and to Operator when it is turned on in Settings).
+- **No header or an unmapped login** (local development, a tagged device, a login missing from
+  the table) falls back to the PIN exactly as above.
+
+Logins are compared ignoring case. The sidebar shows "Signed in as …" whenever a login matched.
+Pages opened are counted per login per day (per mode under the PIN fallback); she is told this
+is counted. Keep real logins out of the repo: the table lives only in the server's secrets file.
+To check the headers arrive, open Operator mode: the sidebar's "Identity headers" lists each
+header as present or absent, never its value.
+
 After a `git pull` that changes dependencies, restart the task — a running Streamlit process
 does not pick up a new `pip install`.
 
