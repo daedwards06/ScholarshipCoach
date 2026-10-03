@@ -76,7 +76,7 @@ What the app needs from a host, measured the same day:
 |---|---|---|---|
 | D1 | Provider and size | **OVHcloud US VPS-1** (2 vCore, 4 GB RAM, 40 GB NVMe, IPv4 included), US East (Vint Hill, VA), 12-month upfront | Hetzner CX23 in Germany (~$7.09/mo, no US plan); DigitalOcean / Linode 4 GB ($24/mo); a home mini PC (~$250 upfront) |
 | D2 | OS | Ubuntu 24.04 LTS (ships Python 3.12, matching CI) | Debian 12 + deadsnakes Python |
-| D3 | Tailscale accounts | One family tailnet with **one account per person**; check the free plan's current user limit against the number of family members | Everyone on one shared login (rules out per-person identity if the Roles & Product Plan chooses it) |
+| D3 | Tailscale accounts | One family tailnet with **one account per person**, the student included; check the free plan's current user limit against the number of family members | *(Ruled out 2026-10-03: the Roles & Product Plan chose per-person identity, so a shared login would put everyone in one mode)* |
 | D4 | Backup destination | `restic` to Backblaze B2 (encrypted client-side; first 10 GB free) | OVHcloud Object Storage; nightly pull to a home machine |
 | D5 | Catalog edits | Server commits to a `server` branch, owner merges by PR | Catalog edits only on the dev PC; server catalog read-only |
 
@@ -393,7 +393,11 @@ systemctl list-timers 'scholarshipcoach-*'               # backup, verify, catal
 the dev PC.
 
 **Prerequisites (2026-09-27):** the Roles & Product Plan has (1) decided how parent access works
-(family PIN or per-person identity) and (2) shipped its light version (Phase A). Onboarding
+(family PIN or per-person identity) and (2) shipped its light version (Phase A).
+*(2026-10-03: (1) is decided: per-person identity from the `Tailscale-User-Login` header that
+`tailscale serve` passes, mapped to a role in a `[family]` table in the server's
+`.streamlit/secrets.toml`; the family PIN stays as the fallback. Roles & Product Plan Task A.2
+verifies the header on this server first. (2) is that plan's Task A.10.)* Onboarding
 starts the month of real use that plan's go/no-go gate depends on. Onboarding earlier just
 shows the family the version that is about to change.
 
@@ -404,7 +408,9 @@ shows the family the version that is about to change.
 **Validation Commands:** none automated; the checklist is the test.
 
 **Checklist:**
-- [ ] Tailscale installed and signed in on each family phone
+- [ ] Tailscale installed and signed in on each family phone, each with that person's **own**
+      account (her phone on hers, not a parent's), and each login listed in the server's
+      `[family]` secrets table
 - [ ] Each phone opens `https://coach.<tailnet>.ts.net` **on cellular data, Wi-Fi off**, the test
       that proves it is not reaching anything at home
 - [ ] "Add to Home Screen" on each phone

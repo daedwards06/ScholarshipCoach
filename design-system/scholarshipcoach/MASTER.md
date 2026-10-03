@@ -20,16 +20,23 @@ fit this product or stack and were replaced with the values chosen and contrast-
 
 ## Product and tone
 
-A private scholarship finder and application tracker for one family. The primary user is a
-high-school student on her phone; parents use a denser Parent mode on a laptop.
+A private college-path and scholarship planner for one family (role model decided 2026-10-03 in
+`docs/plans/SCHOLARSHIPCOACH_ROLES_PRODUCT_PLAN.md`). Two primary users: the student on her phone,
+whose Student mode is her path to her first target school (requirements, to-dos, opportunities open
+to her grade); and parents on a laptop, whose denser Parent mode is the money and strategy view
+(scholarships, colleges and net price, timeline). The two meet in shared to-dos.
 
 - **Calm, encouraging, never alarmed.** Deadlines are facts with a date and a day count, not
   sirens. Reserve red for *overdue* only.
 - **Say what to do next.** Every empty state and every card ends in one obvious action.
 - **Plain words for the student.** No pipeline, model, snapshot, weight or Top-N vocabulary on a
   student surface. That language belongs in Operator mode.
-- **Money is the headline.** On an award card, the amount is the most prominent fact after the
-  title.
+- **Lead with what this person acts on.** After the title, a card's most prominent fact is the
+  one its reader decides on: for parents the money (`pages/parent-mode.md`, "Award card"), for the
+  student the next step and its date (`pages/student-mode.md`, "Opportunity card"). *(Until
+  2026-10-03 this rule was "Money is the headline" for everyone.)*
+- **Only what she can act on now.** A student surface never says "Apply now" for something her
+  grade cannot apply to; later things say when they open.
 
 ---
 
@@ -143,10 +150,13 @@ This replaces `urgency_indicator()`'s emoji and hex colors in `app/helpers.py`.
 - One icon per nav item, per badge and per primary button at most. Decorative icons sit beside
   visible text; never use an icon-only control.
 
-Suggested nav icons: This Week `today`, Find `search`, Applications `assignment`, Essays
-`edit_note`, Recommenders `group`, What If `tune`, Profile `person`, Catalog & Inbox `inbox`,
-Timeline `calendar_month`, Colleges & Money `payments`, Outcomes `emoji_events`, Settings
-`settings`.
+Suggested nav icons: My Path `flag`, To-dos `checklist`, Opportunities `explore`, Find `search`,
+Applications `assignment`, Essays `edit_note`, Recommenders `group`, What If `tune`, Profile
+`person`, Catalog & Inbox `inbox`, Timeline `calendar_month`, Colleges & Money `payments`,
+Outcomes `emoji_events`, Settings `settings`. (This Week `today` is retired with the page.)
+
+Which pages exist and how they are grouped is set by the Roles & Product Plan ("Page list and
+grouping"); this file and the page overrides decide how they look.
 
 ---
 
@@ -170,6 +180,10 @@ Timeline `calendar_month`, Colleges & Money `payments`, Outcomes `emoji_events`,
 ## Components (native Streamlit)
 
 ### Award card (Find, and anywhere an award is listed)
+
+Parent mode's card (Find Scholarships moved to Parent on 2026-10-03). Student mode lists awards
+and programs with the Opportunity card in `pages/student-mode.md`, which shares this layout but
+not the headline.
 
 ```
 ┌ st.container(border=True, key=f"award_{id}") ───────────────┐

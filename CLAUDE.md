@@ -33,7 +33,20 @@ this protocol exactly:
   change `- [ ]` to `- [x]` in the plan file.
 - Only check off items you can confirm — do not speculatively mark things done.
 
-### Step 5 — Deploy (only after a push the user asked for)
+### Step 5 — Draft the commit message
+- After every task, show a proposed commit message in the reply. Do not commit unless the user
+  says to; when they do, commit with exactly that message (`git commit -F <file>`).
+- Model it on commit `0dc6ed4` ("Add Roles & Product Plan; hand off Design Refresh Phase 2"):
+  - Subject: `Task X.Y: <imperative summary>`, at most 72 characters
+  - A short paragraph on why the change exists
+  - Grouped sections, each a `Heading:` line followed by `- ` bullets (what was checked, what
+    was added, where it lives), with every line wrapped at 72 characters
+  - A closing line for anything the reader must know before shipping (a new migration means
+    deploying migrates the family database; "No code changes." for docs-only work)
+  - The `Co-Authored-By` trailer
+- Public repo: never name her or her target school in the message.
+
+### Step 6 — Deploy (only after a push the user asked for)
 - Committing and pushing still need the user's say-so. Once `main` is pushed, offer to deploy;
   run it only when the user agrees.
 - Deploy with `.\scripts\deploy.ps1` (PowerShell). It waits for green CI on the pushed commit,
@@ -57,6 +70,7 @@ this protocol exactly:
 | `docs/plans/SCHOLARSHIPCOACH_CATALOG_INTEGRITY_PLAN.md` | Post-implementation fixes (from 2026-09-13 review of the Family Product Plan): rebuild carry-forward + blocking guardrail, trust enforced in Stage 1, cross-source dedupe, blocked-vs-dead verification, `needs_date` bucket, NC local award seeding, student onboarding, Outcomes page, `app/main.py` split; closes Family Plan 3.2/4.3 leftovers and UI Plan Task 6 |
 | `docs/plans/SCHOLARSHIPCOACH_CLOUD_HOSTING_PLAN.md` | Move hosting off the home PC to a small cloud server reachable only over Tailscale (from 2026-09-26 hosting discussion): `deploy/` service/bootstrap/update scripts, nightly restic backups + restore drill, server-side catalog edits flow back via a `server` branch PR, family phone onboarding; supersedes the home-PC hosting in `docs/operations.md`. Updated 2026-09-27: backup before every update (migrations auto-apply), Task 3.1 onboarding waits on the Roles & Product Plan's access decision and Phase A |
 | `docs/plans/SCHOLARSHIPCOACH_DESIGN_REFRESH_PLAN.md` | "Study Hall" design refresh (from 2026-09-26 `ui-ux-pro-max` audit at 400px/1366px): screenshot harness, light+dark contrast-tested theme with self-hosted fonts, emoji-free deadline badges, top `st.navigation`, results-first Find with compact cards, empty states, Parent form/timeline density; spec lives in `design-system/scholarshipcoach/` (MASTER + student/parent overrides); supersedes UI Redesign Plan theme values. Updated 2026-09-27: Phase 2 (student pages) ON HOLD pending the Roles & Product Plan; Task 1.3 is nav mechanism only |
+| `docs/plans/SCHOLARSHIPCOACH_ROLES_PRODUCT_PLAN.md` | Roles & product (from 2026-10-03 roles/UX review): Student mode as her path to her first target school (My Path checklist, shared To-dos, Opportunities with catalog `kind: program`, What If as GPA → goals bridge), Parent mode as the money view (Find, Applications, Colleges & Money, Timeline); Tailscale identity with PIN fallback; essays private until shared; ordered to fall back to a parent-led model; go/no-go gate after a month of real use before Phase B. Owns the page list; absorbs Design Refresh Phase 2. Public repo: never name the target school in committed files |
 
 *(Add new plan files to this table as they are created.)*
 
