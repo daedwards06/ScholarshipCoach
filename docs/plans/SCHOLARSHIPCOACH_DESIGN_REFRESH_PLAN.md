@@ -9,6 +9,8 @@
 > model (see "Relationship to other plans"). Phase 2 is **on hold** and expected to move to the
 > Roles & Product Plan; Task 1.3 is narrowed to the navigation *mechanism*; Execution Order
 > rewritten across all three active plans.
+> **Updated 2026-10-03:** the Roles & Product Plan is written. Phase 2 is **MOVED** there (Tasks
+> A.4, A.5, A.8, A.9); Task 3.2's dependency is resolved (run it after that plan's Task A.6).
 
 ---
 
@@ -313,7 +315,12 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 
 # Phase 2 — Student Surfaces
 
-> **ON HOLD (2026-09-27) — expected to move to the Roles & Product Plan.** These tasks assume the
+> **MOVED (2026-10-03) → `SCHOLARSHIPCOACH_ROLES_PRODUCT_PLAN.md`.** Task 2.1 → Task A.5; Task 2.2 →
+> Task A.4; Task 2.3 → Tasks A.5 (Applications), A.8 (What If) and A.9 (Essays, Recommenders). Find
+> becomes a Parent page and This Week is replaced by shared To-dos. The checklists below are kept
+> for reference only; do not implement them from this plan.
+>
+> *Original note:* **ON HOLD (2026-09-27) — expected to move to the Roles & Product Plan.** These tasks assume the
 > student's job is applying for scholarships. The leading role model makes Student mode her path
 > to college and moves money-first views to Parent mode, which changes what Find, This Week and
 > the tracker pages are for. Do not implement them from this plan. When the Roles & Product Plan
@@ -324,6 +331,8 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 > they end up.
 
 ## Task 2.1: Find — Results First, Compact Award Cards
+
+> **MOVED → Roles & Product Plan Task A.5.**
 
 **Why:** F4, F5, F6. Find is where the student decides what to apply for. Today she meets a
 pipeline form, an empty page, and then 12,000px of cards.
@@ -367,6 +376,8 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 
 ## Task 2.2: This Week and Empty States
 
+> **MOVED → Roles & Product Plan Task A.4** (This Week is replaced by shared To-dos).
+
 **Why:** F11. This Week is the page the student opens most. When nothing is due it currently
 says so in a success box and stops.
 
@@ -403,6 +414,9 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ---
 
 ## Task 2.3: Applications, Essays, Recommenders, What If
+
+> **MOVED → Roles & Product Plan Tasks A.5 (Applications), A.8 (What If), A.9 (Essays,
+> Recommenders).**
 
 **Why:** F12. Cryptic counts and status packed into expander labels make the tracker hard to scan
 on a phone.
@@ -483,6 +497,10 @@ python scripts/screenshot_app.py --theme both --scratch-db
 (parent-only, shared, or split into her milestones and the family's money dates) and what
 Colleges & Money holds once target schools exist. Run this task after that
 decision. Task 3.1 has no such dependency.
+*Resolved 2026-10-03:* Timeline is a Parent page (Money group) showing every date, including her
+dated to-dos and requirement deadlines; she sees her own dates on My Path and To-dos instead.
+Colleges & Money gains a per-college Requirements section in Roles & Product Plan Task A.6. Run
+this task after A.6.
 
 **Preflight Files:**
 - `design-system/scholarshipcoach/pages/parent-mode.md` ("Timeline", "Colleges & Money",
