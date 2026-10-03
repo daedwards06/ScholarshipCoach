@@ -33,7 +33,20 @@ this protocol exactly:
   change `- [ ]` to `- [x]` in the plan file.
 - Only check off items you can confirm — do not speculatively mark things done.
 
-### Step 5 — Deploy (only after a push the user asked for)
+### Step 5 — Draft the commit message
+- After every task, show a proposed commit message in the reply. Do not commit unless the user
+  says to; when they do, commit with exactly that message (`git commit -F <file>`).
+- Model it on commit `0dc6ed4` ("Add Roles & Product Plan; hand off Design Refresh Phase 2"):
+  - Subject: `Task X.Y: <imperative summary>`, at most 72 characters
+  - A short paragraph on why the change exists
+  - Grouped sections, each a `Heading:` line followed by `- ` bullets (what was checked, what
+    was added, where it lives), with every line wrapped at 72 characters
+  - A closing line for anything the reader must know before shipping (a new migration means
+    deploying migrates the family database; "No code changes." for docs-only work)
+  - The `Co-Authored-By` trailer
+- Public repo: never name her or her target school in the message.
+
+### Step 6 — Deploy (only after a push the user asked for)
 - Committing and pushing still need the user's say-so. Once `main` is pushed, offer to deploy;
   run it only when the user agrees.
 - Deploy with `.\scripts\deploy.ps1` (PowerShell). It waits for green CI on the pushed commit,

@@ -92,6 +92,7 @@ class Essay:
     word_count: int = 0
     created_at: str = ""
     updated_at: str = ""
+    shared_with_parents: bool = False
 
 
 @dataclass(slots=True)
@@ -195,6 +196,59 @@ class College:
     merit_aid_notes: str = ""
     outside_award_policy: str = ""
     deadline_type: str = ""
+    priority: int | None = None
+
+
+REQUIREMENT_CATEGORIES: tuple[str, ...] = (
+    "course",
+    "gpa",
+    "test",
+    "application",
+    "scholarship",
+    "program",
+    "other",
+)
+
+REQUIREMENT_STATUSES: tuple[str, ...] = ("not_started", "in_progress", "met", "not_needed")
+
+DEFAULT_REQUIREMENT_CATEGORY = "other"
+DEFAULT_REQUIREMENT_STATUS = "not_started"
+
+
+def normalize_requirement_category(value: object) -> str:
+    text = str(value or "").strip().casefold().replace(" ", "_")
+    return text if text in REQUIREMENT_CATEGORIES else DEFAULT_REQUIREMENT_CATEGORY
+
+
+def normalize_requirement_status(value: object) -> str:
+    text = str(value or "").strip().casefold().replace(" ", "_")
+    return text if text in REQUIREMENT_STATUSES else DEFAULT_REQUIREMENT_STATUS
+
+
+@dataclass(slots=True)
+class CollegeRequirement:
+    """One thing a target school asks for: a course, a GPA, a test score, a form."""
+
+    id: int
+    college_id: int
+    label: str
+    category: str = DEFAULT_REQUIREMENT_CATEGORY
+    target: str = ""
+    due_by: str = ""
+    status: str = DEFAULT_REQUIREMENT_STATUS
+    notes: str = ""
+    source_url: str = ""
+    verified_on: str | None = None
+    position: int = 0
+    created_at: str = ""
+    updated_at: str = ""
+
+
+@dataclass(slots=True)
+class ActivityDay:
+    login_or_role: str
+    day: str
+    pages_opened: int = 0
 
 
 def _set(**values: Any) -> dict[str, Any]:
@@ -499,6 +553,7 @@ def _to_essay(row: sqlite3.Row) -> Essay:
         word_count=int(row["word_count"]),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
+        shared_with_parents=bool(row["shared_with_parents"]),
     )
 
 
@@ -566,12 +621,29 @@ def get_essay(conn: sqlite3.Connection, essay_id: int) -> Essay | None:
     return None if row is None else _to_essay(row)
 
 
-def list_essays(conn: sqlite3.Connection, student_id: str) -> list[Essay]:
+def list_essays(
+    conn: sqlite3.Connection, student_id: str, *, shared_only: bool = False
+) -> list[Essay]:
+    """A student's essays; ``shared_only`` is what Parent mode may read."""
+    shared = " AND shared_with_parents = 1" if shared_only else ""
     rows = conn.execute(
-        "SELECT * FROM essays WHERE student_id = ? ORDER BY updated_at DESC, id",
+        f"SELECT * FROM essays WHERE student_id = ?{shared} ORDER BY updated_at DESC, id",
         (student_id,),
     ).fetchall()
     return [_to_essay(row) for row in rows]
+
+
+def set_essay_shared(conn: sqlite3.Connection, essay_id: int, shared: bool) -> bool:
+    """Share an essay with parents, or take it back.
+
+    Like a theme change this is filing, not writing: no version row, and
+    ``updated_at`` stays put so sharing does not reorder her drafts.
+    """
+    cursor = conn.execute(
+        "UPDATE essays SET shared_with_parents = ? WHERE id = ?", (int(shared), essay_id)
+    )
+    conn.commit()
+    return cursor.rowcount > 0
 
 
 def update_essay(
@@ -1000,6 +1072,7 @@ def _to_college(row: sqlite3.Row) -> College:
         merit_aid_notes=str(row["merit_aid_notes"]),
         outside_award_policy=str(row["outside_award_policy"]),
         deadline_type=normalize_deadline_type(row["deadline_type"]),
+        priority=None if row["priority"] is None else int(row["priority"]),
     )
 
 
@@ -1017,6 +1090,7 @@ def create_college(
     merit_aid_notes: str = "",
     outside_award_policy: str = "",
     deadline_type: str = "",
+    priority: int | None = None,
 ) -> College:
     now = utc_now()
     deadline = normalize_deadline_type(deadline_type)
@@ -1037,6 +1111,7 @@ def create_college(
             "merit_aid_notes": merit_aid_notes,
             "outside_award_policy": outside_award_policy,
             "deadline_type": deadline,
+            "priority": priority,
         },
     )
     return College(
@@ -1054,6 +1129,7 @@ def create_college(
         merit_aid_notes=merit_aid_notes,
         outside_award_policy=outside_award_policy,
         deadline_type=deadline,
+        priority=priority,
     )
 
 
@@ -1083,6 +1159,7 @@ def update_college(
     merit_aid_notes: str = UNSET,
     outside_award_policy: str = UNSET,
     deadline_type: str = UNSET,
+    priority: int | None = UNSET,
 ) -> bool:
     return _update(
         conn,
@@ -1103,12 +1180,23 @@ def update_college(
                 if deadline_type is UNSET
                 else normalize_deadline_type(deadline_type)
             ),
+            priority=priority,
         ),
     )
 
 
 def delete_college(conn: sqlite3.Connection, college_id: int) -> bool:
     return _delete(conn, "colleges", college_id)
+
+
+def first_target_college(conn: sqlite3.Connection, student_id: str) -> College | None:
+    """The college marked ``priority = 1``, which My Path is built around."""
+    row = _fetch_one(
+        conn,
+        "SELECT * FROM colleges WHERE student_id = ? AND priority = 1 ORDER BY id LIMIT 1",
+        (student_id,),
+    )
+    return None if row is None else _to_college(row)
 
 
 def net_price(college: College) -> float | None:
@@ -1123,6 +1211,167 @@ def net_price(college: College) -> float | None:
     if college.cost_of_attendance is None or college.aid_offered is None:
         return None
     return college.cost_of_attendance - college.aid_offered
+
+
+# -- college requirements ---------------------------------------------------
+
+
+def _to_requirement(row: sqlite3.Row) -> CollegeRequirement:
+    verified_on = row["verified_on"]
+    return CollegeRequirement(
+        id=int(row["id"]),
+        college_id=int(row["college_id"]),
+        label=str(row["label"]),
+        category=normalize_requirement_category(row["category"]),
+        target=str(row["target"]),
+        due_by=str(row["due_by"]),
+        status=normalize_requirement_status(row["status"]),
+        notes=str(row["notes"]),
+        source_url=str(row["source_url"]),
+        verified_on=None if verified_on is None else str(verified_on),
+        position=int(row["position"]),
+        created_at=str(row["created_at"]),
+        updated_at=str(row["updated_at"]),
+    )
+
+
+def create_requirement(
+    conn: sqlite3.Connection,
+    college_id: int,
+    label: str,
+    category: str = DEFAULT_REQUIREMENT_CATEGORY,
+    *,
+    target: str = "",
+    due_by: str = "",
+    status: str = DEFAULT_REQUIREMENT_STATUS,
+    notes: str = "",
+    source_url: str = "",
+    verified_on: str | None = None,
+    position: int = 0,
+) -> CollegeRequirement:
+    now = utc_now()
+    requirement = CollegeRequirement(
+        id=0,
+        college_id=college_id,
+        label=label,
+        category=normalize_requirement_category(category),
+        target=target,
+        due_by=due_by,
+        status=normalize_requirement_status(status),
+        notes=notes,
+        source_url=source_url,
+        verified_on=verified_on,
+        position=position,
+        created_at=now,
+        updated_at=now,
+    )
+    requirement.id = _insert(
+        conn,
+        "college_requirements",
+        {
+            "college_id": requirement.college_id,
+            "label": requirement.label,
+            "category": requirement.category,
+            "target": requirement.target,
+            "due_by": requirement.due_by,
+            "status": requirement.status,
+            "notes": requirement.notes,
+            "source_url": requirement.source_url,
+            "verified_on": requirement.verified_on,
+            "position": requirement.position,
+            "created_at": now,
+            "updated_at": now,
+        },
+    )
+    return requirement
+
+
+def get_requirement(conn: sqlite3.Connection, requirement_id: int) -> CollegeRequirement | None:
+    row = _fetch_one(conn, "SELECT * FROM college_requirements WHERE id = ?", (requirement_id,))
+    return None if row is None else _to_requirement(row)
+
+
+def list_requirements(conn: sqlite3.Connection, college_id: int) -> list[CollegeRequirement]:
+    rows = conn.execute(
+        "SELECT * FROM college_requirements WHERE college_id = ? ORDER BY position, id",
+        (college_id,),
+    ).fetchall()
+    return [_to_requirement(row) for row in rows]
+
+
+def update_requirement(
+    conn: sqlite3.Connection,
+    requirement_id: int,
+    *,
+    label: str = UNSET,
+    category: str = UNSET,
+    target: str = UNSET,
+    due_by: str = UNSET,
+    status: str = UNSET,
+    notes: str = UNSET,
+    source_url: str = UNSET,
+    verified_on: str | None = UNSET,
+    position: int = UNSET,
+) -> bool:
+    changes = _set(
+        label=label,
+        category=category,
+        target=target,
+        due_by=due_by,
+        status=status,
+        notes=notes,
+        source_url=source_url,
+        verified_on=verified_on,
+        position=position,
+    )
+    if "category" in changes:
+        changes["category"] = normalize_requirement_category(changes["category"])
+    if "status" in changes:
+        changes["status"] = normalize_requirement_status(changes["status"])
+    return _update(conn, "college_requirements", requirement_id, changes)
+
+
+def delete_requirement(conn: sqlite3.Connection, requirement_id: int) -> bool:
+    return _delete(conn, "college_requirements", requirement_id)
+
+
+def requirement_progress(requirements: list[CollegeRequirement]) -> tuple[int, int]:
+    """``(met, counted)`` for a progress line like "5 of 12 on track".
+
+    A requirement marked ``not_needed`` (a test-optional score, say) is not
+    something she can fall behind on, so it leaves the count entirely.
+    """
+    counted = [item for item in requirements if item.status != "not_needed"]
+    return sum(1 for item in counted if item.status == "met"), len(counted)
+
+
+# -- activity ---------------------------------------------------------------
+
+
+def record_activity(conn: sqlite3.Connection, login_or_role: str, day: str) -> None:
+    """Count one page opened by one person on one day (owner decision D6)."""
+    conn.execute(
+        "INSERT INTO activity_days (login_or_role, day, pages_opened) VALUES (?, ?, 1) "
+        "ON CONFLICT (login_or_role, day) DO UPDATE SET pages_opened = pages_opened + 1",
+        (login_or_role, day),
+    )
+    conn.commit()
+
+
+def list_activity(conn: sqlite3.Connection, login_or_role: str | None = None) -> list[ActivityDay]:
+    if login_or_role is None:
+        rows = conn.execute(
+            "SELECT * FROM activity_days ORDER BY day, login_or_role"
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM activity_days WHERE login_or_role = ? ORDER BY day",
+            (login_or_role,),
+        ).fetchall()
+    return [
+        ActivityDay(str(row["login_or_role"]), str(row["day"]), int(row["pages_opened"]))
+        for row in rows
+    ]
 
 
 # -- settings ---------------------------------------------------------------

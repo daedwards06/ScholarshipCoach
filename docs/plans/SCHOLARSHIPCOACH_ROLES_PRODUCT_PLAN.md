@@ -289,31 +289,51 @@ python scripts/validate_catalog.py
 ```
 
 **Checklist:**
-- [ ] Migration path checked and written down in the task notes: `deploy/update.sh` runs
+- [x] Migration path checked and written down in the task notes: `deploy/update.sh` runs
       `deploy/backup.sh` before `git pull` and stops on failure; `apply_migrations` rolls back a
       failing file; `executescript` commits per statement, so a half-applied file is possible. Each
       new migration is therefore written to be safe to re-run (`IF NOT EXISTS`; `ALTER TABLE ADD
       COLUMN` only in a file that touches nothing else)
-- [ ] `src/store/migrations/0005_shared_todos.sql`: `todos` (`id`, `student_id` FK cascade,
+- [x] `src/store/migrations/0005_shared_todos.sql`: `todos` (`id`, `student_id` FK cascade,
       `title`, `notes`, `due_on`, `assignee` in `student|parent|family`, `created_by`,
       `created_role`, `done_on`, `done_by`, `source_kind` in
       `manual|application|checklist|letter|requirement|opportunity|milestone`, `source_ref`,
       `created_at`, `updated_at`), index on (`student_id`, `done_on`)
-- [ ] `0006_college_requirements.sql`: `college_requirements` (`id`, `college_id` FK cascade,
+- [x] `0006_college_requirements.sql`: `college_requirements` (`id`, `college_id` FK cascade,
       `category` in `course|gpa|test|application|scholarship|program|other`, `label`, `target`,
       `due_by` (grade or date), `status` in `not_started|in_progress|met|not_needed`, `notes`,
       `source_url`, `verified_on`, `position`, timestamps); `colleges.priority INTEGER` (1 = first
-      target)
-- [ ] `0007_essay_sharing.sql`: `essays.shared_with_parents INTEGER NOT NULL DEFAULT 0` (existing
+      target) in its own file, `0007_college_priority.sql`, per the ALTER rule above
+- [x] `0008_essay_sharing.sql`: `essays.shared_with_parents INTEGER NOT NULL DEFAULT 0` (existing
       drafts become private, per D3)
-- [ ] `0008_activity.sql`: `activity_days` (`login_or_role`, `day`, `pages_opened`, primary key
+- [x] `0009_activity.sql`: `activity_days` (`login_or_role`, `day`, `pages_opened`, primary key
       on the first two); one row per person per day, no page-level trail
-- [ ] `src/store/repo.py` (or a small `src/store/todos.py`): typed rows and functions for todos,
+- [x] `src/store/repo.py` (or a small `src/store/todos.py`): typed rows and functions for todos,
       requirements, essay sharing and activity; pure helpers (`todo_bucket`, `requirement_progress`)
       unit-tested
-- [ ] Tests: each migration applies to a database built at the 0004 schema with rows in every
+- [x] Tests: each migration applies to a database built at the 0004 schema with rows in every
       table, and existing rows survive (counts before = after); re-opening is a no-op
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-10-03):**
+- *Migration path, as checked.* `deploy/update.sh` runs `deploy/backup.sh` (a `.backup` copy of
+  `coach.db` plus `integrity_check`, then restic) before `git pull` and exits on failure, then
+  prints the migration files the pull added. `src/store/db.py` applies unapplied files in name
+  order on the first `connect` after the restart; a failing file raises `MigrationError` after
+  `rollback()` and is not recorded in `schema_migrations`. But `executescript` autocommits each
+  statement, so the rollback cannot undo statements that already ran: a file can be half-applied.
+- *Rule that follows.* A migration file either holds only `CREATE … IF NOT EXISTS` statements
+  (re-runnable from the top) or holds exactly one `ALTER TABLE … ADD COLUMN` (all or nothing).
+  That is why `colleges.priority` moved out of 0006 into `0007_college_priority.sql`, renumbering
+  essay sharing to 0008 and activity to 0009. Recovery from a half-applied file is then: fix the
+  cause, restart; nothing needs hand-editing.
+- *Where the code went.* Todos and `todo_bucket` (groups `overdue`, `this_week` ≤ 7 days,
+  `coming_up` ≤ 60 days, `later`, `someday`, `done`) in `src/store/todos.py`; requirements,
+  `requirement_progress` (`met` of everything not `not_needed`), `first_target_college`,
+  `set_essay_shared` / `list_essays(shared_only=True)` and `record_activity` in
+  `src/store/repo.py`. Tests: `tests/test_store_shared_model.py`.
+- *Deploy note.* Pushing this adds five files under `src/store/migrations/`; the next server
+  update migrates the family database after its backup.
 
 ---
 
@@ -833,7 +853,7 @@ falls back to a finished model A. A.10 last, so the family onboards to a version
 to change.
 
 Every task that adds a file under `src/store/migrations/` is flagged when pushed: the server update
-migrates the family database irreversibly, after a backup (CLAUDE.md Step 5).
+migrates the family database irreversibly, after a backup (CLAUDE.md Step 6).
 
 ## Success Criteria
 
