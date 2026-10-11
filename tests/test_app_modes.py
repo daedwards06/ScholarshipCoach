@@ -27,14 +27,14 @@ def test_available_modes_hides_operator_unless_enabled() -> None:
 
 def test_student_nav_is_top_pages_plus_more() -> None:
     assert modes.pages_for_mode("student") == {
-        "": ("todos", "essays"),
+        "": ("my_path", "todos", "essays"),
         "More": ("what_if", "recommenders", "profile"),
     }
 
 
 def test_parent_nav_is_her_path_money_and_family_tools() -> None:
     assert modes.pages_for_mode("parent") == {
-        "Her path": ("todos", "essays", "what_if", "recommenders"),
+        "Her path": ("my_path", "todos", "essays", "what_if", "recommenders"),
         "Money": ("find", "applications", "colleges_money", "timeline", "outcomes"),
         "Family tools": ("catalog_inbox", "settings", "profile"),
     }
@@ -48,7 +48,7 @@ def test_operator_sees_the_same_pages_as_parent() -> None:
 def test_scholarship_tracker_is_a_parent_page(section: str) -> None:
     assert not modes.can_view("student", section)
     assert modes.can_view("parent", section)
-    assert modes.resolve_section(section, "student") == "todos"
+    assert modes.resolve_section(section, "student") == "my_path"
 
 
 def test_tracker_labels_in_parent() -> None:
@@ -149,13 +149,13 @@ def test_resolve_mode_never_locks_student_out() -> None:
 
 
 def test_resolve_section_defaults_to_the_first_section_of_the_mode() -> None:
-    assert modes.resolve_section(None, "student") == "todos"
-    assert modes.resolve_section("nonsense", "parent") == "todos"
+    assert modes.resolve_section(None, "student") == "my_path"
+    assert modes.resolve_section("nonsense", "parent") == "my_path"
 
 
 def test_resolve_section_drops_a_section_the_mode_cannot_see() -> None:
     assert modes.resolve_section("settings", "parent") == "settings"
-    assert modes.resolve_section("settings", "student") == "todos"
+    assert modes.resolve_section("settings", "student") == "my_path"
 
 
 @pytest.mark.parametrize("mode", ["student", "parent", "operator"])

@@ -53,6 +53,7 @@ PIN_STATE_KEY = "mode_pin"
 NAV_PAGES_STATE_KEY = "nav_pages"
 
 SECTION_LABELS: dict[str, str] = {
+    "my_path": "My Path",
     "todos": "To-dos",
     "find": "Find Scholarships",
     "applications": "Applications",
@@ -68,6 +69,7 @@ SECTION_LABELS: dict[str, str] = {
 }
 
 SECTION_ICONS: dict[str, str] = {
+    "my_path": ":material/flag:",
     "todos": ":material/checklist:",
     "find": ":material/search:",
     "applications": ":material/assignment:",
@@ -83,6 +85,7 @@ SECTION_ICONS: dict[str, str] = {
 }
 
 SECTION_CAPTIONS: dict[str, str] = {
+    "my_path": "Where you stand for your first-choice school, and what's next.",
     "todos": "Things to do, from you and your family.",
     "find": "Awards that match her profile, best fit first.",
     "applications": "Every saved award and how far along each one is.",
@@ -129,11 +132,11 @@ def pages_for_mode(mode: Mode) -> dict[str, tuple[str, ...]]:
     """
     if normalize_mode(mode) == "student":
         return {
-            "": ("todos", "essays"),
+            "": ("my_path", "todos", "essays"),
             "More": ("what_if", "recommenders", "profile"),
         }
     return {
-        "Her path": ("todos", "essays", "what_if", "recommenders"),
+        "Her path": ("my_path", "todos", "essays", "what_if", "recommenders"),
         "Money": ("find", "applications", "colleges_money", "timeline", "outcomes"),
         "Family tools": ("catalog_inbox", "settings", "profile"),
     }

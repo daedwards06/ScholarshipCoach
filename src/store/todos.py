@@ -308,6 +308,7 @@ class TodoRow:
     assignee: str = DEFAULT_ASSIGNEE
     detail: str = ""
     source_kind: str = DEFAULT_SOURCE_KIND
+    source_ref: str = ""
     created_by: str = ""
     created_role: str = ""
     done_on: str | None = None
@@ -336,6 +337,7 @@ def row_from_todo(todo: Todo) -> TodoRow:
         assignee=todo.assignee,
         detail=todo.notes,
         source_kind=todo.source_kind,
+        source_ref=todo.source_ref,
         created_by=todo.created_by,
         created_role=todo.created_role,
         done_on=todo.done_on,
@@ -396,8 +398,14 @@ def set_row_done(
     the application went in; a letter row moves the request one step (planned
     to asked, asked to received).  Tracker rows leave the list once their work
     is done, so only stored rows and checklist steps can be un-ticked here.
+    A requirement's row ticks the requirement too (met, or back to in
+    progress), so My Path and the list agree.
     """
     if row.kind == "todo":
+        if row.source_kind == "requirement" and row.source_ref.isdigit():
+            repo.update_requirement(
+                conn, int(row.source_ref), status="met" if done else "in_progress"
+            )
         return set_todo_done(conn, row.ref_id, done, done_by=done_by, today=today)
     if row.kind == "checklist":
         return repo.update_checklist_item(conn, row.ref_id, done=done)

@@ -6,7 +6,8 @@ nothing is downloaded), and writes ``<width>_<mode>_<section>_<theme>.png``.
 By default the sweep runs against a scratch copy of ``data/private/``, so it
 never writes the family's database; ``--live-db`` opts out.  ``--seed`` saves
 the top three Find results and adds an essay and a recommender through the UI
-first, so populated states are captured too.
+first, and writes a made-up first target school with requirements straight
+into the scratch database, so populated states are captured too.
 
 Needs the ``ui`` extra: ``pip install -e ".[ui]"``.
 
@@ -31,7 +32,9 @@ from typing import Any
 from urllib.parse import urlencode
 
 from app.modes import nav_sections, section_url_path
-from src.store.db import PRIVATE_DIR
+from src.profile.store import DEFAULT_STUDENT_ID
+from src.store import repo
+from src.store.db import PRIVATE_DIR, connect
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 # Beside app/main.py so Streamlit serves the same app/static/ (fonts) in a sweep.
@@ -49,6 +52,19 @@ IDLE_SELECTOR = '[data-testid="stApp"][data-test-script-state="notRunning"]'
 AWARD_CARD_SELECTOR = '[class*="st-key-award_"]'
 SAVE_BUTTON_SELECTOR = '[class*="st-key-save_"] button:not([disabled])'
 SEED_SAVES = 3
+
+# A made-up school: real names, thresholds and dates never go in a committed file.
+SEED_COLLEGE = "Example State University"
+SEED_REQUIREMENTS: tuple[tuple[str, str, str, str, str], ...] = (
+    # (label, category, target, due_by, status)
+    ("Algebra II", "course", "1 unit", "10", "in_progress"),
+    ("Unweighted GPA", "gpa", "3.5", "", "not_started"),
+    ("Take the PSAT", "test", "", "2026-10-15", "not_started"),
+    ("Precalculus", "course", "1 unit", "11", "not_started"),
+    ("Summer program application", "program", "", "2027-02-01", "not_started"),
+    ("Calculus", "course", "1 unit", "12", "not_started"),
+    ("Biology", "course", "1 unit", "9", "met"),
+)
 
 
 @dataclass(frozen=True)
@@ -244,6 +260,23 @@ def seed(browser: Any, base_url: str) -> None:
         context.close()
 
 
+def seed_path(private_dir: Path) -> None:
+    """Give My Path a made-up first target school (scratch database only)."""
+    conn = connect(private_dir / "coach.db")
+    try:
+        if repo.get_student(conn, DEFAULT_STUDENT_ID) is None:
+            repo.upsert_student(conn, DEFAULT_STUDENT_ID)
+        college = repo.create_college(conn, DEFAULT_STUDENT_ID, SEED_COLLEGE, in_state=True)
+        repo.set_first_target(conn, DEFAULT_STUDENT_ID, college.id)
+        for position, (label, category, target, due_by, status) in enumerate(SEED_REQUIREMENTS):
+            repo.create_requirement(
+                conn, college.id, label, category,
+                target=target, due_by=due_by, status=status, position=position,
+            )
+    finally:
+        conn.close()
+
+
 def capture(browser: Any, base_url: str, shot: Capture, out_dir: Path) -> Path:
     context = browser.new_context(
         viewport={"width": shot.width, "height": shot.height},
@@ -276,6 +309,8 @@ def sweep(args: argparse.Namespace, private_dir: Path | None) -> list[Path]:
     shots = plan_captures(selected_themes(args.theme), set(args.sections or []) or None)
     args.out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
+    if args.seed and private_dir is not None:
+        seed_path(private_dir)
     with running_app(private_dir) as base_url, sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="msedge", headless=True)
         try:
