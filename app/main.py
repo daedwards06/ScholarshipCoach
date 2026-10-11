@@ -15,6 +15,7 @@ from app.sections import (
     colleges_money,
     essays,
     find,
+    my_path,
     outcomes,
     profile,
     recommenders,
@@ -29,6 +30,7 @@ from src.store.db import open_db
 ACTIVITY_STATE_KEY = "activity_last_counted"
 
 SECTION_RENDERERS: dict[str, Callable[[], None]] = {
+    "my_path": my_path.render,
     "find": find.render,
     "todos": todos.render,
     "applications": applications.render,
@@ -80,7 +82,7 @@ def _forget_unservable_path(home: StreamlitPage) -> None:
     """Open the home page for a path no page answers to, without the error dialog.
 
     That is a retired page's bookmark (``/this-week``) or the home page's own
-    path (``/to-dos``): Streamlit serves the default page only at ``/``, so
+    path (``/my-path``): Streamlit serves the default page only at ``/``, so
     neither matches, and redirecting would still raise the dialog.  Clearing
     the requested name makes Streamlit fall back to the home page.
     """

@@ -8,7 +8,7 @@ import streamlit as st
 from app import identity, modes, state
 from app.components import render_empty_state
 from app.helpers import deadline_badge, friendly_date, parse_date
-from src.store import todos
+from src.store import requirements, todos
 from src.store.db import open_db
 
 ERROR_STATE_KEY = "todos_error"
@@ -33,11 +33,13 @@ _ASSIGNEE_LABELS: dict[str, dict[str, str]] = {
     "parent": {"student": "For her", "parent": "For parents", "family": "For the family"},
 }
 
-# Where a live tracker row links back to, when the mode can see that page.
+# Where a live tracker row (by kind) or a generated to-do (by source) links back
+# to, when the mode can see that page.
 _SOURCE_PAGES: dict[str, str] = {
     "deadline": "applications",
     "checklist": "applications",
     "letter": "recommenders",
+    "requirement": "my_path",
 }
 
 # The page the empty state points to; Opportunities arrives in Task A.7.
@@ -61,6 +63,8 @@ def author_label(row: todos.TodoRow, role: str, viewer_name: str = "") -> str:
         return ""
     if row.source_kind == "milestone":
         return "planning date"
+    if row.source_kind == "requirement":
+        return "school requirement"
     if row.created_by:
         if viewer_name and row.created_by == viewer_name:
             return "from you"
@@ -109,8 +113,14 @@ def _tick(row: todos.TodoRow, widget_key: str, done_by: str, today: date) -> Non
         st.session_state[ERROR_STATE_KEY] = f"Could not save that tick: {exc}"
 
 
-def _render_row(
-    row: todos.TodoRow, *, mode: modes.Mode, role: str, viewer_name: str, today: date
+def render_row(
+    row: todos.TodoRow,
+    *,
+    mode: modes.Mode,
+    role: str,
+    viewer_name: str,
+    today: date,
+    here: str = "todos",
 ) -> None:
     # The done state is part of the key so a tick made elsewhere is never
     # overridden by this widget's remembered value.
@@ -133,9 +143,9 @@ def _render_row(
             if row.kind != "todo":
                 parts.append(row.detail)
             st.caption(" · ".join(part for part in parts if part))
-            target = _SOURCE_PAGES.get(row.kind)
+            target = _SOURCE_PAGES.get(row.source_kind if row.kind == "todo" else row.kind)
             pages = st.session_state.get(modes.NAV_PAGES_STATE_KEY, {})
-            if target and modes.can_view(mode, target) and target in pages:
+            if target and target != here and modes.can_view(mode, target) and target in pages:
                 st.page_link(pages[target], label=modes.SECTION_LABELS[target])
 
 
@@ -195,6 +205,7 @@ def render() -> None:
         with open_db() as conn:
             student_id = state.ensure_student(conn)
             todos.sync_milestone_todos(conn, student_id, grade_level or None, today=today_value)
+            requirements.sync_requirement_todos(conn, student_id, today=today_value)
             rows = todos.assemble_rows(conn, student_id, role, today=today_value)
     except Exception as exc:
         st.error(f"Could not open the family database: {exc}")
@@ -209,7 +220,7 @@ def render() -> None:
     _render_add_form(role=role, who=who, expanded=not open_rows)
 
     def draw(row: todos.TodoRow) -> None:
-        _render_row(row, mode=mode, role=role, viewer_name=viewer_name, today=today_value)
+        render_row(row, mode=mode, role=role, viewer_name=viewer_name, today=today_value)
 
     if not groups["overdue"] and not groups["this_week"]:
         _render_empty_state(mode, role, next_up_text(groups, today_value))
@@ -231,6 +242,3 @@ def render() -> None:
         with st.expander(f"Done recently ({len(done)})"):
             for row in done:
                 draw(row)
-
-    if mode == "student":
-        modes.render_home_links(mode, "todos")

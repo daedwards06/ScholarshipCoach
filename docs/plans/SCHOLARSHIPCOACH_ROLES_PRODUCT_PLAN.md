@@ -641,27 +641,75 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] Colleges & Money (Parent): each college gets a "Requirements" section to add, edit, reorder
+- [x] Colleges & Money (Parent): each college gets a "Requirements" section to add, edit, reorder
       and verify requirement rows (category, label, target, due by, source URL, verified on); a
       college can be marked first target (`priority = 1`)
-- [ ] `app/sections/my_path.py` (Student home): header "Your path to <college name from the
+- [x] `app/sections/my_path.py` (Student home): header "Your path to <college name from the
       database>"; a progress line ("5 of 12 on track"); requirements grouped **This semester**,
       **Next year**, **Senior year**, **Done**; she can set status on course/test rows; GPA rows
       compare the profile GPA with the target and show the gap; dated rows feed To-dos
       (`source_kind=requirement`); "Coming up": the next 3 dated items with page links
-- [ ] Parent sees My Path read-only under "Her path"
-- [ ] Empty state when no first target exists: Student "Your family hasn't added a school yet";
+- [x] Parent sees My Path read-only under "Her path"
+- [x] Empty state when no first target exists: Student "Your family hasn't added a school yet";
       Parent links to Colleges & Money
-- [ ] Generic only in code and tests: requirement categories and grade logic. Test fixtures use a
+- [x] Generic only in code and tests: requirement categories and grade logic. Test fixtures use a
       made-up college. No real school's name, thresholds or dates in any committed file
 - [ ] *Owner, on the server in the browser (one copy of record):* first target school entered with
       its requirements, re-verified against the school's pages (the 2026-09-27 research is for the
       2026–27 cycle). Unclear rules (for example, how a program test minimum applies to
       test-optional applicants) entered as `notes` with status `not_started`, not guessed
-- [ ] Measured at 400px: S1 = 0 taps; the progress line and the first "This semester" item are
+- [x] Measured at 400px: S1 = 0 taps; the progress line and the first "This semester" item are
       visible without scrolling
-- [ ] Tests: grouping by grade and date, GPA gap text, read-only in Parent, requirement → to-do
-- [ ] All five CI commands green
+- [x] Tests: grouping by grade and date, GPA gap text, read-only in Parent, requirement → to-do
+- [x] All five CI commands green
+
+**Task notes (2026-10-11):**
+- *A.0 not yet done.* No conversation notes exist in `data/private/`, so My Path was built on
+  the plan's defaults (D4–D9 unchanged). If her answers change the page, that is a follow-up.
+- *Where the code went.* `src/store/requirements.py` holds the generic logic: `parse_due_by` /
+  `normalize_due_by` (a grade 9–12 or an ISO date), `requirement_group`, `gpa_gap_text`,
+  `effective_status`, and `sync_requirement_todos`. `repo.set_first_target` keeps one
+  `priority = 1` per student. The page is `app/sections/my_path.py`. Colleges & Money gives each
+  college a "Her first target school" checkbox and a Requirements `st.data_editor` (Order,
+  Category, Requirement, Target, Due by, Status, Notes, Source, Verified on) saved by
+  `requirement_edits`, a pure diff that refuses a due-by that is neither a grade nor a date.
+  Tests: `tests/test_my_path.py`, all with a made-up college.
+- *Grouping.* Grades convert through her profile grade: this school year or earlier is This
+  semester, the next is Next year, two or more ahead is Senior year. Dates go by the school year
+  they fall in, so a spring date shows under This semester in the fall. Undated rows (a GPA to
+  hold) are This semester. Met and Not needed are Done, in a collapsed expander. With no profile
+  grade, a 12th-grade row is Senior year and any other grade is This semester. For a 9th grader,
+  11th-grade rows fold into Senior year; she is past that.
+- *GPA rows follow her GPA.* A GPA row with a number in its target shows "You're at 3.25 · 0.25
+  to go" (or "you meet this") and a What If link. It counts as Met or In progress from her
+  profile GPA, not from the stored status, so the "N of M on track" line cannot contradict the
+  gap text. Not needed still wins.
+- *Who changes status.* She sets status (Not started / In progress / Met, a segmented control)
+  on course and test rows. Parents set every status in the editor, including Not needed. Parent
+  mode shows the page read-only with a gray "Her view" badge and "Her path to …".
+- *Requirement → To-do.* Each dated requirement of the first target has one to-do
+  (`source_kind=requirement`, `source_ref=<requirement id>`, for her, "school requirement"),
+  synced on My Path, To-dos and the editor's save. The requirement is the source of truth:
+  label and date are copied, and the row is done exactly when the requirement is Met or Not
+  needed. Ticking the to-do sets the requirement Met, and un-ticking sets it In progress. Open
+  rows whose requirement lost its date, was removed or belongs to a school no longer first are
+  dropped; done ones stay. Requirement rows on To-dos link to My Path.
+- *Coming up* is the next three open dated rows from the shared To-dos list (overdue first),
+  which already includes requirement dates. Programs join in A.7. My Path now draws the
+  `render_home_links` row in Student mode (To-dos no longer does); Parent gets an "All to-dos"
+  link. My Path is the home page in both modes, so `/my-path` is the path cleared by
+  `_forget_unservable_path`.
+- *Measured at 400×860 (Edge, scratch DB, seeded made-up school).* S1 = 0 taps: the progress
+  line is at y≈220 and the first This semester row ends at y≈482. The Parent editor was driven
+  in Edge: an edited cell saved, and a second save left the row count unchanged. The editor's
+  key includes the rows' latest `updated_at`, or the editor's remembered edits would replay
+  added rows after a save. A student status change to Met ticked the matching to-do. Empty
+  states checked in both modes.
+- *Screenshots.* `scripts/screenshot_app.py --seed` writes a made-up first target school with
+  seven requirements straight into the scratch database (`seed_path`). The demo profile is
+  grade 12, so its grade rows all sit under This semester.
+- *Left for the owner.* Enter her first target school and its requirements on the server in the
+  browser, re-verified against the school's own pages for the current cycle.
 
 ---
 

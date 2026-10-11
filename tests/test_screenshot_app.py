@@ -37,9 +37,12 @@ def test_section_url_opens_the_page_by_its_url_path() -> None:
 
 
 def test_section_url_opens_the_default_page_at_the_root() -> None:
-    url = screenshot_app.section_url("http://127.0.0.1:8501", "student", "todos")
+    url = screenshot_app.section_url("http://127.0.0.1:8501", "student", "my_path")
 
     assert url == "http://127.0.0.1:8501/?shot_mode=student"
+    assert screenshot_app.section_url("http://127.0.0.1:8501", "student", "todos") == (
+        "http://127.0.0.1:8501/to-dos?shot_mode=student"
+    )
 
 
 def test_scratch_db_is_the_default_and_output_is_outside_the_repo() -> None:

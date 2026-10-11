@@ -1199,6 +1199,24 @@ def first_target_college(conn: sqlite3.Connection, student_id: str) -> College |
     return None if row is None else _to_college(row)
 
 
+def set_first_target(
+    conn: sqlite3.Connection, student_id: str, college_id: int | None
+) -> None:
+    """Make ``college_id`` her one first target school, or clear it with ``None``."""
+    now = utc_now()
+    conn.execute(
+        "UPDATE colleges SET priority = NULL, updated_at = ? "
+        "WHERE student_id = ? AND priority = 1",
+        (now, student_id),
+    )
+    if college_id is not None:
+        conn.execute(
+            "UPDATE colleges SET priority = 1, updated_at = ? WHERE id = ? AND student_id = ?",
+            (now, college_id, student_id),
+        )
+    conn.commit()
+
+
 def net_price(college: College) -> float | None:
     """What this school actually costs, or ``None`` when nothing says.
 
