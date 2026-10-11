@@ -271,39 +271,47 @@ python scripts/validate_catalog.py
 ```
 
 **Checklist:**
-- [ ] `deploy/privacy_check.sh`: reads two terms files, the same pair as the Roles & Product Plan
+- [x] `deploy/privacy_check.sh`: reads two terms files, the same pair as the Roles & Product Plan
       Task A.10 grep: `data/private/privacy_names.txt` (case-insensitive fixed strings) and
       `data/private/privacy_abbrevs.txt` (the same, whole words only, so a short abbreviation
       cannot match inside another word). Both git-ignored, server-only, `coach` owned, mode 600.
       Strips Windows line endings and blank lines, and refuses a file that starts with a UTF-8
       byte-order mark (it silently matches nothing). Exits 1 and prints only the **file names**
       that matched, never the term; exits 2 when either file is missing or has no terms
-- [ ] It checks only the **lines the change adds** (`git diff` against `HEAD`, plus whole new
+- [x] It checks only the **lines the change adds** (`git diff` against `HEAD`, plus whole new
       files), not whole records. Existing public records name places and colleges (a camp on a
       university campus, an award for one county), and the monthly verify run stamps
       `checked_on` into every record, so checking whole files would hold the sync every month.
       A new note or a new record is still caught
-- [ ] `catalog_sync.sh` runs it on the changed record files and delta reports **before**
+- [x] `catalog_sync.sh` runs it on the changed record files and delta reports **before**
       `git commit`. Any non-zero exit means nothing is committed or pushed. Fails closed: a
       missing terms file stops the sync, so a forgotten file cannot let a record through
-- [ ] The server copy of the lists holds the school's own names and abbreviations only: no place
-      names that the local catalog legitimately contains (they would hold every new local award),
-      and no family names (the repo's authorship is public already)
-- [ ] Consequence written down: `update.sh` runs the sync when records are dirty, so a held
+- [ ] The server copy of the lists holds the school's own names and abbreviations, plus her first
+      name: no place names that the local catalog legitimately contains (they would hold every
+      new local award), and not the family surname (the repo's authorship is public already)
+      *(2026-10-11, owner: her first name added, since a "for her" note is the slip most likely
+      to happen. The dev PC's lists stay broad; they serve the A.10 audit, not this guard)*
+- [x] Consequence written down: `update.sh` runs the sync when records are dirty, so a held
       record also stops an update until it is resolved. That is intended: an update must not
       publish it either
-- [ ] Resolving a hit, in `docs/operations.md`: fix the record in Catalog & Inbox and let the next
+- [x] Resolving a hit, in `docs/operations.md`: fix the record in Catalog & Inbox and let the next
       sync run; or, when the record is a public award that merely names the school as its sponsor
       and says nothing about her, the owner commits that record by hand on the server, which is
       the only way past the guard and a deliberate one
-- [ ] Tests in `tests/test_deploy_config.py`: the sync calls the check before `git commit`; the
+- [x] Tests in `tests/test_deploy_config.py`: the sync calls the check before `git commit`; the
       check uses fixed strings and prints file names only; the terms file is under
       `data/private/`
 - [ ] *Owner, on the server:* copy the two lists from the development PC's `data/private/` (minus
-      the control line, place names and family names), then drill: a scratch record change that
+      the control line, place names and the family surname; plus her first name), then drill: a scratch record change that
       adds one term makes `privacy_check.sh` exit 1 and name the file; a `checked_on`-only change
       to an existing record that already contains a place name exits 0
-- [ ] All five CI commands green
+- [x] All five CI commands green
+      *(2026-10-11: the check pins `LC_ALL=C.UTF-8` and treats a grep error as exit 2, so a
+      crashed grep holds the sync instead of reading as clean. `bootstrap.sh` lists the two
+      files in its next steps. A delta report is a new file that copies whole records, so a
+      rebuild touching a record that names the school as a sponsor is held too; the
+      hand-commit in `docs/operations.md` covers it. The behavioural test runs on Linux CI
+      and was run here under Git Bash)*
 
 ---
 

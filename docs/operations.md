@@ -141,6 +141,57 @@ when the family is using it. Deploy promptly when the push adds a file under
 Action or a server-side timer: one needs a tailnet key in a public repo, the other applies
 migrations with nobody watching.
 
+### Catalog sync
+
+Catalog edits made on the server (Add Award, inbox confirms, `checked_on` stamps, "Rebuild
+snapshot" delta reports) are committed nightly by `deploy/catalog_sync.sh` to the `server`
+branch and pushed; merge them into `main` by PR. The repo is public, so the push publishes the
+edit before anyone reviews it.
+
+**Privacy check.** Before it commits anything, the sync runs `deploy/privacy_check.sh` on the
+changed records and delta reports. It reads two lists on the server only, owned by `coach`,
+mode 600, git-ignored under `data/private/`:
+
+- `privacy_names.txt`: the student's first target school's own names, and her first name, one
+  per line, case-insensitive
+- `privacy_abbrevs.txt`: the school's abbreviations, matched as whole words only
+
+These are not the dev PC's lists. Those serve the occasional full-history audit (Roles & Product
+Plan Task A.10), where an extra term only costs a line to read, so they can stay broad. Here
+every term holds syncs, so the server copy leaves out:
+
+- place names the local catalog legitimately contains (they would hold every new local award,
+  and a city alone does not point to her)
+- the family surname (the repo's authorship makes it public already, and it would hold any
+  award that shares it)
+- the audit's control line (`Example State University`)
+
+Write them as `coach`, then `chmod 600`. Save them without a UTF-8 byte-order mark: the check
+refuses such a file, since it would match nothing.
+
+The check reads only the lines a change adds, plus whole new files, so an existing record that
+names a college or a county passes when the verify run stamps its `checked_on`. A delta report
+is always a new file and copies whole records, so a rebuild that touches a record naming the
+school as a sponsor is held as well.
+
+On a hit it prints only the file names, never the term, and nothing is committed or pushed. A
+missing or empty list holds the sync the same way. `deploy/update.sh` runs the sync when records
+are dirty, so a held record also stops an update until it is resolved; that is intended.
+
+To resolve a hit:
+
+1. **The record mentions her** (a "for her" note, a remark on her school's award): fix the
+   record in Catalog & Inbox. The next nightly sync, or the next update, commits it.
+2. **The record is a public award that merely names the school as its sponsor** and says
+   nothing about her: the owner reads it (and any delta report the sync named) and commits the
+   named files by hand on the server, as `coach`: `git add -- <file> && git commit -m
+   "Catalog: <id>"`. The next sync pushes them. This is the only way past the guard, and a deliberate one.
+
+Drill after copying the lists: add one term to a scratch record and run
+`deploy/privacy_check.sh data/catalog/records/<id>.json`. It should exit 1 and name the file. A
+`checked_on`-only change to a record that already names a place should exit 0. Then
+`git checkout -- data/catalog/records/` (or delete the scratch file).
+
 ### Phone width
 
 The student surfaces — To-dos, the essay editor, What If — are checked at ~400px.

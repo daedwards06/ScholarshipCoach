@@ -33,6 +33,19 @@ $stray"
 fi
 
 changed=$(git status --porcelain --untracked-files=all -- "$RECORDS_DIR" | cut -c4-)
+deltas=$(git status --porcelain --untracked-files=all -- "$DELTA_REPORTS" | cut -c4-)
+
+# The server branch is public the moment it is pushed, before any PR review.
+# A missing terms file (exit 2) holds the sync too, so a forgotten list cannot
+# let a record through. update.sh runs this sync, so a held record also holds
+# an update until it is resolved (docs/operations.md, "Catalog sync").
+if [[ -n $changed || -n $deltas ]]; then
+    echo "==> Privacy check"
+    # shellcheck disable=SC2086  # paths come from git status and hold no spaces
+    deploy/privacy_check.sh $changed $deltas \
+        || fail "privacy check held the sync; nothing committed or pushed. See docs/operations.md, \"Catalog sync\"."
+fi
+
 if [[ -n $changed ]]; then
     echo "==> Validate catalog"
     .venv/bin/python scripts/validate_catalog.py \
@@ -47,7 +60,6 @@ else
     echo "==> No catalog edits to commit"
 fi
 
-deltas=$(git status --porcelain --untracked-files=all -- "$DELTA_REPORTS" | cut -c4-)
 if [[ -n $deltas ]]; then
     echo "==> Commit snapshot delta report(s) to $BRANCH"
     printf '    %s\n' $deltas

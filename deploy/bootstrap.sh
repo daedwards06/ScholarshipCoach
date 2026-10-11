@@ -141,4 +141,9 @@ deploy key on the GitHub repo (Settings -> Deploy keys -> Add deploy key, tick
 do not put a personal access token on this server.
 $(cat "$DEPLOY_KEY.pub")
 Check, as $APP_USER: ssh -i $DEPLOY_KEY -o IdentitiesOnly=yes -T git@github.com
+
+Catalog sync also holds every commit until deploy/privacy_check.sh has its two
+lists, as $APP_USER, mode 600 (see docs/operations.md, "Catalog sync"):
+  data/private/privacy_names.txt     (the school's names and her first name)
+  data/private/privacy_abbrevs.txt   (the school's abbreviations only)
 EOF

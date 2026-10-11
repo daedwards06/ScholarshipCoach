@@ -23,6 +23,8 @@ if [[ -n $stray ]]; then
 $stray"
 fi
 
+# A record the sync's privacy check holds stops the update here too, on purpose:
+# an update must not publish it either. Resolve it first (docs/operations.md).
 if [[ -n $(git status --porcelain --untracked-files=all -- "$RECORDS_DIR" "$DELTA_REPORTS") ]]; then
     if [[ -x deploy/catalog_sync.sh ]]; then
         echo "==> Catalog sync"
