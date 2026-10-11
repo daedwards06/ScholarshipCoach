@@ -246,6 +246,67 @@ python scripts/validate_catalog.py
 
 ---
 
+## Task 1.4: Catalog Sync Privacy Guard *(added 2026-10-11; before Task 3.1)*
+
+**Why:** `catalog_sync.sh` publishes every catalog edit made on the server to the public `server`
+branch each night. The PR into `main` is reviewed, but the push has already published the
+record by then. Once the family uses the app, one record that mentions her or her first target
+school (a "for her" note, her school's own merit award typed in with a remark) is public by
+morning. The repo's rule (Roles & Product Plan, design principle 1) has to hold without anyone
+remembering it at 04:15.
+
+**Preflight Files:**
+- `deploy/catalog_sync.sh`, `deploy/update.sh` (runs the sync when records are dirty)
+- `deploy/backup.sh`, `deploy/restore.sh` (`data/private/` is backed up and restored private)
+- `tests/test_deploy_config.py`
+- `docs/operations.md` (catalog sync section)
+
+**Validation Commands:**
+```powershell
+python -m pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+python -m mypy src/
+python -m mypy app/
+python scripts/validate_catalog.py
+```
+
+**Checklist:**
+- [ ] `deploy/privacy_check.sh`: reads two terms files, the same pair as the Roles & Product Plan
+      Task A.10 grep: `data/private/privacy_names.txt` (case-insensitive fixed strings) and
+      `data/private/privacy_abbrevs.txt` (the same, whole words only, so a short abbreviation
+      cannot match inside another word). Both git-ignored, server-only, `coach` owned, mode 600.
+      Strips Windows line endings and blank lines, and refuses a file that starts with a UTF-8
+      byte-order mark (it silently matches nothing). Exits 1 and prints only the **file names**
+      that matched, never the term; exits 2 when either file is missing or has no terms
+- [ ] It checks only the **lines the change adds** (`git diff` against `HEAD`, plus whole new
+      files), not whole records. Existing public records name places and colleges (a camp on a
+      university campus, an award for one county), and the monthly verify run stamps
+      `checked_on` into every record, so checking whole files would hold the sync every month.
+      A new note or a new record is still caught
+- [ ] `catalog_sync.sh` runs it on the changed record files and delta reports **before**
+      `git commit`. Any non-zero exit means nothing is committed or pushed. Fails closed: a
+      missing terms file stops the sync, so a forgotten file cannot let a record through
+- [ ] The server copy of the lists holds the school's own names and abbreviations only: no place
+      names that the local catalog legitimately contains (they would hold every new local award),
+      and no family names (the repo's authorship is public already)
+- [ ] Consequence written down: `update.sh` runs the sync when records are dirty, so a held
+      record also stops an update until it is resolved. That is intended: an update must not
+      publish it either
+- [ ] Resolving a hit, in `docs/operations.md`: fix the record in Catalog & Inbox and let the next
+      sync run; or, when the record is a public award that merely names the school as its sponsor
+      and says nothing about her, the owner commits that record by hand on the server, which is
+      the only way past the guard and a deliberate one
+- [ ] Tests in `tests/test_deploy_config.py`: the sync calls the check before `git commit`; the
+      check uses fixed strings and prints file names only; the terms file is under
+      `data/private/`
+- [ ] *Owner, on the server:* copy the two lists from the development PC's `data/private/` (minus
+      the control line, place names and family names), then drill: a scratch record change that
+      adds one term makes `privacy_check.sh` exit 1 and name the file; a `checked_on`-only change
+      to an existing record that already contains a place name exits 0
+- [ ] All five CI commands green
+
+---
+
 # Phase 2 — Stand It Up *(owner-dependent)*
 
 ## Task 2.1: Provision and Lock Down the Server *(owner-dependent)*
@@ -401,26 +462,58 @@ verifies the header on this server first. (2) is that plan's Task A.10.)* Onboar
 starts the month of real use that plan's go/no-go gate depends on. Onboarding earlier just
 shows the family the version that is about to change.
 
+**Can start (2026-10-11):** Roles & Product Plan Task A.10 closed Phase A. Order: deploy A.10,
+then the "Before her phone" items below, then onboard. Onboarding starts the gate's four-week
+window (Roles & Product Plan D7) and the counting of days opened (D6) at the same moment, so
+everything she sees and is told on day one has to be in place before it.
+
 **Preflight Files:**
-- `docs/operations.md` ("Set the family PIN first", "Phone width")
-- The Roles & Product Plan's identity / access decision
+- `docs/operations.md` ("Set the family PIN first", "Phone width", "Who sees what")
+- The Roles & Product Plan's identity / access decision, D6/D7, and Tasks A.0, A.4, A.6, A.10
+- `deploy/catalog_sync.sh` and Task 1.4 below
 
 **Validation Commands:** none automated; the checklist is the test.
 
-**Checklist:**
+**Checklist — before her phone (2026-10-11):**
+- [ ] Roles & Product Plan Task A.0 done: the short conversation with her, and she has been told
+      the app counts the days each person opens it, and why (D6). The gate measures her from the
+      first open, so this cannot come after
+- [ ] Her first open shows a real page, not an empty state. On the server, in the browser: her
+      first target school and its requirements entered (Roles & Product Plan Task A.6); the
+      "Course registration" family milestone added in Settings (Task A.4); her profile has her
+      grade and graduation year (Opportunities is empty without a grade)
+- [ ] After the deploy, **Rebuild snapshot** pressed once in Catalog & Inbox. No timer rebuilds
+      the server's snapshot, and one built before Task A.7 has no `kind` column, so her
+      Opportunities page lists no programs until it is rebuilt. Check that the summer programs
+      show on Opportunities in Student view
+- [ ] Task 1.4 (catalog sync privacy guard) deployed and its terms file in place on the server
+- [ ] Each parent told the catalog rule: a catalog record is published to the public repo the
+      night it is saved, so nothing about her goes into any field (no "for her", no "her first
+      choice" in Notes, no family names in Verified by: sign as "Parent"; the records already
+      signed before 2026-10-11 stay as they are); her school and plans live only in
+      Colleges & Money, My Path and To-dos, which stay in `coach.db`
+- [x] The private-list `git grep` for her school's name (Roles & Product Plan Task A.10) comes
+      back clean *(2026-10-11, see that task's notes)*
+
+**Checklist — onboarding:**
 - [ ] Tailscale installed and signed in on each family phone, each with that person's **own**
       account (her phone on hers, not a parent's), and each login listed in the server's
       `[family]` secrets table
 - [ ] Each phone opens `https://coach.<tailnet>.ts.net` **on cellular data, Wi-Fi off**, the test
       that proves it is not reaching anything at home
 - [ ] "Add to Home Screen" on each phone
-- [ ] Access works as the Roles & Product Plan decided: with the family PIN, Student mode opens
-      without it and Parent mode asks for it; with per-person identity, each family member's own
-      Tailscale login lands in the right mode and the student cannot reach parent-only pages
+- [ ] Access, identity first with the PIN as the backstop (Roles & Product Plan D2, Task A.2):
+      the family PIN is set on the server for any device not in `[family]`; her login opens
+      Student mode with no mode switch and cannot reach a parent-only page even with the PIN; each
+      parent login opens Parent mode without being asked for the PIN
 - [ ] Per-person headers, carried from Roles & Product Plan Task A.2 (only one login was on the
       tailnet when it was verified): on each newly onboarded device, the sidebar shows "Signed in
       as <that person's name>", not another family member's, including after a parent has used
       the app on another device in the same hour
+- [ ] The gate's data lands under her login: after her first open, `activity_days` in `coach.db`
+      has a row keyed by her Tailscale login, not by `student` (which means her login is missing
+      from `[family]` and she is on the PIN path). Record the onboarding date in the Roles &
+      Product Plan's "Go/No-Go Gate" section as the start of the window
 - [ ] Any phone that also runs a VPN app (NordVPN): confirm which one wins, since phones
       generally allow one active VPN at a time; note the outcome in `docs/operations.md`
 
@@ -465,6 +558,7 @@ Get-ScheduledTask -TaskName "ScholarshipCoach*" -ErrorAction SilentlyContinue   
 
 ```
 Phase 1  1.1 service + bootstrap + update → 1.2 backup + restore → 1.3 verify timer + catalog sync
+         → 1.4 catalog sync privacy guard (added 2026-10-11; any time before 3.1)
 Phase 2  2.1 provision + lock down → 2.2 move data + serve → 2.3 backups live + restore drill
 Phase 3  3.1 family onboarding → 3.2 docs + retire home PC
 ```
