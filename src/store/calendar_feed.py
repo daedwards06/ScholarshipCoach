@@ -1,6 +1,6 @@
 """One dated feed over everything the family has to plan around, and its ICS export.
 
-This Week answers "what is due in the next fortnight".  The timeline answers
+To-dos answers "what is due soon".  The timeline answers
 the other question -- what the next three years look like -- and it needs every
 dated thing in one shape: application deadlines, the checklist items a student
 put a date on, the letters a teacher owes, and the general milestones from

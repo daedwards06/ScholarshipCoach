@@ -37,7 +37,7 @@ def test_section_url_opens_the_page_by_its_url_path() -> None:
 
 
 def test_section_url_opens_the_default_page_at_the_root() -> None:
-    url = screenshot_app.section_url("http://127.0.0.1:8501", "student", "this_week")
+    url = screenshot_app.section_url("http://127.0.0.1:8501", "student", "todos")
 
     assert url == "http://127.0.0.1:8501/?shot_mode=student"
 

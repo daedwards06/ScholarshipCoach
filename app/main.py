@@ -19,8 +19,8 @@ from app.sections import (
     profile,
     recommenders,
     settings,
-    this_week,
     timeline,
+    todos,
     what_if,
 )
 from src.store import repo
@@ -30,7 +30,7 @@ ACTIVITY_STATE_KEY = "activity_last_counted"
 
 SECTION_RENDERERS: dict[str, Callable[[], None]] = {
     "find": find.render,
-    "this_week": this_week.render,
+    "todos": todos.render,
     "applications": applications.render,
     "essays": essays.render,
     "recommenders": recommenders.render,
@@ -76,6 +76,23 @@ def _requests_hidden_page(visible: list[StreamlitPage], every: list[StreamlitPag
     return any(matches(page) for page in every) and not any(matches(page) for page in visible)
 
 
+def _forget_unservable_path(home: StreamlitPage) -> None:
+    """Open the home page for a path no page answers to, without the error dialog.
+
+    That is a retired page's bookmark (``/this-week``) or the home page's own
+    path (``/to-dos``): Streamlit serves the default page only at ``/``, so
+    neither matches, and redirecting would still raise the dialog.  Clearing
+    the requested name makes Streamlit fall back to the home page.
+    """
+    ctx = get_script_run_ctx()
+    manager = getattr(ctx, "pages_manager", None)
+    if manager is None or manager.intended_page_script_hash:
+        return
+    name = manager.intended_page_name
+    if name in modes.RETIRED_URL_PATHS or name == home.url_path:
+        manager.set_script_intent("", "")
+
+
 def _record_activity(person: str, page: StreamlitPage) -> None:
     """Count a page opened once per person, day and page change (D6), not per rerun."""
     marker = (person, date.today().isoformat(), page.url_path)
@@ -113,6 +130,7 @@ def main() -> None:
     }
     visible = [page for group in groups.values() for page in group]
     every = visible + [page for page in pages.values() if page not in visible]
+    _forget_unservable_path(visible[0])
     if _requests_hidden_page(visible, every):
         st.navigation(every, position="hidden")
         st.switch_page(visible[0])

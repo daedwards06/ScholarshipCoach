@@ -143,7 +143,7 @@ migrations with nobody watching.
 
 ### Phone width
 
-The student surfaces — ranked cards, This Week, the essay editor — are checked at ~400px.
+The student surfaces — To-dos, the essay editor, What If — are checked at ~400px.
 Streamlit stacks `st.columns` to full width below 640px on its own; `phone_width_css()` in
 `app/helpers.py` adds what stacking does not: 44px tap targets on buttons and expander headers,
 a 16px floor on input text so mobile Safari stops zooming when the essay editor takes focus, and
@@ -162,7 +162,7 @@ Screenshots go to the temp folder by default and are not committed.
 
 ```powershell
 python scripts/screenshot_app.py --out $env:TEMP\coach_shots --scratch-db --seed
-python scripts/screenshot_app.py --theme dark --sections find this_week
+python scripts/screenshot_app.py --theme dark --sections find todos
 ```
 
 ### Back up `data/private/`

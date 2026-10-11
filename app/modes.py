@@ -53,7 +53,7 @@ PIN_STATE_KEY = "mode_pin"
 NAV_PAGES_STATE_KEY = "nav_pages"
 
 SECTION_LABELS: dict[str, str] = {
-    "this_week": "This Week",
+    "todos": "To-dos",
     "find": "Find Scholarships",
     "applications": "Applications",
     "essays": "Essays",
@@ -68,7 +68,7 @@ SECTION_LABELS: dict[str, str] = {
 }
 
 SECTION_ICONS: dict[str, str] = {
-    "this_week": ":material/today:",
+    "todos": ":material/checklist:",
     "find": ":material/search:",
     "applications": ":material/assignment:",
     "essays": ":material/edit_note:",
@@ -83,6 +83,7 @@ SECTION_ICONS: dict[str, str] = {
 }
 
 SECTION_CAPTIONS: dict[str, str] = {
+    "todos": "Things to do, from you and your family.",
     "find": "Awards that match her profile, best fit first.",
     "applications": "Every saved award and how far along each one is.",
     "essays": "Your essay drafts and the prompts they can answer.",
@@ -128,11 +129,11 @@ def pages_for_mode(mode: Mode) -> dict[str, tuple[str, ...]]:
     """
     if normalize_mode(mode) == "student":
         return {
-            "": ("this_week", "essays"),
+            "": ("todos", "essays"),
             "More": ("what_if", "recommenders", "profile"),
         }
     return {
-        "Her path": ("this_week", "essays", "what_if", "recommenders"),
+        "Her path": ("todos", "essays", "what_if", "recommenders"),
         "Money": ("find", "applications", "colleges_money", "timeline", "outcomes"),
         "Family tools": ("catalog_inbox", "settings", "profile"),
     }
@@ -150,8 +151,17 @@ PARENT_ONLY_SECTIONS: tuple[str, ...] = tuple(
 )
 
 
+# URL paths of retired pages; a bookmark to one opens the home page instead of
+# Streamlit's "Page not found" dialog.
+RETIRED_URL_PATHS: frozenset[str] = frozenset({"this-week"})
+
+
+# URL paths that are not just the key with dashes (the plan's page list).
+_URL_PATHS: dict[str, str] = {"todos": "to-dos"}
+
+
 def section_url_path(section: str) -> str:
-    return section.replace("_", "-")
+    return _URL_PATHS.get(section, section.replace("_", "-"))
 
 
 def can_view(mode: Mode, section: str) -> bool:

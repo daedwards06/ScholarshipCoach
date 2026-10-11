@@ -481,25 +481,68 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] `app/components.py` (or `app/helpers.py`): `render_empty_state(message, *, next_up=None,
+- [x] `app/components.py` (or `app/helpers.py`): `render_empty_state(message, *, next_up=None,
       link_page=None, link_label=None)` per MASTER
-- [ ] `app/sections/todos.py`: groups **Overdue**, **This week**, **Coming up** (next 60 days),
+- [x] `app/sections/todos.py`: groups **Overdue**, **This week**, **Coming up** (next 60 days),
       **Someday** (no date); each row shows title, who it's for, the author ("from Mom"), a date
       badge, and one checkbox. Today's `tracker.this_week` items (application deadlines, checklist
       steps, letters) appear as linked rows with their source; ticking a checklist step ticks it in
       the application too
-- [ ] Add form: title, optional date, "for" (me / parents / family) in Student mode; (her /
+- [x] Add form: title, optional date, "for" (me / parents / family) in Student mode; (her /
       parents / family) in Parent mode; the author comes from A.2's identity, or the mode
-- [ ] Grade-scoped milestones for her grade (PSAT, course registration added in Settings) appear in
+- [x] Grade-scoped milestones for her grade (PSAT, course registration added in Settings) appear in
       Coming up once each school year, as rows she can tick
 - [ ] Empty state: "Nothing to do this week" + the nearest dated item + a link to Opportunities
       (or Find in Parent mode); no `st.success` for empty
-- [ ] The "this_week" key is removed; `todos` takes its place as the Student home until A.6
-- [ ] Measured at 400px: the first row or the empty state's "Next up" is visible without scrolling;
+- [x] The "this_week" key is removed; `todos` takes its place as the Student home until A.6
+- [x] Measured at 400px: the first row or the empty state's "Next up" is visible without scrolling;
       S2 = 1 tap, S4 ≤ 2 taps
-- [ ] Tests: bucketing by date, author from identity and from mode, assignee filtering, checklist
+- [x] Tests: bucketing by date, author from identity and from mode, assignee filtering, checklist
       step two-way tick
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-10-10):**
+- *Where the code went.* `app/sections/todos.py` (page, pure label helpers), `app/components.py`
+  (`render_empty_state`), `src/store/todos.py` (`TodoRow`, `assemble_rows`, `visible_to`,
+  `set_row_done`, `sync_milestone_todos`). `tracker.DueItem` gained `ref_id` (the application,
+  checklist item or letter request) so a row can act on its source. Tests:
+  `tests/test_todos_page.py`. `app/sections/this_week.py` is deleted; `tracker.this_week` stays as
+  the query behind the tracker rows, now read 60 days out instead of 14.
+- *Tracker rows are live, not copies.* Deadlines, dated checklist steps and open letters are read
+  from the tracker on each render, so there is nothing to keep in sync: ticking a step here ticks
+  it in the application, and a step ticked there leaves this list. Ticking a deadline row marks
+  the application submitted; ticking a letter row moves it one step (planned → asked → received).
+  Deadlines are "For the family", steps and letters "For her". Each row links to Applications or
+  Recommenders where the mode can see that page, so in Student mode only letters link (the
+  tracker is Parent-only since A.3).
+- *Milestones are written in.* Her grade's milestones whose date (a window's last day) falls in
+  the next 60 days become ordinary rows (`source_kind=milestone`, `source_ref=<id>:<school
+  year>`), once per school year, so a tick sticks and next year's lands on its own. With no grade
+  on the profile none are written. "Course registration" is a family milestone added in
+  Settings; nothing about her school is committed.
+- *Authorship.* `created_by` / `done_by` hold the Tailscale display name (not the login, as A.1's
+  docstring said; the docstring is updated) so a row reads "from Dana"; it reads "from you" for
+  the signed-in person. Under the PIN fallback it comes from `created_role`: "from you", "from
+  her", "from your parents". Student mode lists rows for her, for the family, and the ones she
+  asked of her parents (S4); Parent mode lists every row.
+- *Groups beyond the four.* Dated rows past 60 days sit in a collapsed "Later" expander, and rows
+  ticked in the last 14 days in "Done recently", so a parent sees what she finished (P3) and a
+  misclick can be undone.
+- *Empty state.* Parent mode links to Find Scholarships. Student mode shows the sentence and Next
+  up with no link yet, because Opportunities does not exist until A.7; that item stays open for
+  A.7 to close (`_EMPTY_STATE_LINKS` already names the page).
+- *URLs.* The page is at `/to-dos` (plan's page list; `modes._URL_PATHS`). Streamlit serves the
+  home page only at `/`, so `/to-dos` itself, like the retired `/this-week`
+  (`modes.RETIRED_URL_PATHS`), raised "Page not found" over the home page, and redirecting with
+  `switch_page` still raised it. `app/main.py` `_forget_unservable_path` clears the requested name
+  so Streamlit falls back to home with no dialog. Checked in Edge for both paths.
+- *Measured at 400×860 (Edge, scratch DB, demo profile).* Empty list: the "Next up" line ends at
+  ~330px. Seeded: the empty state and first Coming up row are above the fold. S2: 1 tap (the
+  checkbox). S4: 2 taps (open "Add a to-do", pick "Parents") plus typing, with Enter submitting;
+  the row then shows in Parent mode as "For parents · from her", and once she ticks it, under
+  "Done recently".
+- *Left for others.* The README's "This Week on a phone" screenshot and caption are Design Refresh
+  Task 4.2's re-shoot.
 
 ---
 
