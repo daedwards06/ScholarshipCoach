@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from app.helpers import steps_left_text
 from src.store import repo, tracker
 from src.store.db import connect
 
@@ -38,6 +39,19 @@ FULL_REQUIREMENTS = {
 
 
 # -- checklist generation ---------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("done", "total", "text"),
+    [
+        (0, 0, "No steps yet"),
+        (0, 3, "3 steps left"),
+        (2, 3, "1 step left"),
+        (3, 3, "All steps done"),
+    ],
+)
+def test_steps_left_text(done: int, total: int, text: str) -> None:
+    assert steps_left_text(done, total) == text
 
 
 def test_checklist_covers_every_stated_requirement() -> None:

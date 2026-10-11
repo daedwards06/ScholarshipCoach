@@ -188,20 +188,29 @@ and programs with the Opportunity card in `pages/student-mode.md`, which shares 
 not the headline.
 
 ```
-┌ st.container(border=True, key=f"award_{id}") ───────────────┐
-│ **Title** (bold body)                      [badge: deadline]│
-│ Sponsor (caption)                                           │
+┌ st.container(border=True, key=f"award_{id}", gap="xsmall") ┐
+│ **Title**                                                   │
+│ Sponsor (:small[], same markdown element as the title)      │
 │ ### $2,000 – $4,000   (h3, the money is the headline)       │
-│ [badge: 1 essay] [badge: 1 letter] [badge: local, violet]   │
-│ Why it fits: one line, max three reasons joined by " · "    │
-│ ⚠ Confirm you meet: gender (yellow badge, only when set)    │
-│ [ Save ] [ Apply ↗ ]   one horizontal row, Save = primary   │
-│ ▸ More about this award (expander: details, signal detail)  │
+│ [deadline] [1 essay] [1 letter] [local, violet]             │
+│ [⚠ Confirm you meet: gender (yellow, only when set)]        │
+│ [ Save ] [ Apply ↗ ] [ Suggest to her ]   one horizontal row│
+│ ▸ Why it fits & details (expander: reasons, details,        │
+│   signal detail in Operator mode)                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- Target ≤ 260px tall at 400px width (today it is about 600px).
-- Reasons are one joined line, not one paragraph per bullet.
+- Target: a typical card ≤ 300px tall at 400px width (was about 600px). Revised from 260px on
+  2026-10-11: that estimate predates the badge line and the third action, and 260px is only
+  reachable by dropping the details expander, which a parent needs before saving. Measured with
+  this layout: median 290px (264–341) at 400px, 254px at 1366px.
+- "Why it fits" sits inside the expander, not on the card face: at 400px it wraps to two lines
+  (about 53px a card), and the badges already show effort, local and what to confirm.
+- All badges are one `st.markdown` line of `:color-badge[…]` directives, so a row of four costs
+  one element; the deadline badge leads it rather than sitting beside the title, where
+  `st.columns` would stack it onto its own row at phone width.
+- Escape `$` in any text passed to `st.markdown` (`markdown_safe`), or a range is typeset as LaTeX.
+- Reasons are one joined line inside the expander, not one paragraph per bullet.
 - One primary action per card: **Save** until saved, then the card shows a green "Saved" badge and
   **Apply** becomes primary.
 - The urgency reason must not contradict the deadline badge. It appears only when the deadline is

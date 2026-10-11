@@ -20,13 +20,18 @@ def _profile(grade_level: str | None = "10") -> StudentProfile:
     return StudentProfile(grade_level=grade_level, today=_TODAY)
 
 
+# Open to every high-school grade, so the date logic decides the bucket; an
+# award that names no grade is a different case (R2, tested below).
+_ALL_HIGH_SCHOOL = ["9", "10", "11", "12"]
+
+
 def _row(**overrides: object) -> dict[str, object]:
     row: dict[str, object] = {
         "scholarship_id": "award",
         "deadline": None,
         "cycle": {"recurring": None, "opens_month": None, "deadline_month": None},
         "status": "unknown",
-        "grade_levels": [],
+        "grade_levels": _ALL_HIGH_SCHOOL,
     }
     row.update(overrides)
     return row
@@ -181,6 +186,47 @@ def test_every_bucket_value_is_declared() -> None:
         "expired",
         "needs_date",
     ]
+
+
+def test_unscoped_open_award_is_never_apply_now_below_grade_12() -> None:
+    result = _classify(deadline=date(2026, 11, 1), status="open", grade_levels=[])
+
+    assert result["timeline_bucket"] == "check_grade"
+
+
+@pytest.mark.parametrize("grade", ["12", "college_1"])
+def test_unscoped_open_award_is_apply_now_from_grade_12(grade: str) -> None:
+    df = classify_timeline(
+        pd.DataFrame([_row(deadline=date(2026, 11, 1), status="open", grade_levels=[])]),
+        _profile(grade_level=grade),
+        today=_TODAY,
+    )
+
+    assert df.loc[0, "timeline_bucket"] == "now"
+
+
+def test_unscoped_award_keeps_its_date_bucket_when_not_open_now() -> None:
+    assert _classify(grade_levels=[])["timeline_bucket"] == "needs_date"
+    recurring = _classify(
+        deadline=date(2026, 4, 1),
+        cycle={"recurring": True, "opens_month": None, "deadline_month": 4},
+        grade_levels=[],
+    )
+    assert recurring["timeline_bucket"] == "next_cycle"
+
+
+def test_rerank_accepts_several_buckets() -> None:
+    df = pd.DataFrame(
+        [
+            {"scholarship_id": bucket, "stage2_score": 0.5, "deadline": date(2026, 11, 1),
+             "timeline_bucket": bucket, "projected_deadline": pd.NaT}
+            for bucket in ("now", "check_grade", "senior_year")
+        ]
+    )
+
+    ranked = rerank_stage3(df, today=_TODAY, timeline_bucket=("now", "check_grade"))
+
+    assert set(ranked["scholarship_id"]) == {"now", "check_grade"}
 
 
 def test_unknown_grade_level_keeps_the_deadline_bucket() -> None:

@@ -511,6 +511,24 @@ def test_future_grade_award_passes_and_past_grade_award_fails() -> None:
     assert ineligible_df.iloc[0]["reasons"] == ["GRADE_LEVEL_MISMATCH"]
 
 
+@pytest.mark.parametrize(
+    ("grade", "flagged"),
+    [("9", True), ("10", True), ("11", True), ("12", False), ("college_1", False), (None, False)],
+)
+def test_unscoped_award_asks_a_student_below_grade_12_to_confirm_grade(
+    grade: str | None, flagged: bool
+) -> None:
+    """R2: an award naming no grade is "confirm you meet", not a silent pass, below 12."""
+    df = pd.DataFrame([_axis_row(grade_levels=[])])
+
+    eligible_df, ineligible_df = apply_eligibility_filter(
+        df=df, profile=_answered_profile(grade_level=grade)
+    )
+
+    assert ineligible_df.empty
+    assert ("grade_level" in eligible_df.iloc[0]["unverified_axes"]) is flagged
+
+
 def test_either_test_score_at_minimum_clears_the_axis() -> None:
     """An award listing both minimums accepts whichever test the student has."""
     df = pd.DataFrame([_axis_row(min_test_scores={"sat": 1500, "act": 30})])

@@ -33,7 +33,8 @@ def _row(**overrides: object) -> dict[str, object]:
         "deadline": date(2026, 11, 1),
         "status": "open",
         "cycle": {"recurring": None, "opens_month": None, "deadline_month": None},
-        "grade_levels": [],
+        # Every high-school grade: an award naming no grade is "check_grade" for her.
+        "grade_levels": ["9", "10", "11", "12"],
         "states_allowed": [],
         "majors_allowed": [],
         "amount_min": 1000.0,

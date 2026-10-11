@@ -6,7 +6,16 @@ from typing import Any
 import streamlit as st
 
 from app import modes, state
-from app.helpers import days_until_deadline, deadline_badge, friendly_date, parse_date
+from app.helpers import (
+    BadgeColor,
+    badge_markdown,
+    days_until_deadline,
+    deadline_badge,
+    friendly_date,
+    markdown_safe,
+    parse_date,
+    steps_left_text,
+)
 from app.sections.essays import render_prompt_slot
 from src.store import essays, repo, tracker
 from src.store.db import open_db
@@ -108,22 +117,45 @@ def _render_outcome_form(conn: Any, application: repo.Application, today_value: 
             st.rerun()
 
 
+# MASTER status colors: green for saved and the good outcomes, blue for work
+# under way, gray for what is finished without a win.
+STATUS_BADGES: dict[str, tuple[str, BadgeColor]] = {
+    "saved": (":material/bookmark:", "green"),
+    "planning": (":material/edit_calendar:", "blue"),
+    "in_progress": (":material/pending:", "blue"),
+    "submitted": (":material/send:", "green"),
+    "won": (":material/emoji_events:", "green"),
+    "lost": (":material/close:", "gray"),
+    "skipped": (":material/block:", "gray"),
+}
+
+
+def _render_application_summary(
+    application: repo.Application, status: str, done: int, total: int, today_value: date
+) -> None:
+    """First line of an application: status, deadline, steps left, and a progress bar."""
+    icon, color = STATUS_BADGES[status]
+    badges = [badge_markdown(tracker.STATUS_LABELS[status], icon, color)]
+    if application.deadline:
+        badge = deadline_badge(
+            days_until_deadline(application.deadline, today_value),
+            deadline=parse_date(application.deadline),
+            owed=status not in ("submitted", *tracker.DECIDED_STATUSES),
+        )
+        badges.append(badge_markdown(badge.label, badge.icon, badge.color))
+    st.markdown(" ".join(badges) + f" {steps_left_text(done, total)}")
+    if total:
+        st.progress(done / total)
+
+
 def _render_application_detail(
     conn: Any, application: repo.Application, today_value: date
 ) -> None:
     status = tracker.normalize_status(application.status)
     done, total = tracker.checklist_progress(repo.list_checklist_items(conn, application.id))
-    progress = f" — {done}/{total} done" if total else ""
-    header = f"{application.title or application.catalog_id} · {tracker.STATUS_LABELS[status]}{progress}"
 
-    with st.expander(header, expanded=False):
-        if application.deadline:
-            badge = deadline_badge(
-                days_until_deadline(application.deadline, today_value),
-                deadline=parse_date(application.deadline),
-                owed=status not in ("submitted", *tracker.DECIDED_STATUSES),
-            )
-            st.badge(badge.label, icon=badge.icon, color=badge.color)
+    with st.expander(markdown_safe(application.title or application.catalog_id), expanded=False):
+        _render_application_summary(application, status, done, total, today_value)
         submitted_on = parse_date(application.submitted_on)
         if submitted_on is not None:
             st.caption(f"Submitted {friendly_date(submitted_on, today_value)}")

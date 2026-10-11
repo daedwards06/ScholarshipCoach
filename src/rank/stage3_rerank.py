@@ -6,7 +6,7 @@ probability model) before producing the final ranked order.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -182,7 +182,7 @@ def rerank_stage3(
     today: date | None = None,
     *,
     profile: ProfileLike | dict[str, Any] | None = None,
-    timeline_bucket: str | None = "now",
+    timeline_bucket: str | Collection[str] | None = "now",
     weights: Stage3Weights | None = None,
     use_win_model: bool = False,
     win_model_path: Path | None = None,
@@ -199,8 +199,8 @@ def rerank_stage3(
         scored_df: DataFrame with a ``stage2_score`` column from Stage 2.
         today: Reference date for urgency computation; defaults to ``date.today()``.
         profile: Student profile required when ``use_win_model=True``.
-        timeline_bucket: Bucket to rank, applied only when the frame carries a
-            ``timeline_bucket`` column; ``None`` ranks every bucket.
+        timeline_bucket: Bucket, or buckets, to rank, applied only when the frame
+            carries a ``timeline_bucket`` column; ``None`` ranks every bucket.
         weights: Stage 3 scoring weights; uses ``Stage3Weights.baseline()`` if ``None``.
         use_win_model: Whether to load and run the win probability model.
         win_model_path: Explicit path to a ``.joblib`` model artifact.
@@ -222,7 +222,8 @@ def rerank_stage3(
         raise ValueError("Stage 3 rerank requires a 'stage2_score' column.")
 
     if timeline_bucket is not None and "timeline_bucket" in reranked_df.columns:
-        reranked_df = reranked_df[reranked_df["timeline_bucket"].eq(timeline_bucket)].copy()
+        buckets = [timeline_bucket] if isinstance(timeline_bucket, str) else list(timeline_bucket)
+        reranked_df = reranked_df[reranked_df["timeline_bucket"].isin(buckets)].copy()
 
     days_to_deadline = _compute_days_to_deadline(reranked_df, effective_today)
     urgency_boost = _compute_urgency_boost(days_to_deadline)

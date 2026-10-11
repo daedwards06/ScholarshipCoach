@@ -46,7 +46,7 @@ MODE_SECTIONS: dict[str, tuple[str, ...]] = {
 THEMES = ("light", "dark")
 
 IDLE_SELECTOR = '[data-testid="stApp"][data-test-script-state="notRunning"]'
-RUN_BUTTON = "Run Scholarship Coach"
+AWARD_CARD_SELECTOR = '[class*="st-key-award_"]'
 SAVE_BUTTON_SELECTOR = '[class*="st-key-save_"] button:not([disabled])'
 SEED_SAVES = 3
 
@@ -204,14 +204,10 @@ def open_section(page: Any, base_url: str, mode: str, section: str) -> None:
     wait_idle(page)
 
 
-def run_find(page: Any) -> bool:
-    """Press Find's Run button if the page still has one; return whether it ran."""
-    button = page.get_by_role("button", name=RUN_BUTTON)
-    if button.count() == 0 or not button.first.is_enabled():
-        return False
-    button.first.click()
+def wait_for_find(page: Any) -> bool:
+    """Let Find's first ranking finish (it runs on arrival); return whether cards showed."""
     wait_idle(page, timeout_ms=600_000)
-    return True
+    return page.locator(AWARD_CARD_SELECTOR).count() > 0
 
 
 def seed(browser: Any, base_url: str) -> None:
@@ -219,8 +215,8 @@ def seed(browser: Any, base_url: str) -> None:
     page = context.new_page()
     try:
         open_section(page, base_url, "parent", "find")
-        if not run_find(page):
-            raise RuntimeError("Find has no enabled Run button; is there a snapshot?")
+        if not wait_for_find(page):
+            raise RuntimeError("Find showed no award cards; is there a snapshot?")
         for _ in range(SEED_SAVES):
             save = page.locator(SAVE_BUTTON_SELECTOR)
             if save.count() == 0:
@@ -257,7 +253,7 @@ def capture(browser: Any, base_url: str, shot: Capture, out_dir: Path) -> Path:
     try:
         open_section(page, base_url, shot.mode, shot.section)
         if shot.section == "find":
-            run_find(page)
+            wait_for_find(page)
         # stMain is the scroll container, so a full-page screenshot would stop
         # at the viewport; grow the viewport to the content instead.
         content_height = page.evaluate(
