@@ -200,3 +200,28 @@ def test_trusted_records_need_no_confirmation() -> None:
     summary = whatif_eligibility(df, _profile(), {"gpa": 3.5})
 
     assert summary.needs_confirmation == 0
+
+
+def test_unknown_amount_stays_unknown_and_adds_no_dollars() -> None:
+    df = _frame(
+        _row(scholarship_id="unlisted", min_gpa=3.5, amount_min=None, amount_max=None),
+    )
+    summary = whatif_eligibility(df, _profile(), {"gpa": 3.6})
+    [award] = summary.newly_eligible
+    assert award.amount is None
+    assert summary.dollars_unlocked == 0.0
+    assert award.opened_by_text == "Opens because your GPA meets its minimum"
+
+
+def test_award_for_a_later_grade_says_when_it_opens() -> None:
+    df = _frame(_row(scholarship_id="juniors", min_gpa=3.5, grade_levels=["11", "12"]))
+    summary = whatif_eligibility(df, _profile(), {"gpa": 3.6})
+    [award] = summary.newly_eligible
+    assert award.timeline_bucket == "senior_year"
+    assert award.when_text == "Opens in 11th grade"
+
+
+def test_award_open_now_says_so() -> None:
+    df = _frame(_row(scholarship_id="now", min_gpa=3.5))
+    [award] = whatif_eligibility(df, _profile(), {"gpa": 3.6}).newly_eligible
+    assert award.when_text == "Open now"

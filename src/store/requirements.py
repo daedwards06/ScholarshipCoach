@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import date
 
 from src.profile.grade_levels import grade_level_rank, school_year_end
@@ -176,6 +176,85 @@ def gpa_gap_text(requirement: CollegeRequirement, gpa: float | None) -> str | No
     if gap == 0:
         return f"You're at {gpa_text(gpa)} · you meet this"
     return f"You're at {gpa_text(gpa)} · {gpa_text(gap)} to go"
+
+
+# -- goals: GPA and test rows read against a value ------------------------------
+
+GOAL_MEASURE_LABELS: dict[str, str] = {"gpa": "GPA", "sat": "SAT", "act": "ACT"}
+
+_ACT_MAX = 36
+
+
+@dataclass(frozen=True, slots=True)
+class GoalReach:
+    """One GPA or test requirement read against a (possibly hypothetical) value."""
+
+    requirement: CollegeRequirement
+    measure: str
+    target: float
+    value: float | None
+
+    @property
+    def reached(self) -> bool:
+        return self.value is not None and self.value >= self.target
+
+    @property
+    def gap(self) -> float | None:
+        if self.value is None:
+            return None
+        return max(0.0, round(self.target - self.value, 2))
+
+
+def goal_measure(requirement: CollegeRequirement) -> str | None:
+    """Which profile value a requirement is a goal for: ``gpa``, ``sat``, ``act``.
+
+    A test row names its test in the label or target; failing that, a target
+    of 36 or less can only be an ACT score.  PSAT rows and rows with no
+    number are not goals the profile can answer.
+    """
+    if requirement.category == "gpa":
+        return "gpa" if target_number(requirement.target) is not None else None
+    if requirement.category != "test":
+        return None
+    number = target_number(requirement.target)
+    text = f"{requirement.label} {requirement.target}".casefold()
+    if number is None or re.search(r"\bpsat\b", text):
+        return None
+    if re.search(r"\bact\b", text):
+        return "act"
+    if re.search(r"\bsat\b", text):
+        return "sat"
+    return "act" if number <= _ACT_MAX else "sat"
+
+
+def goal_reaches(
+    requirements: list[CollegeRequirement], values: dict[str, float | None]
+) -> list[GoalReach]:
+    """Every GPA/test requirement still in play, read against ``values``."""
+    goals: list[GoalReach] = []
+    for requirement in requirements:
+        measure = goal_measure(requirement)
+        target = target_number(requirement.target)
+        if measure is None or target is None or requirement.status == "not_needed":
+            continue
+        goals.append(GoalReach(requirement, measure, target, values.get(measure) or None))
+    return goals
+
+
+def goal_value_text(measure: str, value: float) -> str:
+    return f"{value:.2f}" if measure == "gpa" else f"{value:.0f}"
+
+
+def goal_reach_text(goal: GoalReach) -> str:
+    """"3.50: reaches Program minimum" or "3.25: 0.25 short of Program minimum"."""
+    name = goal.requirement.label
+    if goal.value is None or goal.gap is None:
+        return f"No {GOAL_MEASURE_LABELS[goal.measure]} yet for {name}"
+    shown = goal_value_text(goal.measure, goal.value)
+    if goal.reached:
+        return f"{shown}: reaches {name}"
+    short = gpa_text(goal.gap) if goal.measure == "gpa" else f"{goal.gap:.0f}"
+    return f"{shown}: {short} short of {name}"
 
 
 def effective_status(requirement: CollegeRequirement, gpa: float | None) -> str:
