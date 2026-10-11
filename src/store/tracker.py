@@ -21,7 +21,7 @@ without Streamlit.  The rules it encodes:
   row are written together and cannot disagree.
 * A recommendation request has its own small lifecycle -- planned, asked,
   received, declined -- because a letter is a second person's work on a second
-  person's schedule.  Its due date lands in This Week alongside the student's
+  person's schedule.  Its due date lands in To-dos alongside the student's
   own tasks, since the thing a student has to do about an outstanding letter is
   ask again.
 """
@@ -57,7 +57,7 @@ STATUS_LABELS: dict[str, str] = {
 
 DEFAULT_STATUS = "saved"
 
-# Statuses that still need work from the student. This Week draws only from
+# Statuses that still need work from the student. To-dos draws only from
 # these; a submitted or decided award has nothing left to do.
 OPEN_STATUSES: tuple[str, ...] = ("saved", "planning", "in_progress")
 
@@ -87,7 +87,7 @@ REQUEST_STATUS_LABELS: dict[str, str] = {
 
 DEFAULT_REQUEST_STATUS = "planned"
 
-# Statuses where the letter is still outstanding; This Week draws from these.
+# Statuses where the letter is still outstanding; To-dos draws from these.
 OPEN_REQUEST_STATUSES: tuple[str, ...] = ("planned", "asked")
 
 ALLOWED_REQUEST_TRANSITIONS: dict[str, tuple[str, ...]] = {
@@ -110,7 +110,11 @@ class TransitionError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class DueItem:
-    """One line in This Week: a deadline, a dated checklist item, or a letter."""
+    """One dated piece of open work: a deadline, a checklist item, or a letter.
+
+    ``ref_id`` is the row the item came from (the application, checklist item
+    or recommendation request), so the To-dos page can tick the source itself.
+    """
 
     kind: str
     due_on: str
@@ -121,6 +125,7 @@ class DueItem:
     label: str
     status: str = DEFAULT_STATUS
     done: bool = False
+    ref_id: int = 0
 
     @property
     def is_overdue(self) -> bool:
@@ -429,6 +434,7 @@ def this_week(
                     award_title=award_title,
                     label="Application deadline",
                     status=status,
+                    ref_id=application.id,
                 )
             )
 
@@ -451,6 +457,7 @@ def this_week(
                     award_title=award_title,
                     label=f"Letter from {who} ({state.casefold()})",
                     status=status,
+                    ref_id=request.id,
                 )
             )
 
@@ -470,6 +477,7 @@ def this_week(
                     award_title=award_title,
                     label=item.label,
                     status=status,
+                    ref_id=item.id,
                 )
             )
 

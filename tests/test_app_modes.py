@@ -27,14 +27,14 @@ def test_available_modes_hides_operator_unless_enabled() -> None:
 
 def test_student_nav_is_top_pages_plus_more() -> None:
     assert modes.pages_for_mode("student") == {
-        "": ("this_week", "essays"),
+        "": ("todos", "essays"),
         "More": ("what_if", "recommenders", "profile"),
     }
 
 
 def test_parent_nav_is_her_path_money_and_family_tools() -> None:
     assert modes.pages_for_mode("parent") == {
-        "Her path": ("this_week", "essays", "what_if", "recommenders"),
+        "Her path": ("todos", "essays", "what_if", "recommenders"),
         "Money": ("find", "applications", "colleges_money", "timeline", "outcomes"),
         "Family tools": ("catalog_inbox", "settings", "profile"),
     }
@@ -48,7 +48,7 @@ def test_operator_sees_the_same_pages_as_parent() -> None:
 def test_scholarship_tracker_is_a_parent_page(section: str) -> None:
     assert not modes.can_view("student", section)
     assert modes.can_view("parent", section)
-    assert modes.resolve_section(section, "student") == "this_week"
+    assert modes.resolve_section(section, "student") == "todos"
 
 
 def test_tracker_labels_in_parent() -> None:
@@ -149,13 +149,13 @@ def test_resolve_mode_never_locks_student_out() -> None:
 
 
 def test_resolve_section_defaults_to_the_first_section_of_the_mode() -> None:
-    assert modes.resolve_section(None, "student") == "this_week"
-    assert modes.resolve_section("nonsense", "parent") == "this_week"
+    assert modes.resolve_section(None, "student") == "todos"
+    assert modes.resolve_section("nonsense", "parent") == "todos"
 
 
 def test_resolve_section_drops_a_section_the_mode_cannot_see() -> None:
     assert modes.resolve_section("settings", "parent") == "settings"
-    assert modes.resolve_section("settings", "student") == "this_week"
+    assert modes.resolve_section("settings", "student") == "todos"
 
 
 @pytest.mark.parametrize("mode", ["student", "parent", "operator"])
@@ -171,9 +171,14 @@ def test_every_page_has_a_label_icon_and_unique_url_path(mode: modes.Mode) -> No
         assert path and "/" not in path and "_" not in path
 
 
-def test_every_nav_page_has_a_purpose_caption_except_this_week() -> None:
-    # This Week's caption is the live "due on or before" line.
-    assert set(modes.SECTION_CAPTIONS) == set(modes.nav_sections("parent")) - {"this_week"}
+def test_every_nav_page_has_a_purpose_caption() -> None:
+    assert set(modes.SECTION_CAPTIONS) == set(modes.nav_sections("parent"))
+
+
+def test_this_week_is_retired_for_todos() -> None:
+    assert "this_week" not in modes.SECTION_LABELS
+    assert modes.section_url_path("todos") == "to-dos"
+    assert "this-week" in modes.RETIRED_URL_PATHS
 
 
 @pytest.mark.parametrize("section", modes.PARENT_ONLY_SECTIONS)
