@@ -134,7 +134,7 @@ def _render_recommender_detail(
             st.markdown(f"**{recommender.name}**")
             if recommender.role:
                 st.caption(recommender.role)
-            st.badge(label, color=color)
+            st.badge(label, icon=":material/mail:", color=color)
         _render_recommender_letters(
             conn, recommender, requests, applications, titles, today_value
         )

@@ -934,16 +934,85 @@ python scripts/screenshot_app.py --journeys --scratch-db
 ```
 
 **Checklist:**
-- [ ] `scripts/screenshot_app.py --journeys`: walks S1–S6 and P1–P4 step by step at 400px on the
+- [x] `scripts/screenshot_app.py --journeys`: walks S1–S6 and P1–P4 step by step at 400px on the
       scratch DB, using the demo profile set to a 10th grader, writes one PNG per step and prints
       taps per journey. It never submits the catalog form outside a scratch copy of
       `data/catalog/records/`
-- [ ] Every journey within its budget, or the overrun recorded with the reason
-- [ ] MASTER pre-delivery checklist run on every page this plan added or moved
-- [ ] No committed file names her first target school (`git grep -i` for the school's name and
-      abbreviations, run locally from a private list, returns nothing)
-- [ ] Hosting Task 3.1 told it can start: deploy, then onboarding
-- [ ] All five CI commands green
+- [x] Every journey within its budget, or the overrun recorded with the reason
+- [x] MASTER pre-delivery checklist run on every page this plan added or moved
+- [x] No committed file names her first target school (`git grep -i` for the school's name and
+      abbreviations, run locally from a private list, returns nothing) *(2026-10-11: run with the
+      owner; no line ties a school to her, see the notes)*
+- [x] Hosting Task 3.1 told it can start: deploy, then onboarding
+- [x] All five CI commands green
+
+**Task notes (2026-10-11):**
+- *The walk.* `--journeys` builds a fresh scratch root, never a copy of `data/private/`: the
+  demo profile at grade 10 (graduation year from today, so it stays grade 10 on a later run),
+  `seed_path`'s made-up school, one private essay, a copy of `data/catalog/` without its inbox,
+  and the latest snapshot. `app/screenshot_entry.py` points the catalog modules and
+  `run_ingest.ROOT_DIR` at that root, so P2's form and rebuild write only there; `--journeys`
+  with `--live-db` is refused. One 400px browser per role; a page change through the folded
+  nav opens the URL and is charged 3 taps (R3), a `st.page_link` 1, typing 0. A step in the
+  other person's view (P1 → her To-dos) is a check and costs nothing. A failed step saves
+  `…_FAILED.png` and the walk goes on, exiting 1. Pure parts tested in
+  `tests/test_screenshot_app.py`.
+- *Measured (demo profile, grade 10, 400×860):*
+
+  | Journey | Taps | Budget | |
+  |---|---|---|---|
+  | S1 | 0 | 0 | within; progress line above the fold |
+  | S2 | 1 | 1 | within; ticked from My Path's Coming up |
+  | S3 | 2 | 2 | within |
+  | S4 | 2 + typing | 2 | within; Enter submits |
+  | S5 | 1 | 1 | within; What If opens with her goals first |
+  | S6 | 2 | 2 | within |
+  | P1 | 2 + nav | 3 + nav | within |
+  | P2 | 5 + form | 1 + form | **over** |
+  | P3 | 2 | 1 | **over** |
+  | P4 | 1 + form | form | **over** |
+
+- *Overruns, left for the owner to decide.* P2: the form plus Rebuild (form + 1) does put the
+  program on her Opportunities, as budgeted; the "From your family" badge costs nav + 1 more,
+  because suggesting happens on the Opportunities card and Catalog & Inbox does not link there.
+  P3: her progress line is on the home page at 0 taps, but what she ticked sits in To-dos'
+  collapsed "Done recently" expander, one tap past the link. P4: each college on Colleges &
+  Money is a collapsed expander, so the requirements are one tap in. Each is one small change
+  (a link after a rebuild; "Done recently" open in Parent mode; the first target open) if the
+  owner wants the budget held.
+- *S3 as walked.* A parent's suggestion already puts the program on her To-dos, so its card shows
+  "From your family" and "On my to-dos" with no button. The walk reads that card, then taps "Add to
+  my to-dos" on another card, as A.7 measured.
+- *Bug found and fixed.* A second rebuild on the same day rewrites the same dated snapshot file,
+  and the snapshot caches (`load_snapshot_cached`, Find's ranking, Opportunities, the sidebar
+  delta) are keyed on its path. So the new program never reached any session until a restart.
+  `catalog_inbox` now clears `st.cache_data` after a successful rebuild.
+- *Pre-delivery checklist (every page, both modes, 400px, scratch data).* Screenshots: the
+  seeded sweep, 84 PNGs, both widths and themes. Primary buttons sampled from pixels: white on
+  `#0F766E` 5.47:1 light, on `#11807A` 4.78:1 dark. No emoji in the main area, no horizontal
+  scroll, no operator vocabulary on Student pages. Fixed: five `st.badge` calls and the
+  Program/Award chip had no icon (My Path status, "Her view" ×2, Recommenders letters, What If
+  goals); page links, segmented controls and tabs were 32–40px tall, now 44px through
+  `phone_width_css()`; every page change fetched its Material icon from `fonts.gstatic.com` as
+  the favicon, now stopped by a local `page_icon` (Streamlit's own icon) in `set_page_config`;
+  the empty states of Find (no catalog) and Applications (nothing saved) now link to Catalog &
+  Inbox and Find, and My Path's "no requirements yet" links on like its "no school" state. Left
+  as Streamlit draws them, recorded in MASTER: help (?) icons (16px) and number-input steppers
+  (38px).
+- *Privacy check (run with the owner, 2026-10-11).* Two git-ignored lists in `data/private/`:
+  `privacy_names.txt` (fixed strings) and `privacy_abbrevs.txt` (whole words, so a short
+  abbreviation cannot match inside another word), plus a control line (`Example State
+  University`) that must hit its three known files, or a clean result means nothing. A file
+  saved with a UTF-8 byte-order mark silently matches nothing. Searched: current files, every
+  commit on every branch (`-S` / `-G`, so removed text counts), commit messages, file names, the
+  three images in `docs/images/` by eye, and GitHub's PRs and issues (none exist). Terms were
+  reported by line number only, never printed. Result: no line ties a school to her. The hits
+  were public catalog text (award and program records, their snapshot delta copies, award notes
+  in `docs/operations.md`), a generic "e.g." placeholder in the profile form, the fictional demo
+  profile's college list, a since-removed scraped scholarship page, and library code in a
+  `.venv/` that three commits of 2026-02-21 held before `.gitignore` (`d4f1115`). The owner's own
+  names were taken off the list: the repo's authorship is public. The criterion is read as "nothing
+  connects the school to her", since a public catalog record may name the school as a sponsor.
 
 ---
 

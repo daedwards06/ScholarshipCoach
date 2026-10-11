@@ -614,6 +614,10 @@ def _render_rebuild_snapshot() -> None:
                     "records just confirmed are not rankable until this is resolved."
                 )
             return
+        # A second rebuild on the same day rewrites the same dated file, and the
+        # snapshot caches are keyed on its path, so every session would keep
+        # reading the old rows until a restart.
+        st.cache_data.clear()
         st.session_state.ingest_report = report
         st.session_state.latest_snapshot_path = snapshot
         st.session_state.latest_delta_summary = report["delta_counts"]

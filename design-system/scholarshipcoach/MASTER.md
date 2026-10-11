@@ -137,7 +137,9 @@ This replaces `urgency_indicator()`'s emoji and hex colors in `app/helpers.py`.
   - `gap="medium"` (≈16px): between cards
   - `gap="large"` (≈24px): between page sections
 - **Touch:** every button, link button, expander header and nav item is ≥ 44px tall on a phone
-  (already enforced by `phone_width_css()`; keep it).
+  (already enforced by `phone_width_css()`; keep it). That includes page links, segmented
+  controls and tabs. Two Streamlit parts keep their own size: help (?) icons (16px) and the
+  number-input − / + steppers (38px, beside a field you can type in).
 
 ---
 

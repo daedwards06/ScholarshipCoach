@@ -42,6 +42,12 @@ def test_tap_targets_are_at_least_44px() -> None:
     assert min(heights) * 16 >= 44
 
 
+def test_links_segmented_controls_and_tabs_get_the_tap_target() -> None:
+    phone_rules = phone_width_css().split("@media")[1]
+    for testid in ("stExpander", "stPageLink", "stButtonGroup", "stTab"):
+        assert f'[data-testid="{testid}"]' in phone_rules
+
+
 def test_text_inputs_stay_at_16px_so_mobile_safari_does_not_zoom() -> None:
     css = phone_width_css()
     sizes = [float(value) for value in re.findall(r"font-size: ([\d.]+)rem", css)]

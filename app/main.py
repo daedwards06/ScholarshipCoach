@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import date
+from pathlib import Path
 
 import streamlit as st
 from streamlit.navigation.page import StreamlitPage
@@ -29,6 +30,10 @@ from src.store import repo
 from src.store.db import open_db
 
 ACTIVITY_STATE_KEY = "activity_last_counted"
+
+# Streamlit's own icon, served by this app.  Without a page_icon, each page's
+# ":material/…:" icon becomes the favicon, fetched from fonts.gstatic.com.
+APP_ICON = str(Path(st.__file__).parent / "static" / "favicon.png")
 
 SECTION_RENDERERS: dict[str, Callable[[], None]] = {
     "my_path": my_path.render,
@@ -117,7 +122,9 @@ def main() -> None:
     operator_enabled = state.operator_enabled()
     who = identity.current_identity()
     mode = modes.render_mode_selector(operator_enabled=operator_enabled, identity=who)
-    st.set_page_config(page_title="Scholarship Coach", layout=modes.layout_for_mode(mode))
+    st.set_page_config(
+        page_title="Scholarship Coach", page_icon=APP_ICON, layout=modes.layout_for_mode(mode)
+    )
     st.markdown(phone_width_css(), unsafe_allow_html=True)
 
     if modes.show_operator_tools(mode, operator_enabled):

@@ -19,9 +19,9 @@ GOAL_QUERY_PARAM = "goal"
 # Award cards shown before the rest fold into an expander, so the controls stay near.
 SHOWN_AWARDS = 3
 
-_GOAL_BADGES: dict[bool, tuple[str, BadgeColor]] = {
-    True: ("Reached", "green"),
-    False: ("Not yet", "gray"),
+_GOAL_BADGES: dict[bool, tuple[str, str, BadgeColor]] = {
+    True: ("Reached", ":material/check_circle:", "green"),
+    False: ("Not yet", ":material/trending_up:", "gray"),
 }
 
 
@@ -79,9 +79,9 @@ def _render_goals(
         return
     st.subheader(goals_heading(role))
     for goal in goals:
-        label, color = _GOAL_BADGES[goal.reached]
+        label, icon, color = _GOAL_BADGES[goal.reached]
         with st.container(horizontal=True, gap="small", vertical_alignment="center"):
-            st.badge(label, color=color)
+            st.badge(label, icon=icon, color=color)
             st.markdown(markdown_safe(requirements.goal_reach_text(goal)))
 
 
