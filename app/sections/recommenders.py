@@ -5,9 +5,41 @@ from typing import Any
 
 import streamlit as st
 
-from app import modes, state
-from src.store import repo, tracker
+from app import identity, modes, state
+from app.helpers import BadgeColor
+from app.sections import todos as todos_page
+from src.store import repo, todos, tracker
 from src.store.db import open_db
+
+
+def letter_counts(requests: list[repo.RecommendationRequest]) -> tuple[int, int]:
+    """``(in, waiting)``: letters received, and letters planned or asked."""
+    statuses = [tracker.normalize_request_status(request.status) for request in requests]
+    received = sum(status == "received" for status in statuses)
+    waiting = sum(status in tracker.OPEN_REQUEST_STATUSES for status in statuses)
+    return received, waiting
+
+
+def letter_badge(requests: list[repo.RecommendationRequest]) -> tuple[str, BadgeColor]:
+    """The badge label and color for one person's letters."""
+    received, waiting = letter_counts(requests)
+    if not received and not waiting:
+        return "No letters yet", "gray"
+    return f"{received} in / {waiting} waiting", "blue" if waiting else "green"
+
+
+def _sync_letter_todo(conn: Any, student_id: str, request_id: int, today_value: date) -> None:
+    created_by, created_role = todos_page.author_for(
+        identity.current_identity(), todos_page.viewer_role(state.current_mode())
+    )
+    todos.sync_letter_todo(
+        conn,
+        student_id,
+        request_id,
+        created_by=created_by,
+        created_role=created_role,
+        today=today_value,
+    )
 
 
 def _render_new_recommender_form(conn: Any, student_id: str) -> None:
@@ -24,7 +56,11 @@ def _render_new_recommender_form(conn: Any, student_id: str) -> None:
 
 
 def _render_recommendation_request(
-    conn: Any, request: repo.RecommendationRequest, award_title: str, today_value: date
+    conn: Any,
+    student_id: str,
+    request: repo.RecommendationRequest,
+    award_title: str,
+    today_value: date,
 ) -> None:
     status = tracker.normalize_request_status(request.status)
     with st.container(border=True):
@@ -62,6 +98,7 @@ def _render_recommendation_request(
         new_due = due_choice.isoformat() if isinstance(due_choice, date) else None
         if new_due != (request.due_on[:10] if request.due_on else None):
             repo.update_recommendation_request(conn, request.id, due_on=new_due)
+            _sync_letter_todo(conn, student_id, request.id, today_value)
             st.rerun()
         if str(chosen) != status:
             try:
@@ -69,9 +106,13 @@ def _render_recommendation_request(
             except tracker.TransitionError as exc:
                 st.error(str(exc))
             else:
+                _sync_letter_todo(conn, student_id, request.id, today_value)
                 st.rerun()
+        if new_due and tracker.normalize_request_status(request.status) == "planned":
+            st.caption("On her to-dos as an ask by this date.")
         if st.button("Remove request", key=f"req_delete_{request.id}"):
             repo.delete_recommendation_request(conn, request.id)
+            _sync_letter_todo(conn, student_id, request.id, today_value)
             st.rerun()
 
 
@@ -82,21 +123,32 @@ def _render_recommender_detail(
     today_value: date,
 ) -> None:
     requests = repo.list_recommendation_requests(conn, recommender_id=recommender.id)
-    outstanding = sum(
-        1
-        for request in requests
-        if tracker.normalize_request_status(request.status) in tracker.OPEN_REQUEST_STATUSES
-    )
     titles = {
         application.id: application.title or application.catalog_id
         for application in applications
     }
-    header = recommender.name
-    if recommender.role:
-        header += f" · {recommender.role}"
-    header += f" · {outstanding} outstanding" if outstanding else " · all in"
+    label, color = letter_badge(requests)
 
-    with st.expander(header, expanded=False):
+    with st.container(border=True, key=f"recommender_{recommender.id}"):
+        with st.container(horizontal=True, gap="small", vertical_alignment="center"):
+            st.markdown(f"**{recommender.name}**")
+            if recommender.role:
+                st.caption(recommender.role)
+            st.badge(label, color=color)
+        _render_recommender_letters(
+            conn, recommender, requests, applications, titles, today_value
+        )
+
+
+def _render_recommender_letters(
+    conn: Any,
+    recommender: repo.Recommender,
+    requests: list[repo.RecommendationRequest],
+    applications: list[repo.Application],
+    titles: dict[int, str],
+    today_value: date,
+) -> None:
+    with st.expander("Letters and contact", expanded=False):
         col_role, col_email = st.columns(2)
         with col_role:
             role = st.text_input("Role", value=recommender.role, key=f"rec_role_{recommender.id}")
@@ -109,7 +161,11 @@ def _render_recommender_detail(
 
         for request in requests:
             _render_recommendation_request(
-                conn, request, titles.get(request.application_id, "This award"), today_value
+                conn,
+                recommender.student_id,
+                request,
+                titles.get(request.application_id, "This award"),
+                today_value,
             )
 
         remaining = [
@@ -130,6 +186,8 @@ def _render_recommender_detail(
 
         if st.button("Remove recommender", key=f"rec_delete_{recommender.id}"):
             repo.delete_recommender(conn, recommender.id)
+            for request in requests:
+                _sync_letter_todo(conn, recommender.student_id, request.id, today_value)
             st.rerun()
 
 

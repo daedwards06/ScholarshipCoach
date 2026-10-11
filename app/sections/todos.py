@@ -50,6 +50,15 @@ _EMPTY_STATE_LINKS: dict[str, tuple[str, str]] = {
 }
 
 
+def source_page(row: todos.TodoRow) -> str | None:
+    """The page a row links back to, if any."""
+    if row.kind != "todo":
+        return _SOURCE_PAGES.get(row.kind)
+    if todos.is_essay_ref(row.source_ref):
+        return "essays"
+    return _SOURCE_PAGES.get(row.source_kind)
+
+
 def viewer_role(mode: modes.Mode) -> str:
     return "student" if modes.normalize_mode(mode) == "student" else "parent"
 
@@ -144,7 +153,7 @@ def render_row(
             if row.kind != "todo":
                 parts.append(row.detail)
             st.caption(" · ".join(part for part in parts if part))
-            target = _SOURCE_PAGES.get(row.source_kind if row.kind == "todo" else row.kind)
+            target = source_page(row)
             pages = st.session_state.get(modes.NAV_PAGES_STATE_KEY, {})
             if target and target != here and modes.can_view(mode, target) and target in pages:
                 st.page_link(pages[target], label=modes.SECTION_LABELS[target])

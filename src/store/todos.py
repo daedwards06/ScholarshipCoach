@@ -371,14 +371,14 @@ def assemble_rows(
     conn: sqlite3.Connection, student_id: str, viewer_role: str, *, today: date
 ) -> list[TodoRow]:
     """Everything the To-dos page lists for ``viewer_role``, dated rows first."""
-    rows = [
-        row_from_todo(todo)
-        for todo in list_todos(conn, student_id)
-        if visible_to(todo, viewer_role)
-    ]
+    stored = list_todos(conn, student_id)
+    rows = [row_from_todo(todo) for todo in stored if visible_to(todo, viewer_role)]
+    # A letter with an open "Ask ... by ..." row is that row until she has asked.
+    asking = {todo.source_ref for todo in stored if todo.source_kind == "letter" and not todo.done}
     rows.extend(
         row_from_due_item(due)
         for due in tracker.this_week(conn, student_id, today=today, within_days=COMING_UP_DAYS)
+        if not (due.kind == "letter" and str(due.ref_id) in asking)
     )
     rows.sort(key=lambda row: (row.due_on is None, row.due_on or "", row.title.casefold()))
     return rows
@@ -399,13 +399,18 @@ def set_row_done(
     to asked, asked to received).  Tracker rows leave the list once their work
     is done, so only stored rows and checklist steps can be un-ticked here.
     A requirement's row ticks the requirement too (met, or back to in
-    progress), so My Path and the list agree.
+    progress), so My Path and the list agree, and ticking an "Ask ... by ..."
+    row marks that letter asked.
     """
     if row.kind == "todo":
         if row.source_kind == "requirement" and row.source_ref.isdigit():
             repo.update_requirement(
                 conn, int(row.source_ref), status="met" if done else "in_progress"
             )
+        if done and row.source_kind == "letter" and row.source_ref.isdigit():
+            request = repo.get_recommendation_request(conn, int(row.source_ref))
+            if request is not None and tracker.normalize_request_status(request.status) == "planned":
+                tracker.set_request_status(conn, request.id, "asked", today=today)
         return set_todo_done(conn, row.ref_id, done, done_by=done_by, today=today)
     if row.kind == "checklist":
         return repo.update_checklist_item(conn, row.ref_id, done=done)
@@ -426,6 +431,105 @@ def set_row_done(
         tracker.set_request_status(conn, row.ref_id, step, today=today)
         return True
     return False
+
+
+ESSAY_REF_PREFIX = "essay:"
+
+
+def essay_source_ref(essay_id: int) -> str:
+    """``source_ref`` of a parent's suggestion on an essay (``source_kind`` is manual)."""
+    return f"{ESSAY_REF_PREFIX}{essay_id}"
+
+
+def is_essay_ref(source_ref: str) -> bool:
+    return source_ref.startswith(ESSAY_REF_PREFIX)
+
+
+def suggest_essay_change(
+    conn: sqlite3.Connection,
+    essay: repo.Essay,
+    suggestion: str,
+    *,
+    created_by: str = "",
+    created_role: str = "parent",
+) -> Todo:
+    """A parent's note on a shared essay, as a to-do for her that links the essay."""
+    return create_todo(
+        conn,
+        essay.student_id,
+        f"Look at a suggestion on “{essay.title}”",
+        notes=suggestion.strip(),
+        assignee="student",
+        created_by=created_by,
+        created_role=created_role,
+        source_ref=essay_source_ref(essay.id),
+    )
+
+
+def delete_open_essay_suggestions(conn: sqlite3.Connection, essay_id: int) -> int:
+    """Drop the open suggestions on an essay; ticked ones stay as history."""
+    cursor = conn.execute(
+        "DELETE FROM todos WHERE source_kind = ? AND source_ref = ? AND done_on IS NULL",
+        (DEFAULT_SOURCE_KIND, essay_source_ref(essay_id)),
+    )
+    conn.commit()
+    return cursor.rowcount
+
+
+def letter_todo_title(who: str, due: date) -> str:
+    return f"Ask {who} by {due:%b} {due.day}"
+
+
+def sync_letter_todo(
+    conn: sqlite3.Connection,
+    student_id: str,
+    request_id: int,
+    *,
+    created_by: str = "",
+    created_role: str = "",
+    today: date | None = None,
+) -> Todo | None:
+    """Keep her "Ask ... by ..." to-do in step with one letter request.
+
+    A planned request with a due date has one open row, renamed and redated as
+    the request changes.  Once she has asked it is ticked; a request that loses
+    its date or is removed takes its open row with it.
+    """
+    existing = find_todo(conn, student_id, "letter", str(request_id))
+    request = repo.get_recommendation_request(conn, request_id)
+    due = None if request is None else _parse_date(request.due_on)
+    if request is None or due is None:
+        if existing is not None and not existing.done:
+            delete_todo(conn, existing.id)
+        return None
+    if tracker.normalize_request_status(request.status) != "planned":
+        if existing is not None and not existing.done:
+            set_todo_done(conn, existing.id, True, today=today)
+        return existing
+
+    recommender = repo.get_recommender(conn, request.recommender_id)
+    title = letter_todo_title(recommender.name if recommender else "your recommender", due)
+    application = repo.get_application(conn, request.application_id)
+    notes = (
+        f"Letter for {application.title or application.catalog_id}" if application else ""
+    )
+    if existing is None:
+        return create_todo(
+            conn,
+            student_id,
+            title,
+            notes=notes,
+            due_on=due.isoformat(),
+            assignee="student",
+            created_by=created_by,
+            created_role=created_role,
+            source_kind="letter",
+            source_ref=str(request_id),
+        )
+    update_todo(conn, existing.id, title=title, notes=notes, due_on=due.isoformat())
+    if existing.done:
+        set_todo_done(conn, existing.id, False)
+    return get_todo(conn, existing.id)
 
 
 def milestone_source_ref(milestone_id: str, year_end: int) -> str:

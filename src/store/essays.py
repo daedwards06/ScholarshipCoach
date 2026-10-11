@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from src.store import repo
+from src.store import repo, todos
 from src.store.repo import Essay
 
 # The labels tracker.checklist_labels writes: "Essay: <prompt>" for a single
@@ -125,11 +125,14 @@ def clear_prompt(conn: Any, slot: PromptSlot) -> None:
         repo.update_checklist_item(conn, slot.item_id, done=False)
 
 
-def essay_bank(conn: Any, student_id: str) -> list[BankEntry]:
-    """Every essay the student has, with its reuse count and the awards using it."""
+def essay_bank(conn: Any, student_id: str, *, shared_only: bool = False) -> list[BankEntry]:
+    """Every essay the student has, with its reuse count and the awards using it.
+
+    ``shared_only`` is the parent view: drafts she has not shared stay out.
+    """
     counts = repo.essay_reuse_counts(conn, student_id)
     entries: list[BankEntry] = []
-    for essay in repo.list_essays(conn, student_id):
+    for essay in repo.list_essays(conn, student_id, shared_only=shared_only):
         used_by: list[str] = []
         for link in repo.list_essay_links(conn, essay_id=essay.id):
             application = repo.get_application(conn, link.application_id)
@@ -147,3 +150,22 @@ def theme_counts(entries: list[BankEntry]) -> dict[str, int]:
     for entry in entries:
         counts[repo.normalize_theme(entry.essay.theme)] += 1
     return counts
+
+
+def readable_essay(conn: Any, essay_id: int, *, shared_only: bool) -> Essay | None:
+    """One essay by id, or ``None`` when the reader may not open it."""
+    essay = repo.get_essay(conn, essay_id)
+    if essay is None or (shared_only and not essay.shared_with_parents):
+        return None
+    return essay
+
+
+def unshared_count(conn: Any, student_id: str) -> int:
+    """How many drafts she keeps to herself; parents see the number, not the titles."""
+    return sum(not essay.shared_with_parents for essay in repo.list_essays(conn, student_id))
+
+
+def delete_essay(conn: Any, essay_id: int) -> bool:
+    """Delete an essay and the open suggestions that would link to it."""
+    todos.delete_open_essay_suggestions(conn, essay_id)
+    return repo.delete_essay(conn, essay_id)

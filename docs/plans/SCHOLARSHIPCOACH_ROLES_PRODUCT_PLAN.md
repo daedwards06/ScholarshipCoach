@@ -872,19 +872,42 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] Student: a "Share with parents" toggle per essay with a caption saying what it does; shared
+- [x] Student: a "Share with parents" toggle per essay with a caption saying what it does; shared
       essays show a "Shared" badge
-- [ ] Parent: only shared essays listed, as text with a gray "Read-only" badge; an unshared count
+- [x] Parent: only shared essays listed, as text with a gray "Read-only" badge; an unshared count
       ("2 drafts not shared") without titles; a "Suggest a change" action creates a To-do for her
       that links the essay
-- [ ] "Challenge: 1" counts replaced with readable theme chips or removed; "Prompts waiting for an
+- [x] "Challenge: 1" counts replaced with readable theme chips or removed; "Prompts waiting for an
       essay" shows only when a saved application has a prompt, and otherwise says nothing (R8)
-- [ ] Editor ≥ 12 rows with a word-count caption
-- [ ] Recommenders: one row per person with "2 in / 1 waiting"; a request with a due date creates
+- [x] Editor ≥ 12 rows with a word-count caption
+- [x] Recommenders: one row per person with "2 in / 1 waiting"; a request with a due date creates
       a To-do for her ("Ask Ms. … by …")
-- [ ] Tests: parent cannot list or open an unshared essay by ID; sharing toggles; the
+- [x] Tests: parent cannot list or open an unshared essay by ID; sharing toggles; the
       `can_edit_essays` tests still pass
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-10-11):**
+- *Who may read what.* `essays.essay_bank(shared_only=)` and `essays.readable_essay` are the parent
+  read path; Applications passes shared-only entries in Parent mode too, and a linked draft she
+  has not shared reads "An essay is linked (not shared)", never its title. "Suggest a change"
+  re-checks `readable_essay` on submit, so unsharing mid-edit refuses the suggestion.
+- *Interim essay link on to-dos.* The `todos.source_kind` CHECK (0005) has no `essay`, and
+  changing a CHECK in SQLite means rebuilding the table, which neither safe migration shape
+  allows (A.1 notes). So a suggestion is stored as `source_kind=manual`,
+  `source_ref=essay:<id>` (`todos.essay_source_ref` / `is_essay_ref`), and the To-dos page
+  special-cases that prefix to link Essays. Deleting an essay deletes its open suggestions
+  (`essays.delete_essay`); ticked ones stay as history. The lasting fix (safe table rebuilds,
+  then a real `essay` kind) is deferred to the first task that migrates `todos` anyway; see
+  "Deferred: an `essay` source kind" under Task B.3.
+- *Letters.* A planned request with a due date keeps one `source_kind=letter` row,
+  "Ask <name> by <Mon D>", synced by `todos.sync_letter_todo` from every Recommenders change.
+  While that row is open it stands in for the live tracker letter row (no double listing);
+  ticking it marks the request asked, after which the live "Letter from … (asked)" row returns.
+- *Checked on screen (400px, scratch DB).* The screenshot harness captures collapsed expanders and
+  seeds no shared essay, so a one-off Playwright walk opened an essay, shared it, read it in
+  Parent mode, submitted a suggestion and found it on her To-dos with an Essays link. The
+  editor measured 11.9 lines at 320px (padding and border come out of the height), so it is
+  340px: 12.8 lines.
 
 ---
 
@@ -998,6 +1021,26 @@ Task A.7's notes
       between them (Student)
 - [ ] Each college's application and merit deadlines feed To-dos and Timeline
 - [ ] Net price per school against won awards (existing Colleges & Money math)
+
+**Deferred: an `essay` source kind (from Task A.9, decided 2026-10-11).** A parent's essay
+suggestion is a `manual` to-do with `source_ref=essay:<id>`, because the 0005 `source_kind` CHECK
+has no `essay` and changing a CHECK in SQLite means rebuilding the table, which neither safe
+migration shape allows (A.1 notes). The interim is sound for use: deleting an essay drops its open
+suggestions. It costs only a prefix special case in `app/sections/todos.py` (`source_page`) and a
+row that calls itself `manual`. Not worth an irreversible rebuild of the family database just
+before onboarding, so it rides along with the first task that has to migrate `todos` anyway. That
+is likely this one, if college deadlines become their own to-do source kind. When it does:
+- Third safe migration shape: a file wrapped in one explicit `BEGIN; … COMMIT;`. SQLite DDL is
+  transactional, so `apply_migrations`' `rollback()` undoes a failed file whole and it is not
+  recorded. Add it to the A.1 rule and test it with a deliberately failing rebuild file
+- In that shape, rebuild `todos` with the new kinds (`essay`, plus whatever the task needs) in
+  the CHECK: create `todos_new`, copy, drop, rename, recreate the index. Map
+  `manual` + `essay:%` rows to `essay` with the bare id. Nothing references `todos`, so the drop
+  needs no `PRAGMA foreign_keys` change (it cannot change inside a transaction)
+- `SOURCE_KINDS` gains `essay`, `_SOURCE_PAGES["essay"] = "essays"`, and `essay_source_ref`,
+  `is_essay_ref` and the `source_page` special case go away
+- Not chosen: a nullable `todos.essay_id` column (the row would still say `manual`), or dropping
+  the CHECK for Python-only validation (the CHECK is what stops a bad raw write)
 
 ## Task B.4: Bringing People Back
 
