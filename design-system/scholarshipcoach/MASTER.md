@@ -168,6 +168,8 @@ grouping"); this file and the page overrides decide how they look.
   committing; fall back to `position="sidebar"` with grouped sections if it wraps badly.
   Checked 2026-09-30 (Task 1.3): at 1366px it overflows into a "N more" menu on one row; at 400px
   Streamlit folds it into the sidebar list behind `»`. See `docs/decisions.md`.
+  Grouped per mode since 2026-10-10 (Roles & Product Plan Task A.3; groups in `pages/*.md`). The
+  folded sidebar still stays open after a pick at 400px, so the student home links every page.
 - The mode switch (Student / Parent, PIN) stays in the sidebar or on Settings. It is a rare action.
 - **Profile becomes its own page** ("My Profile"). The sidebar stops being a 30-field form under the
   navigation.

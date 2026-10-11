@@ -520,7 +520,7 @@ Captured from the running app on the committed demo profile (Jordan Rivera, fict
 with `streamlit run app/main.py` to explore interactively.
 
 **Ranked cards, student mode.** Each award is a card with its amount, deadline urgency, timeline
-bucket and plain-English reasons it matched; **Save** puts it on My Applications, and the raw
+bucket and plain-English reasons it matched; **Save** puts it on Applications, and the raw
 stage scores sit behind **Signal details**.
 
 ![Ranked scholarship cards in student mode](docs/images/ranked_cards.png)

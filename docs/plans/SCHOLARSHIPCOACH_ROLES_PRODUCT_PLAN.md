@@ -422,19 +422,38 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] `pages_for_mode` returns the Student list (ungrouped top pages + "More") and the Parent
+- [x] `pages_for_mode` returns the Student list (ungrouped top pages + "More") and the Parent
       groups "Her path" / "Money" / "Family tools", with only the pages built so far; later tasks add
       theirs by editing this function and `SECTION_LABELS` only
-- [ ] Find Scholarships and Applications leave the Student list; labels "Find Scholarships" and
+- [x] Find Scholarships and Applications leave the Student list; labels "Find Scholarships" and
       "Applications" in Parent; This Week stays until A.4 replaces it
-- [ ] A student deep link to `/find` or `/applications` lands on the student home, not an error
-- [ ] R3 checked: if the sidebar still stays open after a pick at 400px, record it for Design
+- [x] A student deep link to `/find` or `/applications` lands on the student home, not an error
+- [x] R3 checked: if the sidebar still stays open after a pick at 400px, record it for Design
       Refresh Task 4.1 in `docs/decisions.md`; independently, the student home links each top page
       with `st.page_link` so every student page is one tap from home
-- [ ] Tests: groups per mode, no duplicates, parent-only pages absent from Student, every page has
+- [x] Tests: groups per mode, no duplicates, parent-only pages absent from Student, every page has
       an icon, URL path and caption
-- [ ] 400px sweep looked at for both modes
-- [ ] All five CI commands green
+- [x] 400px sweep looked at for both modes
+- [x] All five CI commands green
+
+**Task notes (2026-10-10):**
+- *Where the code went.* `modes.pages_for_mode` holds both lists; `STUDENT_SECTIONS` and
+  `PARENT_ONLY_SECTIONS` are now derived from it, and `sections_for_mode` is gone. Built so far:
+  Student `""` = This Week (home until A.4), Essays; More = What If, Recommenders, My Profile.
+  Parent Her path = This Week, Essays, What If, Recommenders; Money = Find Scholarships,
+  Applications, Colleges & Money, Timeline, Outcomes; Family tools = Catalog & Inbox, Settings,
+  My Profile (one label per page, so Parent shows "My Profile", not "Profile").
+- *Home links.* `modes.render_home_links` draws a `st.page_link` row (key `home_links`) to every
+  other page in the mode; `app/main.py` leaves the run's pages in session state for it. This Week
+  calls it in Student mode only; My Path takes it over in A.6.
+- *Checked at 400px (Playwright, Edge).* Student `/find`, `/applications`, `/settings` land on
+  This Week with no error dialog; each home link opens its page. R3 still holds (sidebar stays
+  open after a pick), recorded in `docs/decisions.md` (2026-10-10) for Design Refresh Task 4.1.
+  At 1366px each Parent group is a top-bar dropdown, so Parent pages are two clicks.
+- *For A.4.* A `/this-week` URL already shows Streamlit's "Page not found" dialog over the home
+  page, because the default page is served at `/` and the redirect matches by URL path. When
+  To-dos replaces This Week, the old bookmark needs handling beyond the hidden-page redirect.
+- The screenshot seed now saves Find results from Parent mode.
 
 ---
 

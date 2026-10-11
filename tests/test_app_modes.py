@@ -25,33 +25,39 @@ def test_available_modes_hides_operator_unless_enabled() -> None:
     assert modes.available_modes(True) == ("student", "parent", "operator")
 
 
-def test_student_sections_are_the_daily_surfaces_plus_find_and_what_if() -> None:
-    sections = modes.sections_for_mode("student")
-    assert sections == (
-        "this_week",
-        "find",
-        "applications",
-        "essays",
-        "recommenders",
-        "what_if",
-    )
+def test_student_nav_is_top_pages_plus_more() -> None:
+    assert modes.pages_for_mode("student") == {
+        "": ("this_week", "essays"),
+        "More": ("what_if", "recommenders", "profile"),
+    }
 
 
-def test_parent_sections_extend_student_sections() -> None:
-    student = modes.sections_for_mode("student")
-    parent = modes.sections_for_mode("parent")
-    assert parent[: len(student)] == student
-    assert parent[len(student) :] == (
-        "catalog_inbox",
-        "timeline",
-        "colleges_money",
-        "outcomes",
-        "settings",
-    )
+def test_parent_nav_is_her_path_money_and_family_tools() -> None:
+    assert modes.pages_for_mode("parent") == {
+        "Her path": ("this_week", "essays", "what_if", "recommenders"),
+        "Money": ("find", "applications", "colleges_money", "timeline", "outcomes"),
+        "Family tools": ("catalog_inbox", "settings", "profile"),
+    }
 
 
-def test_operator_sees_the_same_sections_as_parent() -> None:
-    assert modes.sections_for_mode("operator") == modes.sections_for_mode("parent")
+def test_operator_sees_the_same_pages_as_parent() -> None:
+    assert modes.pages_for_mode("operator") == modes.pages_for_mode("parent")
+
+
+@pytest.mark.parametrize("section", ["find", "applications"])
+def test_scholarship_tracker_is_a_parent_page(section: str) -> None:
+    assert not modes.can_view("student", section)
+    assert modes.can_view("parent", section)
+    assert modes.resolve_section(section, "student") == "this_week"
+
+
+def test_tracker_labels_in_parent() -> None:
+    assert modes.SECTION_LABELS["find"] == "Find Scholarships"
+    assert modes.SECTION_LABELS["applications"] == "Applications"
+
+
+def test_every_student_page_is_also_in_parent() -> None:
+    assert set(modes.nav_sections("student")) <= set(modes.nav_sections("parent"))
 
 
 @pytest.mark.parametrize("section", modes.PARENT_ONLY_SECTIONS)
@@ -153,13 +159,9 @@ def test_resolve_section_drops_a_section_the_mode_cannot_see() -> None:
 
 
 @pytest.mark.parametrize("mode", ["student", "parent", "operator"])
-def test_pages_for_mode_follow_section_order_plus_profile(mode: modes.Mode) -> None:
-    assert modes.nav_sections(mode) == modes.sections_for_mode(mode) + ("profile",)
-
-
-@pytest.mark.parametrize("mode", ["student", "parent", "operator"])
 def test_every_page_has_a_label_icon_and_unique_url_path(mode: modes.Mode) -> None:
     sections = modes.nav_sections(mode)
+    assert all(sections for sections in modes.pages_for_mode(mode).values())
     assert len(set(sections)) == len(sections)
     paths = [modes.section_url_path(section) for section in sections]
     assert len(set(paths)) == len(paths)

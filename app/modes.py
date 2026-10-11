@@ -50,11 +50,12 @@ MODE_STATE_KEY = "mode"
 MODE_REQUEST_STATE_KEY = "mode_request"
 UNLOCK_STATE_KEY = "mode_unlocked"
 PIN_STATE_KEY = "mode_pin"
+NAV_PAGES_STATE_KEY = "nav_pages"
 
 SECTION_LABELS: dict[str, str] = {
     "this_week": "This Week",
     "find": "Find Scholarships",
-    "applications": "My Applications",
+    "applications": "Applications",
     "essays": "Essays",
     "recommenders": "Recommenders",
     "what_if": "What If",
@@ -82,8 +83,8 @@ SECTION_ICONS: dict[str, str] = {
 }
 
 SECTION_CAPTIONS: dict[str, str] = {
-    "find": "Awards that match your profile, best fit first.",
-    "applications": "Every award you have saved and how far along each one is.",
+    "find": "Awards that match her profile, best fit first.",
+    "applications": "Every saved award and how far along each one is.",
     "essays": "Your essay drafts and the prompts they can answer.",
     "recommenders": "The people writing your letters and which awards need them.",
     "what_if": (
@@ -101,30 +102,6 @@ SECTION_CAPTIONS: dict[str, str] = {
     "profile": "What the app uses to match you with awards.",
 }
 
-PROFILE_SECTION = "profile"
-
-# "find" is today's ranked-results surface. It sits in the student list because
-# saving an award (Task 3.3) starts from a ranked card.  "what_if" is a student
-# surface too: the record it asks about is the student's to build.
-STUDENT_SECTIONS: tuple[str, ...] = (
-    "this_week",
-    "find",
-    "applications",
-    "essays",
-    "recommenders",
-    "what_if",
-)
-
-PARENT_ONLY_SECTIONS: tuple[str, ...] = (
-    "catalog_inbox",
-    "timeline",
-    "colleges_money",
-    "outcomes",
-    "settings",
-)
-
-PARENT_SECTIONS: tuple[str, ...] = STUDENT_SECTIONS + PARENT_ONLY_SECTIONS
-
 
 def normalize_mode(value: object) -> Mode:
     """Coerce anything to a known mode, falling back to student."""
@@ -141,26 +118,36 @@ def available_modes(operator_enabled: bool) -> tuple[Mode, ...]:
     return ("student", "parent")
 
 
-def sections_for_mode(mode: Mode) -> tuple[str, ...]:
-    """Return the sections visible in ``mode``, in nav order."""
-    if normalize_mode(mode) == "student":
-        return STUDENT_SECTIONS
-    return PARENT_SECTIONS
-
-
 def pages_for_mode(mode: Mode) -> dict[str, tuple[str, ...]]:
     """Return the top-nav groups for ``mode``: group header -> sections, in nav order.
 
-    The ``""`` header holds ungrouped pages.  The grouping is provisional; the
-    page list and grouping belong to the Roles & Product Plan, and changing
-    them should only touch this function and ``SECTION_LABELS``.
+    The ``""`` header holds ungrouped pages; its first page is the home page.
+    The list follows the Roles & Product Plan's "Page list and grouping" and
+    holds only the pages built so far, so adding a page should only touch this
+    function and ``SECTION_LABELS``.
     """
-    return {"": sections_for_mode(mode) + (PROFILE_SECTION,)}
+    if normalize_mode(mode) == "student":
+        return {
+            "": ("this_week", "essays"),
+            "More": ("what_if", "recommenders", "profile"),
+        }
+    return {
+        "Her path": ("this_week", "essays", "what_if", "recommenders"),
+        "Money": ("find", "applications", "colleges_money", "timeline", "outcomes"),
+        "Family tools": ("catalog_inbox", "settings", "profile"),
+    }
 
 
 def nav_sections(mode: Mode) -> tuple[str, ...]:
     """Every page in ``mode``'s navigation, flattened in nav order."""
     return tuple(section for group in pages_for_mode(mode).values() for section in group)
+
+
+STUDENT_SECTIONS: tuple[str, ...] = nav_sections("student")
+
+PARENT_ONLY_SECTIONS: tuple[str, ...] = tuple(
+    section for section in nav_sections("parent") if section not in STUDENT_SECTIONS
+)
 
 
 def section_url_path(section: str) -> str:
@@ -257,6 +244,22 @@ def render_page_header(section: str, caption: str | None = None) -> None:
     line = caption if caption is not None else SECTION_CAPTIONS.get(section)
     if line:
         st.caption(line)
+
+
+def render_home_links(mode: Mode, here: str) -> None:
+    """Link every other page in ``mode`` from the home page.
+
+    At phone width Streamlit folds the top nav behind the sidebar toggle, so
+    these links keep each student page one tap from home.  ``app/main.py``
+    leaves this run's pages in session state for them.
+    """
+    pages = st.session_state.get(NAV_PAGES_STATE_KEY, {})
+    targets = [pages[section] for section in nav_sections(mode) if section != here and section in pages]
+    if not targets:
+        return
+    with st.container(horizontal=True, key="home_links"):
+        for target in targets:
+            st.page_link(target)
 
 
 def render_mode_selector(

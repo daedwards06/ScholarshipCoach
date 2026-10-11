@@ -106,6 +106,7 @@ def main() -> None:
     st.session_state.profile = state.profile_from_widgets()
 
     pages = {section: _page(section) for section in SECTION_RENDERERS}
+    st.session_state[modes.NAV_PAGES_STATE_KEY] = pages
     groups = {
         header: [pages[section] for section in sections]
         for header, sections in modes.pages_for_mode(mode).items()
