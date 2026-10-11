@@ -218,7 +218,7 @@ def seed(browser: Any, base_url: str) -> None:
     context = browser.new_context(viewport={"width": 1366, "height": 900})
     page = context.new_page()
     try:
-        open_section(page, base_url, "student", "find")
+        open_section(page, base_url, "parent", "find")
         if not run_find(page):
             raise RuntimeError("Find has no enabled Run button; is there a snapshot?")
         for _ in range(SEED_SAVES):

@@ -5,6 +5,30 @@ Newest first. A decision stays here after it is reversed; the reversal is a new 
 
 ---
 
+## 2026-10-10 — Grouped navigation per mode; the phone sidebar still stays open (R3)
+
+**Context.** Roles & Product Plan Task A.3 set the page list: Student gets ungrouped top pages
+plus "More", Parent gets "Her path" / "Money" / "Family tools". Find Scholarships and Applications
+moved to Parent. The task also asked whether the folded phone nav still stays open after a pick
+(review finding R3).
+
+**Evidence.** At 400px (Playwright against Edge, Streamlit 1.54), Student's nav still folds behind
+`»`. The sidebar shows "More" as a labelled group, and after "Essays" is picked it stays open
+(`aria-expanded="true"`) over the page, so R3 still costs a close tap. At 1366px each Parent group
+is a dropdown in the top bar, so every Parent page now takes two clicks. Student deep links to
+`/find`, `/applications` and `/settings` land on the student home with no "Page not found" dialog.
+
+**Decision.** Keep the grouping; it is what the roles review chose. For R3, the student home
+(This Week until A.4, My Path from A.6) links every other Student page with `st.page_link`, so
+each page is one tap from home without the sidebar. Closing the sidebar after a pick is left to
+Design Refresh Task 4.1, which should check it on a real phone; a CSS or script workaround here
+would depend on Streamlit internals.
+
+**Rejected.** Keeping Parent ungrouped. At 12 pages and growing, a single bar already overflowed
+into "N more", and the groups say which pages are about money.
+
+---
+
 ## 2026-09-30 — Top navigation, ungrouped for now; Streamlit folds it into the sidebar on phones
 
 **Context.** Design Refresh Task 1.3 replaced the two sidebar radios with

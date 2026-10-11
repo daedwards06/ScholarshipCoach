@@ -11,6 +11,13 @@ from src.store.db import open_db
 
 
 def render() -> None:
+    _render_due()
+    mode = modes.normalize_mode(st.session_state.get(modes.MODE_STATE_KEY))
+    if mode == "student":
+        modes.render_home_links(mode, "this_week")
+
+
+def _render_due() -> None:
     today_value = state.effective_today(st.session_state.profile)
     modes.render_page_header(
         "this_week",

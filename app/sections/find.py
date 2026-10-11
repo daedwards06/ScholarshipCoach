@@ -143,7 +143,7 @@ def _save_award_from_card(row: pd.Series, today_value: date) -> None:
     except Exception as exc:
         st.error(f"Could not save this award: {exc}")
         return
-    st.toast("Saved to My Applications." if created else "Already in My Applications.")
+    st.toast("Saved to Applications." if created else "Already in Applications.")
     st.rerun()
 
 
@@ -218,7 +218,7 @@ def _render_scholarship_card(
                     "Saved",
                     icon=":material/check_circle:",
                     color="green",
-                    help="Already under My Applications.",
+                    help="Already under Applications.",
                 )
             elif st.button("Save", key=f"save_{catalog_id}", type="secondary"):
                 _save_award_from_card(row, today_value)

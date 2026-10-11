@@ -112,7 +112,7 @@ def _render_needs_date_bucket() -> None:
 
     st.caption(
         f"{award_count_text(len(waiting))} with no deadline and no cycle month on "
-        "record. Check the source, then add the date under My Applications."
+        "record. Check the source, then add the date under Applications."
     )
     for _, row in waiting.iterrows():
         catalog_id = row_catalog_id(row)

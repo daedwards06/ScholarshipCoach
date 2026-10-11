@@ -61,7 +61,7 @@ def render() -> None:
 
     if not outcomes:
         st.info(
-            "No results recorded yet. When an award decides, open it in My Applications, "
+            "No results recorded yet. When an award decides, open it in Applications, "
             "set its status to Submitted, and record the result there."
         )
         return
