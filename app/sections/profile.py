@@ -20,7 +20,13 @@ def render() -> None:
     st.text_input("Full Name", key="profile_name", placeholder="Your name (optional)")
     st.number_input("GPA", min_value=0.0, max_value=4.0, step=0.01, key="profile_gpa",
                    help="Your current GPA (0.0-4.0)")
-    st.text_input("State", key="profile_state", placeholder="e.g., NC")
+    st.selectbox(
+        "State",
+        options=state.STATE_CODE_OPTIONS,
+        format_func=state.state_label,
+        key="profile_state",
+        help="Where you live. State-only awards and programs check this.",
+    )
     st.text_input("County", key="profile_county",
                  placeholder="e.g., Guilford",
                  help="Many local awards are county-restricted")
@@ -33,7 +39,7 @@ def render() -> None:
                 help="Your current or upcoming grade level")
     st.number_input("Graduation Year", min_value=0, max_value=2100, step=1,
                    key="profile_graduation_year",
-                   help="Leave at 0 to estimate it from your grade level")
+                   help="Your grade moves up each July from this year. Leave at 0 to estimate it from your grade level.")
     st.number_input("SAT", min_value=0, max_value=1600, step=10, key="profile_sat",
                    help="Leave at 0 if you have not taken it")
     st.number_input("ACT", min_value=0, max_value=36, step=1, key="profile_act",
@@ -41,7 +47,13 @@ def render() -> None:
 
     st.subheader("About you", divider=False)
     st.caption("Every field here is optional and only used to match restricted awards.")
-    st.text_input("Citizenship", key="profile_citizenship", placeholder="e.g., U.S. Citizen")
+    st.selectbox(
+        "Citizenship",
+        options=state.CITIZENSHIP_OPTIONS,
+        format_func=lambda value: state.CITIZENSHIP_LABELS[str(value)],
+        key="profile_citizenship",
+        help="Many awards require U.S. citizenship. Left unset, they ask you to confirm instead.",
+    )
     st.selectbox("Financial need", options=list(state.TRISTATE_OPTIONS),
                 key="profile_financial_need",
                 help="Whether you qualify for need-based aid")

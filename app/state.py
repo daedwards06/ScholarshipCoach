@@ -11,10 +11,11 @@ import streamlit as st
 from app import modes
 from app.helpers import csv_list, csv_text
 from scripts.run_ingest import get_latest_snapshot_path
+from src.catalog.entry import STATE_OPTIONS, state_codes, state_names
 from src.profile.grade_levels import (
     grade_label_to_levels,
-    infer_graduation_year,
     levels_to_grade_label,
+    reconcile_grade,
 )
 from src.profile.store import (
     DEFAULT_STUDENT_ID,
@@ -23,7 +24,12 @@ from src.profile.store import (
     profile_path,
     to_stage1_profile,
 )
-from src.rank.stage1_eligibility import StudentProfile
+from src.rank.stage1_eligibility import (
+    PERMANENT_RESIDENT,
+    US_CITIZEN,
+    StudentProfile,
+    canonical_citizenship,
+)
 from src.rank.weights import Stage2Weights, Stage3Weights
 from src.store import repo
 from src.store.db import open_db
@@ -44,6 +50,37 @@ DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 PREFER_NOT_TO_SAY = "Prefer not to say"
 TRISTATE_OPTIONS = (PREFER_NOT_TO_SAY, "Yes", "No")
 GENDER_OPTIONS = (PREFER_NOT_TO_SAY, "Female", "Male", "Nonbinary")
+
+# Choices, not free text: Stage 1 matches these exactly, so a typed "North
+# Carolina" or "U.S. citizen" used to fail every restricted award silently.
+STATE_CODE_OPTIONS: tuple[str, ...] = ("", *state_codes(STATE_OPTIONS))
+OTHER_CITIZENSHIP = "Other"
+CITIZENSHIP_OPTIONS: tuple[str, ...] = ("", US_CITIZEN, PERMANENT_RESIDENT, OTHER_CITIZENSHIP)
+CITIZENSHIP_LABELS: dict[str, str] = {
+    "": PREFER_NOT_TO_SAY,
+    US_CITIZEN: "U.S. citizen",
+    PERMANENT_RESIDENT: "U.S. permanent resident",
+    OTHER_CITIZENSHIP: "Neither",
+}
+
+
+def state_label(code: str) -> str:
+    if not code:
+        return "Not set"
+    names = state_names([code])
+    return f"{code} — {names[0]}" if names else code
+
+
+def _state_widget_value(value: Any) -> str:
+    codes = state_codes([str(value or "")]) if value else []
+    return codes[0] if codes and codes[0] in STATE_CODE_OPTIONS else ""
+
+
+def _citizenship_widget_value(value: Any) -> str:
+    canonical = canonical_citizenship(value)
+    if not canonical:
+        return ""
+    return canonical if canonical in CITIZENSHIP_OPTIONS else OTHER_CITIZENSHIP
 _LIST_WIDGET_FIELDS = (
     "heritage",
     "parent_employers",
@@ -121,7 +158,7 @@ def _widget_values_from_profile(profile: dict[str, Any]) -> dict[str, Any]:
     values: dict[str, Any] = {
         "profile_name": str(profile.get("name") or ""),
         "profile_gpa": float(profile.get("gpa") or 0.0),
-        "profile_state": str(profile.get("state") or ""),
+        "profile_state": _state_widget_value(profile.get("state")),
         "profile_county": str(profile.get("county") or ""),
         "profile_high_school": str(profile.get("high_school") or ""),
         "profile_major": str(profile.get("major") or ""),
@@ -129,7 +166,7 @@ def _widget_values_from_profile(profile: dict[str, Any]) -> dict[str, Any]:
             profile.get("education_level"), profile.get("grade_level")
         ),
         "profile_graduation_year": int(profile.get("graduation_year") or 0),
-        "profile_citizenship": str(profile.get("citizenship") or ""),
+        "profile_citizenship": _citizenship_widget_value(profile.get("citizenship")),
         "profile_gender": _gender_label(profile.get("gender")),
         "profile_religion": str(profile.get("religion") or ""),
         "profile_service_hours": int(profile.get("service_hours") or 0),
@@ -206,11 +243,33 @@ def apply_profile_to_widgets(profile: dict[str, Any]) -> None:
         st.session_state[key] = value
 
 
-def profile_from_widgets() -> dict[str, Any]:
+def profile_from_widgets(*, sync_widgets: bool = False) -> dict[str, Any]:
+    """Build the profile from the My Profile widgets.
+
+    The grade and graduation year are reconciled against the previous profile
+    (``reconcile_grade``), so the grade rolls forward each school year.  With
+    ``sync_widgets`` the two widgets are updated to match; only call it that
+    way before the profile page draws them in this run.
+    """
     today_override = st.session_state.get("profile_today_override", date.today())
     grade_label = str(st.session_state.get("profile_grade_label") or "")
     education_level, grade_level = grade_label_to_levels(grade_label)
-    graduation_year = _positive_or_none(st.session_state.get("profile_graduation_year"))
+    previous = st.session_state.get("profile") or {}
+    grade, graduation_year = reconcile_grade(
+        grade_level,
+        _positive_or_none(st.session_state.get("profile_graduation_year")),
+        previous.get("grade_level"),
+        previous.get("graduation_year"),
+        _widget_today(),
+    )
+    if grade and grade != grade_level:
+        education_level, grade_level = grade_label_to_levels(levels_to_grade_label(None, grade))
+        if sync_widgets:
+            st.session_state["profile_grade_label"] = levels_to_grade_label(None, grade)
+    if sync_widgets and graduation_year != _positive_or_none(
+        st.session_state.get("profile_graduation_year")
+    ):
+        st.session_state["profile_graduation_year"] = int(graduation_year or 0)
 
     profile = default_profile()
     profile.update(
@@ -226,8 +285,7 @@ def profile_from_widgets() -> dict[str, Any]:
             "major": str(st.session_state.get("profile_major") or ""),
             "education_level": education_level or "",
             "grade_level": grade_level or "",
-            "graduation_year": graduation_year
-            or infer_graduation_year(grade_level, _widget_today()),
+            "graduation_year": graduation_year,
             "citizenship": str(st.session_state.get("profile_citizenship") or ""),
             "gender": _gender_value(str(st.session_state.get("profile_gender") or "")),
             "religion": str(st.session_state.get("profile_religion") or "").strip() or None,

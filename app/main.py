@@ -124,7 +124,7 @@ def main() -> None:
         with st.sidebar:
             sidebar.render_operator_sidebar()
 
-    st.session_state.profile = state.profile_from_widgets()
+    st.session_state.profile = state.profile_from_widgets(sync_widgets=True)
 
     pages = {section: _page(section) for section in SECTION_RENDERERS}
     st.session_state[modes.NAV_PAGES_STATE_KEY] = pages

@@ -5,6 +5,30 @@ Newest first. A decision stays here after it is reversed; the reversal is a new 
 
 ---
 
+## 2026-10-11 — The grade follows the graduation year; state and citizenship never fail silently
+
+**Context.** After Task A.7 the owner filled in the real profile. Two problems surfaced. The grade
+is a stored value, so nothing would move her to 11th grade next school year; Opportunities, To-dos
+milestones and My Path all read it. And State and Citizenship were free text compared exactly by
+Stage 1: "North Carolina" failed every NC-only record, and "U.S. Citizen" (the field's own
+example) failed the 11 curated awards that require `US`, with nothing on screen saying why.
+
+**Decision.** The graduation year is the anchor: a saved profile loads in the grade its graduation
+year implies (`grade_levels.reconcile_grade`), so the grade moves up each July. A grade changed by
+hand in My Profile wins and re-anchors the year; a changed year moves the grade. State and
+Citizenship are now choice lists, and `normalize_profile` folds older free-text values onto the
+catalog's spellings. In Stage 1, a blank state or citizenship becomes an unverified axis ("Confirm
+you meet: state residency") instead of a rejection, citizenship spellings are folded on both sides,
+and "U.S. citizen or permanent resident" accepts both. A stated mismatch still rejects.
+
+**Evidence.** Golden-student metrics are identical before and after (every golden profile states
+both fields). Tests: `tests/test_profile_rollover_and_matching.py`.
+
+**Rejected.** A yearly "update her grade" milestone. It works only if someone acts on it, and a
+missed August puts every student page a year behind.
+
+---
+
 ## 2026-10-10 — Grouped navigation per mode; the phone sidebar still stays open (R3)
 
 **Context.** Roles & Product Plan Task A.3 set the page list: Student gets ungrouped top pages
