@@ -32,6 +32,8 @@ UNCONFIRMED_TRUST_VALUES: frozenset[str] = frozenset({"unverified", "aggregator"
 # after "Confirm you meet:".  An axis listed here passes Stage 1 when the profile
 # is silent, so the student confirms it instead of the filter guessing.
 UNVERIFIED_AXIS_LABELS: dict[str, str] = {
+    "state": "state residency",
+    "citizenship": "citizenship requirement",
     "county": "county residency",
     "grade_level": "grade level",
     "financial_need": "financial need",
@@ -45,6 +47,54 @@ UNVERIFIED_AXIS_LABELS: dict[str, str] = {
     "memberships": "membership requirement",
     "test_scores": "test score minimum",
 }
+
+# Citizenship is free text on both sides, so the spellings a family or a sponsor
+# might use are folded onto the two values the catalog uses.  An award open to
+# either is matched by both.
+US_CITIZEN = "US"
+PERMANENT_RESIDENT = "Permanent Resident"
+_CITIZEN_OR_RESIDENT = "US or Permanent Resident"
+_CITIZENSHIP_ALIASES: dict[str, str] = {
+    **dict.fromkeys(
+        ("us", "u.s.", "usa", "u.s.a.", "united states", "us citizen", "u.s. citizen",
+         "united states citizen", "american", "citizen"),
+        US_CITIZEN,
+    ),
+    **dict.fromkeys(
+        ("permanent resident", "us permanent resident", "u.s. permanent resident",
+         "lawful permanent resident", "green card", "green card holder"),
+        PERMANENT_RESIDENT,
+    ),
+    **dict.fromkeys(
+        ("us citizen or permanent resident", "u.s. citizen or permanent resident",
+         "citizen or permanent resident", "us or permanent resident",
+         "us citizen or us permanent resident", "u.s. citizen or u.s. permanent resident"),
+        _CITIZEN_OR_RESIDENT,
+    ),
+}
+_ACCEPTS: dict[str, frozenset[str]] = {
+    US_CITIZEN: frozenset({US_CITIZEN}),
+    PERMANENT_RESIDENT: frozenset({PERMANENT_RESIDENT}),
+    _CITIZEN_OR_RESIDENT: frozenset({US_CITIZEN, PERMANENT_RESIDENT}),
+}
+
+
+def canonical_citizenship(value: Any) -> str:
+    """Fold a citizenship spelling onto the catalog's values; unknown text is kept, trimmed."""
+    text = _normalize_text(value)
+    if not text:
+        return ""
+    return _CITIZENSHIP_ALIASES.get(text, str(value).strip())
+
+
+def citizenship_accepts(required: Any, student: Any) -> bool:
+    req = canonical_citizenship(required)
+    have = canonical_citizenship(student)
+    accepted = _ACCEPTS.get(req)
+    if accepted is None:
+        return _normalize_text(req) == _normalize_text(have)
+    return have in accepted
+
 
 # Below this grade, an award that names no grade is one to confirm (R2).
 SENIOR_GRADE_RANK = GRADE_SEQUENCE.index("12")
@@ -224,8 +274,12 @@ def _row_reasons(
 
     states_allowed = _normalize_list(row.get("states_allowed"))
     profile_state = _normalize_text(profile.state)
-    if states_allowed and profile_state not in states_allowed:
-        reasons.append("STATE_NOT_ALLOWED")
+    if states_allowed:
+        # A blank state is a question, not a "no": the student confirms it.
+        if not profile_state:
+            unverified.append("state")
+        elif profile_state not in states_allowed:
+            reasons.append("STATE_NOT_ALLOWED")
 
     counties_allowed = [
         _normalize_county(county) for county in _normalize_list(row.get("counties_allowed"))
@@ -271,9 +325,11 @@ def _row_reasons(
             reasons.append("GRADE_LEVEL_MISMATCH")
 
     scholarship_citizenship = _normalize_text(row.get("citizenship"))
-    profile_citizenship = _normalize_text(profile.citizenship)
-    if scholarship_citizenship and scholarship_citizenship != profile_citizenship:
-        reasons.append("CITIZENSHIP_MISMATCH")
+    if scholarship_citizenship:
+        if not _normalize_text(profile.citizenship):
+            unverified.append("citizenship")
+        elif not citizenship_accepts(row.get("citizenship"), profile.citizenship):
+            reasons.append("CITIZENSHIP_MISMATCH")
 
     _tristate_reason(
         row.get("need_based"),

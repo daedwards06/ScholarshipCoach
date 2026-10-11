@@ -16,8 +16,14 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from src.profile.grade_levels import grade_label_to_levels, levels_to_grade_label
-from src.rank.stage1_eligibility import StudentProfile
+from src.catalog.entry import state_codes
+from src.profile.grade_levels import (
+    education_level_for_grade,
+    grade_label_to_levels,
+    levels_to_grade_label,
+    reconcile_grade,
+)
+from src.rank.stage1_eligibility import StudentProfile, canonical_citizenship
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PRIVATE_DIR = ROOT_DIR / "data" / "private"
@@ -159,7 +165,42 @@ def normalize_profile(payload: dict[str, Any] | None) -> dict[str, Any]:
             profile["education_level"] = education_level or profile["education_level"]
             profile["grade_level"] = grade_level or profile["grade_level"]
 
+    # Stage 1 compares two-letter codes and the catalog's citizenship values;
+    # "North Carolina" or "U.S. citizen" must not quietly fail those checks.
+    codes = state_codes([profile["state"]]) if profile["state"] else []
+    profile["state"] = codes[0] if codes else profile["state"].strip()
+    profile["citizenship"] = canonical_citizenship(profile["citizenship"])
+
     return profile
+
+
+def profile_today(profile: dict[str, Any]) -> date:
+    """The date a profile is read as of: its custom test date when one is on."""
+    if profile.get("use_today_override"):
+        try:
+            return date.fromisoformat(str(profile.get("today_override")))
+        except ValueError:
+            pass
+    return date.today()
+
+
+def with_current_grade(profile: dict[str, Any], today: date | None = None) -> dict[str, Any]:
+    """``profile`` with its grade rolled forward to ``today`` from its graduation year."""
+    grade, year = reconcile_grade(
+        profile.get("grade_level"),
+        profile.get("graduation_year"),
+        profile.get("grade_level"),
+        profile.get("graduation_year"),
+        today or profile_today(profile),
+    )
+    if not grade:
+        return profile
+    return {
+        **profile,
+        "grade_level": grade,
+        "graduation_year": year,
+        "education_level": education_level_for_grade(grade) or profile.get("education_level", ""),
+    }
 
 
 def _validate_student_id(student_id: str) -> str:
@@ -193,7 +234,7 @@ def load_profile(
     if not path.exists():
         return None
     payload = json.loads(path.read_text(encoding="utf-8-sig"))
-    return normalize_profile(payload)
+    return with_current_grade(normalize_profile(payload))
 
 
 def save_profile(

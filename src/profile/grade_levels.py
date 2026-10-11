@@ -149,3 +149,70 @@ def infer_graduation_year(grade_level: str | None, today: date | None = None) ->
         return None
     reference = today or date.today()
     return school_year_end(reference) + remaining
+
+
+_SENIOR_RANK = GRADE_SEQUENCE.index("12")
+
+
+def _is_college(rank: int) -> bool:
+    return rank > _SENIOR_RANK
+
+
+def education_level_for_grade(grade_level: str | None) -> str | None:
+    """Stage 1's education level for a grade ("high school" or "undergraduate")."""
+    rank = grade_level_rank(grade_level)
+    if rank is None:
+        return None
+    return "undergraduate" if _is_college(rank) else "high school"
+
+
+def grade_for_graduation_year(
+    graduation_year: int | None, grade_level: str | None, today: date | None = None
+) -> str | None:
+    """The grade ``graduation_year`` implies as of ``today``.
+
+    The graduation year is read on the same track as ``grade_level``: a high
+    school year for grades 9-12, a college year for college grades.  Past the
+    end of high school the grade carries on into college years.  ``None`` when
+    either input is unknown or the student has not started the track yet.
+    """
+    rank = grade_level_rank(grade_level)
+    if graduation_year is None or rank is None:
+        return None
+    last = len(GRADE_SEQUENCE) - 1 if _is_college(rank) else _SENIOR_RANK
+    first = _SENIOR_RANK + 1 if _is_college(rank) else 0
+    implied = last - (graduation_year - school_year_end(today or date.today()))
+    if implied < first:
+        return None
+    return GRADE_SEQUENCE[min(implied, len(GRADE_SEQUENCE) - 1)]
+
+
+def reconcile_grade(
+    grade_level: str | None,
+    graduation_year: int | None,
+    previous_grade: str | None,
+    previous_year: int | None,
+    today: date | None = None,
+) -> tuple[str, int | None]:
+    """Return the ``(grade_level, graduation_year)`` pair to keep, consistent with each other.
+
+    The graduation year is the anchor, so the grade rolls forward every July
+    with nobody remembering to change it.  A grade someone just changed by
+    hand wins and re-anchors the year; a changed year moves the grade.
+    """
+    grade = (grade_level or "").strip()
+    if not grade:
+        return "", graduation_year
+    if grade != (previous_grade or "").strip() or graduation_year is None:
+        return grade, infer_graduation_year(grade, today)
+    current = grade_for_graduation_year(graduation_year, grade, today)
+    if current is None:
+        return grade, infer_graduation_year(grade, today)
+    current_rank = grade_level_rank(current)
+    grade_rank = grade_level_rank(grade)
+    if current_rank is not None and grade_rank is not None and (
+        _is_college(current_rank) != _is_college(grade_rank)
+    ):
+        # Rolled past high school: the old year was a high-school graduation.
+        return current, infer_graduation_year(current, today)
+    return current, graduation_year
