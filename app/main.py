@@ -90,14 +90,6 @@ def _record_activity(person: str, page: StreamlitPage) -> None:
         pass
 
 
-def _render_identity_check() -> None:
-    """Operator-only check that tailscale serve's headers reach Streamlit (Task A.2)."""
-    presence = identity.header_presence(identity.headers_from_context())
-    with st.expander("Identity headers", expanded=False):
-        for name, present in presence.items():
-            st.caption(f"{name}: {'present' if present else 'absent'}")
-
-
 def main() -> None:
     state.ensure_session_state()
 
@@ -110,7 +102,6 @@ def main() -> None:
     if modes.show_operator_tools(mode, operator_enabled):
         with st.sidebar:
             sidebar.render_operator_sidebar()
-            _render_identity_check()
 
     st.session_state.profile = state.profile_from_widgets()
 

@@ -417,6 +417,10 @@ shows the family the version that is about to change.
 - [ ] Access works as the Roles & Product Plan decided: with the family PIN, Student mode opens
       without it and Parent mode asks for it; with per-person identity, each family member's own
       Tailscale login lands in the right mode and the student cannot reach parent-only pages
+- [ ] Per-person headers, carried from Roles & Product Plan Task A.2 (only one login was on the
+      tailnet when it was verified): on each newly onboarded device, the sidebar shows "Signed in
+      as <that person's name>", not another family member's, including after a parent has used
+      the app on another device in the same hour
 - [ ] Any phone that also runs a VPN app (NordVPN): confirm which one wins, since phones
       generally allow one active VPN at a time; note the outcome in `docs/operations.md`
 
