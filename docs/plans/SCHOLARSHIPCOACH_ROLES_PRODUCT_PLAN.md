@@ -574,24 +574,45 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] R2: in Stage 1, a record with no `grade_levels` for a profile below grade 12 adds
+- [x] R2: in Stage 1, a record with no `grade_levels` for a profile below grade 12 adds
       `grade_level` to `unverified` (the existing "confirm you meet" path) rather than passing
       silently; `timeline.py` never buckets such a record as "Apply now" for that profile. Golden
       students re-run; any metric change explained in the task notes
-- [ ] Find ranks on arrival with the saved profile (`st.cache_data` keyed on profile + snapshot),
+- [x] Find ranks on arrival with the saved profile (`st.cache_data` keyed on profile + snapshot),
       spinner "Finding matches…"; filters in a collapsed `st.expander("Filters",
       icon=":material/tune:")`
-- [ ] Operator-only: snapshot box, "Pipeline Execution", weights, Top-N slider, the
+- [x] Operator-only: snapshot box, "Pipeline Execution", weights, Top-N slider, the
       `eligible=… ineligible=…` box, "Signal details", win-model summary; Parent gets 25 + "Show more"
-- [ ] Card per MASTER/parent-mode "Award card" (money headline); keyed
+- [x] Card per MASTER/parent-mode "Award card" (money headline); keyed
       `st.container(border=True, key=f"award_{catalog_id}")`; Save / Apply in one row; a third action
       "Suggest to her" creates a To-do for her (`source_kind=application`)
-- [ ] `phone_width_css()` scopes the full-width-button rule so `.st-key-award_*` buttons stay in a
+- [x] `phone_width_css()` scopes the full-width-button rule so `.st-key-award_*` buttons stay in a
       row; `test_phone_layout.py` extended
-- [ ] Applications: expander label is the title; first line a status badge, a deadline badge and
+- [x] Applications: expander label is the title; first line a status badge, a deadline badge and
       "N steps left" (`steps_left_text`, tested) with `st.progress`
-- [ ] Measured at 1366px and 400px: typical card ≤ 260px tall at 400px; P1 within budget
-- [ ] All five CI commands green
+- [x] Measured at 1366px and 400px: typical card ≤ 300px tall at 400px (revised from 260px on
+      2026-10-11, see notes); P1 within budget
+- [x] All five CI commands green
+
+**Task notes (2026-10-11):**
+- R2: an award naming no grade, for a profile below grade 12, adds `grade_level` to
+  `unverified`; `timeline.py` puts it in a new `check_grade` bucket ("Check the grade first")
+  instead of `now`. Find's default "Open now" ranks `now` + `check_grade` together
+  (`rerank_stage3` now takes several buckets), so these awards stay visible with the yellow
+  badge. Timeline places `check_grade` awards by date. On the 2026-09-26 snapshot a grade-10
+  NC profile now gets 0 "Apply now" awards (R2 counted 12): 11 "Check the grade first", 12 "A
+  later school year". A grade-12 profile still gets all 19 open awards as "Apply now".
+- Golden students: metrics identical before and after (the eval does not bucket by timeline, and
+  an unverified axis never changes eligibility).
+- The Excluded list (Stage 1 reason codes) also moved to Operator mode.
+- Card height, measured at 1366px and 400px (demo profile, 19 cards): median 290px (264–341) at
+  400px, 254px at 1366px, down from about 600px; Save / Apply / Suggest stay in one row at both
+  widths. With the reasons line on the card face the median was 343px. Owner decision
+  2026-10-11: "Why it fits" moved into the expander (now "Why it fits & details"), and the
+  target revised from 260px to 300px. 260px was an estimate made before the card had a badge
+  line and a third action, and reaching it would mean dropping the details expander, which a
+  parent needs before saving. MASTER records the change.
+- P1: Find results on arrival (0) → Save (1) → Suggest to her (1) = 2 + nav, within 3 + nav.
 
 At this point the app is model A in full: parents run money and scholarships, she has a shared
 to-do list and her essays.

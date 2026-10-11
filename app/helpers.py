@@ -29,6 +29,10 @@ _MIN_INPUT_FONT_REM = 1.0
 # and 9.1:1 dark, the muted-text ratios in the design system.
 CAPTION_OPACITY = 0.75
 
+# Award cards keep Save / Apply / Suggest in one row at phone width; full-width
+# buttons would stack them into three 44px rows.
+AWARD_CARD_SELECTOR = '[class*="st-key-award_"]'
+
 
 def phone_width_css() -> str:
     """Return the stylesheet that makes the student surfaces usable at ~400px.
@@ -53,6 +57,10 @@ def phone_width_css() -> str:
   [data-testid="stDownloadButton"] button {{
     width: 100%;
     min-height: {_MIN_TAP_TARGET_REM}rem;
+  }}
+  {AWARD_CARD_SELECTOR} [data-testid="stButton"] button,
+  {AWARD_CARD_SELECTOR} [data-testid="stLinkButton"] a {{
+    width: auto;
   }}
   [data-testid="stTextInput"] input,
   [data-testid="stTextArea"] textarea,
@@ -114,19 +122,13 @@ def effort_to_text(row: pd.Series) -> str:
     A family can act on "2 essays, 1 letter"; it cannot act on an effort
     penalty of 0.31.
     """
-    counts = effort_counts(row)
-    parts = [
-        _pluralize(counts["essays"], "essay", "essays"),
-        _pluralize(counts["letters"], "letter", "letters"),
-        _pluralize(counts["extras"], "extra item", "extra items"),
-    ]
-    return ", ".join(part for part in parts if part)
+    return ", ".join(effort_badges(row))
 
 
-def explain_ranked_row(
+def fit_reasons(
     row: pd.Series, *, max_signals: int = 3, operator_mode: bool = False
 ) -> list[str]:
-    """Explain a ranked row in signals a student can act on.
+    """The strongest ranking signals for a row, in words a family can act on.
 
     The expected-value line is operator-only: it is a synthetic estimate, and a
     teen reads it as a promise.
@@ -170,14 +172,56 @@ def explain_ranked_row(
         signal_scores.append((0.4, "Lower effort (no essay)"))
 
     ranked = [label for score, label in sorted(signal_scores, key=lambda item: item[0], reverse=True) if score > 0]
-    lines = ranked[:max_signals] if ranked else ["Balanced profile fit after scoring"]
+    return ranked[:max_signals] if ranked else ["Balanced profile fit after scoring"]
 
+
+def explain_ranked_row(
+    row: pd.Series, *, max_signals: int = 3, operator_mode: bool = False
+) -> list[str]:
+    """:func:`fit_reasons`, then the local-award and effort lines."""
+    lines = fit_reasons(row, max_signals=max_signals, operator_mode=operator_mode)
     if is_local_award(row):
         lines.append("Local award, smaller applicant pool")
     effort_text = effort_to_text(row)
     if effort_text:
         lines.append(effort_text)
     return lines
+
+
+def effort_badges(row: pd.Series) -> list[str]:
+    """One badge label per kind of work an award asks for ("2 essays")."""
+    counts = effort_counts(row)
+    parts = [
+        _pluralize(counts["essays"], "essay", "essays"),
+        _pluralize(counts["letters"], "letter", "letters"),
+        _pluralize(counts["extras"], "extra item", "extra items"),
+    ]
+    return [part for part in parts if part]
+
+
+def badge_markdown(label: str, icon: str, color: BadgeColor) -> str:
+    """An inline badge for ``st.markdown``, so a row of badges is one element.
+
+    Square brackets would end the badge early, so they are swapped for
+    parentheses.
+    """
+    text = label.replace("[", "(").replace("]", ")")
+    return f":{color}-badge[{icon} {text}]"
+
+
+def markdown_safe(text: str) -> str:
+    """Escape ``$`` so "$2,000 - $4,000" is not typeset as LaTeX by ``st.markdown``."""
+    return text.replace("$", r"\$")
+
+
+def steps_left_text(done: int, total: int) -> str:
+    """"3 steps left" for an application's checklist."""
+    if total <= 0:
+        return "No steps yet"
+    left = total - done
+    if left <= 0:
+        return "All steps done"
+    return f"{left} step left" if left == 1 else f"{left} steps left"
 
 
 def reasons_to_text(value: Any) -> str:

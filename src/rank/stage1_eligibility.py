@@ -16,7 +16,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.profile.grade_levels import grade_level_rank
+from src.profile.grade_levels import GRADE_SEQUENCE, grade_level_rank
 from src.rank.taxonomy import education_level_matches, majors_match
 from src.text_utils import normalize_list as _normalize_list
 from src.text_utils import normalize_text as _normalize_text
@@ -45,6 +45,9 @@ UNVERIFIED_AXIS_LABELS: dict[str, str] = {
     "memberships": "membership requirement",
     "test_scores": "test score minimum",
 }
+
+# Below this grade, an award that names no grade is one to confirm (R2).
+SENIOR_GRADE_RANK = GRADE_SEQUENCE.index("12")
 
 
 @dataclass(slots=True)
@@ -247,9 +250,14 @@ def _row_reasons(
         reasons.append("EDUCATION_LEVEL_MISMATCH")
 
     grade_levels_allowed = _normalize_list(row.get("grade_levels"))
-    if grade_levels_allowed:
-        profile_grade = _normalize_text(profile.grade_level)
-        student_rank = grade_level_rank(profile_grade)
+    profile_grade = _normalize_text(profile.grade_level)
+    student_rank = grade_level_rank(profile_grade)
+    if not grade_levels_allowed:
+        # Most feed records name no grade, and most of those are for seniors or
+        # college students: below grade 12 that is a question, not a pass.
+        if student_rank is not None and student_rank < SENIOR_GRADE_RANK:
+            unverified.append("grade_level")
+    else:
         allowed_ranks = [
             rank
             for rank in (grade_level_rank(grade) for grade in grade_levels_allowed)

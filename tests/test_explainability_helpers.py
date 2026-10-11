@@ -4,8 +4,11 @@ import pandas as pd
 import pytest
 
 from app.helpers import (
+    badge_markdown,
     effort_to_text,
     explain_ranked_row,
+    fit_reasons,
+    markdown_safe,
     format_amount_range,
     needs_date_awards,
 )
@@ -158,3 +161,29 @@ def test_deadline_reason_falls_back_to_the_boost_without_a_day_count() -> None:
     assert "Due within two weeks" in explain_ranked_row(
         pd.Series({"urgency_boost": 0.72, "essay_required": True})
     )
+
+
+def test_fit_reasons_leave_local_and_effort_to_the_badges() -> None:
+    row = pd.Series(
+        {
+            "text_sim": 0.8,
+            "essay_required": True,
+            "essay_prompts": ["Why CS?"],
+            "local_award": True,
+        }
+    )
+
+    assert fit_reasons(row) == ["Strong match to your goals/keywords"]
+    assert explain_ranked_row(row)[: len(fit_reasons(row))] == fit_reasons(row)
+
+
+def test_badge_markdown_is_one_inline_badge() -> None:
+    assert (
+        badge_markdown("Due Nov 5", ":material/event:", "gray")
+        == ":gray-badge[:material/event: Due Nov 5]"
+    )
+    assert badge_markdown("a [b]", ":material/flag:", "blue").endswith("a (b)]")
+
+
+def test_markdown_safe_keeps_dollar_amounts_out_of_latex() -> None:
+    assert markdown_safe("$2,000 - $4,000") == r"\$2,000 - \$4,000"

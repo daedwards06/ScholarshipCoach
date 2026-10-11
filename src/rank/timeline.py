@@ -2,13 +2,16 @@
 
 Most awards repeat on the same calendar, so a listing that is closed today is
 usually a target for a later cycle rather than a dead link.  This module places
-each Stage 1 survivor in one of ``now``, ``next_cycle``, ``senior_year``,
-``needs_date``, ``expired``, or ``not_applicable`` and, for a recurring award
+each Stage 1 survivor in one of ``now``, ``check_grade``, ``next_cycle``,
+``senior_year``, ``needs_date``, ``expired``, or ``not_applicable`` and, for a recurring award
 whose listed deadline has passed, projects the date of its next cycle.
 
 ``needs_date`` keeps the Now bucket honest: an award with no deadline, no
 cycle month and a sponsor status nobody has confirmed is not something the
 student can act on today, it is something someone has to go look up.
+``check_grade`` does the same for grade: an open award that names no grade is
+not "Apply now" for a student below grade 12, because most such awards are for
+seniors or college students.
 """
 from __future__ import annotations
 
@@ -19,12 +22,13 @@ from typing import Any
 import pandas as pd
 
 from src.profile.grade_levels import grade_level_rank, school_year_end
-from src.rank.stage1_eligibility import StudentProfile
+from src.rank.stage1_eligibility import SENIOR_GRADE_RANK, StudentProfile
 from src.text_utils import normalize_list as _normalize_list
 from src.text_utils import normalize_text as _normalize_text
 
 TIMELINE_BUCKETS: tuple[str, ...] = (
     "now",
+    "check_grade",
     "next_cycle",
     "senior_year",
     "needs_date",
@@ -34,6 +38,7 @@ TIMELINE_BUCKETS: tuple[str, ...] = (
 
 TIMELINE_BUCKET_LABELS: dict[str, str] = {
     "now": "Apply now",
+    "check_grade": "Check the grade first",
     "next_cycle": "Next cycle",
     "senior_year": "A later school year",
     "needs_date": "Needs a date",
@@ -160,7 +165,11 @@ def _row_bucket(
         for rank in (grade_level_rank(grade) for grade in grade_levels_allowed)
         if rank is not None
     ]
-    if student_rank is None or not allowed_ranks:
+    if student_rank is None:
+        return bucket, projected
+    if not allowed_ranks:
+        if bucket == "now" and student_rank < SENIOR_GRADE_RANK:
+            return "check_grade", projected
         return bucket, projected
 
     acts_on = projected or deadline or today

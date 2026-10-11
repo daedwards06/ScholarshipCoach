@@ -36,13 +36,16 @@ def _award_calendar_events(today_value: date) -> list[calendar_feed.CalendarEven
     per_bucket: dict[str, list[calendar_feed.CalendarEvent]] = {}
     for _, row in eligible_df.iterrows():
         bucket = coerce_text(row.get("timeline_bucket")) or "now"
-        if bucket not in calendar_feed.CALENDAR_BUCKETS:
+        if bucket not in (*calendar_feed.CALENDAR_BUCKETS, "check_grade"):
             continue
         deadline_text, is_projected = timeline_deadline(row, today_value)
         try:
             starts_on = date.fromisoformat(str(deadline_text)[:10])
         except ValueError:
             continue
+        if bucket == "check_grade":
+            # Ranking could not place it by grade, so the date alone decides.
+            bucket = calendar_feed.bucket_for_date(starts_on, today_value)
         catalog_id = row_catalog_id(row) or coerce_text(row.get("title"))
         per_bucket.setdefault(bucket, []).append(
             calendar_feed.CalendarEvent(
