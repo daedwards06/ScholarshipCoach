@@ -24,8 +24,12 @@ from src.store.db import open_db
 def _render_checklist(conn: Any, application: repo.Application) -> None:
     items = repo.list_checklist_items(conn, application.id)
     slots = {slot.item_id: slot for slot in essays.prompt_slots(conn, application.id)}
-    entries = essays.essay_bank(conn, application.student_id) if slots else []
     can_edit_essays = modes.can_edit_essays(state.current_mode())
+    entries = (
+        essays.essay_bank(conn, application.student_id, shared_only=not can_edit_essays)
+        if slots
+        else []
+    )
     if items:
         for item in items:
             col_done, col_due = st.columns([0.75, 0.25])
