@@ -6,6 +6,7 @@ from typing import Any
 import streamlit as st
 
 from app import modes, state
+from app.components import render_empty_state
 from app.helpers import (
     BadgeColor,
     badge_markdown,
@@ -208,8 +209,10 @@ def render() -> None:
             student_id = state.ensure_student(conn)
             applications = repo.list_applications(conn, student_id)
             if not applications:
-                st.info(
-                    "Nothing saved yet. Open Find Scholarships and press Save on a card."
+                render_empty_state(
+                    "Nothing saved yet. Press Save on a card in Find Scholarships.",
+                    link_page=st.session_state.get(modes.NAV_PAGES_STATE_KEY, {}).get("find"),
+                    link_label="Find scholarships",
                 )
                 return
 

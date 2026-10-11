@@ -264,12 +264,16 @@ def _render_card(
     title = coerce_text(row.get("title")) or catalog_id or "Untitled"
     sponsor = coerce_text(row.get("sponsor"))
     source_url = coerce_text(row.get("source_url"))
-    kind_label = "Program" if bool(row.get("is_program")) else "Award"
+    kind_badge = (
+        ":gray-badge[:material/event: Program]"
+        if bool(row.get("is_program"))
+        else ":gray-badge[:material/workspace_premium: Award]"
+    )
     with st.container(border=True, key=f"opp_{catalog_id}", gap="xsmall"):
         sponsor_text = markdown_safe(sponsor).replace("[", "(").replace("]", ")")
         sponsor_line = f"  \n:small[{sponsor_text}]" if sponsor else ""
         st.markdown(
-            f"**{markdown_safe(title)}** :gray-badge[{kind_label}]{sponsor_line}"
+            f"**{markdown_safe(title)}** {kind_badge}{sponsor_line}"
         )
         st.markdown(f"### {markdown_safe(headline(row, today))}")
         st.markdown(" ".join(card_badges(row, student_grade, todo, role)))
@@ -319,7 +323,7 @@ def render() -> None:
 
     modes.render_page_header("opportunities")
     if role == "parent":
-        st.badge("Her view", color="gray")
+        st.badge("Her view", icon=":material/visibility:", color="gray")
 
     snapshot_path_text = state.active_snapshot_path()
     if snapshot_path_text is None:

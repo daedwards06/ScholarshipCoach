@@ -512,6 +512,8 @@ def render() -> None:
         render_empty_state(
             "Matches show here once the award catalog has been built.",
             next_up="Add or confirm awards in Catalog & Inbox, then rebuild the catalog.",
+            link_page=st.session_state.get(modes.NAV_PAGES_STATE_KEY, {}).get("catalog_inbox"),
+            link_label="Open Catalog & Inbox",
         )
         return
 

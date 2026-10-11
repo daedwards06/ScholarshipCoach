@@ -25,6 +25,13 @@ STATUS_BADGE_COLORS: dict[str, BadgeColor] = {
     "not_needed": "gray",
 }
 
+STATUS_BADGE_ICONS: dict[str, str] = {
+    "not_started": ":material/radio_button_unchecked:",
+    "in_progress": ":material/pending:",
+    "met": ":material/check_circle:",
+    "not_needed": ":material/remove_circle:",
+}
+
 _EMPTY_MESSAGES: dict[str, str] = {
     "student": "Your family hasn't added a school yet.",
     "parent": "No first target school yet. Add one in Colleges & Money and mark it first.",
@@ -109,6 +116,7 @@ def _render_requirement(
         with st.container(horizontal=True, gap="small", vertical_alignment="center"):
             st.badge(
                 requirements.STATUS_LABELS[requirement.status],
+                icon=STATUS_BADGE_ICONS[requirement.status],
                 color=STATUS_BADGE_COLORS[requirement.status],
             )
             st.caption(" · ".join(part for part in parts if part))
@@ -149,9 +157,7 @@ def _render_path(
 ) -> None:
     st.subheader(markdown_safe(path_heading(college.name, role)))
     if not items:
-        render_empty_state(_NO_REQUIREMENTS_MESSAGES[role])
-        if role == "parent":
-            _page_link(mode, "colleges_money")
+        _render_empty(mode, role, _NO_REQUIREMENTS_MESSAGES[role])
         return
 
     shown = requirements.with_effective_status(items, gpa)
@@ -174,12 +180,12 @@ def _render_path(
             _render_requirement(requirement, mode=mode, gpa=gpa, today=today)
 
 
-def _render_empty(mode: modes.Mode, role: str) -> None:
+def _render_empty(mode: modes.Mode, role: str, message: str) -> None:
     section, label = _EMPTY_STATE_LINKS[role]
     pages = _pages()
     link = pages.get(section) if modes.can_view(mode, section) else None
     render_empty_state(
-        _EMPTY_MESSAGES[role],
+        message,
         link_page=link,
         link_label=label if link is not None else None,
     )
@@ -210,7 +216,7 @@ def render() -> None:
 
     modes.render_page_header("my_path")
     if role == "parent":
-        st.badge("Her view", color="gray")
+        st.badge("Her view", icon=":material/visibility:", color="gray")
 
     try:
         with open_db() as conn:
@@ -228,7 +234,7 @@ def render() -> None:
         st.error(error)
 
     if college is None:
-        _render_empty(mode, role)
+        _render_empty(mode, role, _EMPTY_MESSAGES[role])
     else:
         _render_path(
             college,

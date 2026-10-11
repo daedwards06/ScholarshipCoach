@@ -71,7 +71,10 @@ def phone_width_css() -> str:
   [data-testid="stDateInput"] input {{
     font-size: {_MIN_INPUT_FONT_REM}rem;
   }}
-  [data-testid="stExpander"] summary {{
+  [data-testid="stExpander"] summary,
+  [data-testid="stPageLink"] a,
+  [data-testid="stButtonGroup"] button,
+  [data-testid="stTab"] {{
     min-height: {_MIN_TAP_TARGET_REM}rem;
   }}
   [data-testid="stJson"],
