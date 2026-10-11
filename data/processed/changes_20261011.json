@@ -23,7 +23,7 @@
       "essay_prompt": null,
       "essay_required": true,
       "first_gen_only": null,
-      "first_seen_at": "2026-10-11T14:23:32Z",
+      "first_seen_at": "2026-10-11T20:56:13Z",
       "gender": null,
       "grade_levels": [
         "10",
@@ -38,7 +38,7 @@
         "unc system"
       ],
       "kind": "program",
-      "last_seen_at": "2026-10-11T14:23:32Z",
+      "last_seen_at": "2026-10-11T20:56:13Z",
       "llm_enriched_fields": [],
       "majors_allowed": null,
       "membership_required": null,
@@ -105,7 +105,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-10-11T14:23:32Z",
+      "first_seen_at": "2026-10-11T20:56:13Z",
       "gender": null,
       "grade_levels": [
         "10",
@@ -120,7 +120,7 @@
         "residential"
       ],
       "kind": "program",
-      "last_seen_at": "2026-10-11T14:23:32Z",
+      "last_seen_at": "2026-10-11T20:56:13Z",
       "llm_enriched_fields": [],
       "majors_allowed": null,
       "membership_required": null,
@@ -185,7 +185,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-10-11T14:23:32Z",
+      "first_seen_at": "2026-10-11T20:56:13Z",
       "gender": null,
       "grade_levels": [
         "9",
@@ -202,7 +202,7 @@
         "charlotte"
       ],
       "kind": "program",
-      "last_seen_at": "2026-10-11T14:23:32Z",
+      "last_seen_at": "2026-10-11T20:56:13Z",
       "llm_enriched_fields": [],
       "majors_allowed": null,
       "membership_required": null,
@@ -267,7 +267,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-10-11T14:23:32Z",
+      "first_seen_at": "2026-10-11T20:56:13Z",
       "gender": "female",
       "grade_levels": [
         "9",
@@ -285,7 +285,7 @@
         "virtual"
       ],
       "kind": "program",
-      "last_seen_at": "2026-10-11T14:23:32Z",
+      "last_seen_at": "2026-10-11T20:56:13Z",
       "llm_enriched_fields": [],
       "majors_allowed": null,
       "membership_required": null,
@@ -350,7 +350,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-10-11T14:23:32Z",
+      "first_seen_at": "2026-10-11T20:56:13Z",
       "gender": null,
       "grade_levels": [
         "9",
@@ -366,7 +366,7 @@
         "residential"
       ],
       "kind": "program",
-      "last_seen_at": "2026-10-11T14:23:32Z",
+      "last_seen_at": "2026-10-11T20:56:13Z",
       "llm_enriched_fields": [],
       "majors_allowed": null,
       "membership_required": null,
@@ -431,7 +431,7 @@
       "essay_prompt": null,
       "essay_required": null,
       "first_gen_only": null,
-      "first_seen_at": "2026-10-11T14:23:32Z",
+      "first_seen_at": "2026-10-11T20:56:13Z",
       "gender": null,
       "grade_levels": [
         "9",
@@ -447,7 +447,7 @@
         "summer program"
       ],
       "kind": "program",
-      "last_seen_at": "2026-10-11T14:23:32Z",
+      "last_seen_at": "2026-10-11T20:56:13Z",
       "llm_enriched_fields": [],
       "majors_allowed": null,
       "membership_required": null,
