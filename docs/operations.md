@@ -103,11 +103,11 @@ parent_pin = "4417"
 - **No header or an unmapped login** (local development, a tagged device, a login missing from
   the table) falls back to the PIN exactly as above.
 
-Logins are compared ignoring case. The sidebar shows "Signed in as …" whenever a login matched.
-Pages opened are counted per login per day (per mode under the PIN fallback); she is told this
-is counted. Keep real logins out of the repo: the table lives only in the server's secrets file.
-To check the headers arrive, open Operator mode: the sidebar's "Identity headers" lists each
-header as present or absent, never its value.
+Logins are compared ignoring case. The sidebar shows "Signed in as …" whenever a login matched,
+which is also the quick check that a new device is mapped. Pages opened are counted per login
+per day (per mode under the PIN fallback); she is told this is counted. Keep real logins out of
+the repo: the table lives only in the server's secrets file. Restart the service
+(`sudo systemctl restart scholarshipcoach`) after editing it.
 
 After a `git pull` that changes dependencies, restart the task — a running Streamlit process
 does not pick up a new `pip install`.

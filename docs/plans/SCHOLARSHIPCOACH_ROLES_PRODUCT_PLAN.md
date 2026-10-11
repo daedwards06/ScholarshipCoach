@@ -358,12 +358,13 @@ python scripts/validate_catalog.py
 ```
 
 **Checklist:**
-- [ ] *Owner-assisted, first:* on the server, confirm the headers reach Streamlit through
+- [x] *Owner-assisted, first:* on the server, confirm the headers reach Streamlit through
       `tailscale serve`. Temporarily show, in Operator mode only, which of
       `Tailscale-User-Login` / `Tailscale-User-Name` are present in `st.context.headers`, and open the
       HTTPS name from two different family logins. Record the outcome here (header names only,
       never values in a committed file). If they are absent, stop the identity half and keep the
-      PIN; record why
+      PIN; record why. *(2026-10-10: both headers present from one login; the second-login check
+      moved to Cloud Hosting Task 3.1, see the task notes)*
 - [x] `app/identity.py`: pure `role_for_headers(headers, family_map) -> Identity | None`;
       `family_map` read from `st.secrets["family"]` (absent → `{}`); logins compared case-folded
 - [x] `resolve_mode` takes the identity: a student login → Student mode only (PIN prompt hidden); a
@@ -378,14 +379,16 @@ python scripts/validate_catalog.py
 - [x] All five CI commands green
 
 **Task notes (2026-10-03):**
-- *Still open: the server check.* The code is in, but whether the headers reach Streamlit through
-  `tailscale serve` is unverified. To check: deploy, turn on Operator in Settings, open Operator
-  mode from two family logins, and read the sidebar's "Identity headers" expander (it shows
-  present / absent per header name, never a value). Record the result here, then remove
-  `_render_identity_check` from `app/main.py`. Until a `[family]` table exists on the server,
-  nothing changes for anyone: every request takes the PIN path.
+- *Server check (2026-10-10).* Deployed at `4d20150`; in Operator mode from one parent login,
+  both `Tailscale-User-Login` and `Tailscale-User-Name` were present in `st.context.headers`, so
+  the headers do reach Streamlit's websocket through `tailscale serve` and the identity half
+  stands. A second login was not possible: no other family member is on the tailnet yet. That
+  check (each login sees its own name, not a shared or stale one) moved to Cloud Hosting Task 3.1,
+  where each new login is added to `[family]` and must show "Signed in as <their name>". The
+  temporary Operator "Identity headers" expander and `header_presence` were then removed.
+  Until a `[family]` table exists on the server, every request still takes the PIN path.
 - *Where the code went.* `app/identity.py` (`role_for_headers`, `family_map_from_secrets`,
-  `header_presence`, `activity_key`); `modes.resolve_mode` / `render_mode_selector` take an
+  `activity_key`); `modes.resolve_mode` / `render_mode_selector` take an
   `identity`. A parent login opens in Parent mode, keeps the switch (to preview Student, or
   Operator when enabled) and never sees the PIN prompt. Tests: `tests/test_app_identity.py`.
 - *Activity (D6).* `app/main.py` counts one page opened per person, day and page change (reruns

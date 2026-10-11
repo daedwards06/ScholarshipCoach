@@ -20,7 +20,6 @@ Role = Literal["student", "parent"]
 
 LOGIN_HEADER = "Tailscale-User-Login"
 NAME_HEADER = "Tailscale-User-Name"
-IDENTITY_HEADERS = (LOGIN_HEADER, NAME_HEADER)
 FAMILY_SECRET = "family"
 ROLES: tuple[Role, ...] = ("student", "parent")
 
@@ -40,11 +39,6 @@ def _header(headers: Mapping[str, Any] | None, name: str) -> str:
         if str(key).casefold() == wanted:
             return str(value or "").strip()
     return ""
-
-
-def header_presence(headers: Mapping[str, Any] | None) -> dict[str, bool]:
-    """Which identity headers arrived, by name only — never their values."""
-    return {name: bool(_header(headers, name)) for name in IDENTITY_HEADERS}
 
 
 def role_for_headers(

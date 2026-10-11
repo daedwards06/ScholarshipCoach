@@ -81,11 +81,6 @@ def test_family_map_from_secrets_reads_the_table(monkeypatch: pytest.MonkeyPatch
     assert identity.family_map_from_secrets() == {}
 
 
-def test_header_presence_reports_names_not_values() -> None:
-    presence = identity.header_presence(_headers("kid@example.com"))
-    assert presence == {"Tailscale-User-Login": True, "Tailscale-User-Name": False}
-
-
 def test_activity_counts_for_the_login_else_the_role() -> None:
     who = Identity(login="kid@example.com", name="Kid", role="student")
     assert identity.activity_key(who, "student") == "kid@example.com"
