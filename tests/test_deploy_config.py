@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import configparser
 import re
+import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEPLOY_DIR = ROOT_DIR / "deploy"
@@ -146,3 +150,79 @@ def test_pushes_use_a_deploy_key_not_a_token() -> None:
     for path in (p for p in DEPLOY_DIR.rglob("*") if p.is_file()):
         text = path.read_text(encoding="utf-8")
         assert re.search(r"ghp_|github_pat_|https://[^/\s]+@github\.com", text) is None, path.name
+
+
+PRIVACY_PATH = DEPLOY_DIR / "privacy_check.sh"
+
+
+def test_catalog_sync_runs_privacy_check_before_any_commit() -> None:
+    text = (DEPLOY_DIR / "catalog_sync.sh").read_text(encoding="utf-8")
+    check = text.index("deploy/privacy_check.sh $changed $deltas")
+    assert text.index("uncommitted changes outside") < check < text.index("git commit")
+    assert text.index("deltas=$(git status") < check
+    assert text[check:].splitlines()[1].strip().startswith("|| fail")
+
+
+def test_privacy_check_uses_fixed_strings_and_prints_file_names_only() -> None:
+    text = PRIVACY_PATH.read_text(encoding="utf-8")
+    assert "NAMES=data/private/privacy_names.txt" in text
+    assert "ABBREVS=data/private/privacy_abbrevs.txt" in text
+    assert '"-qiF -f $work/names" "-qiwF -f $work/abbrevs"' in text
+    assert "(( status <= 1 )) || terms_error" in text  # a grep error holds, never passes
+    # The only output on a hit is the list of paths; a term never reaches stdout or a log.
+    assert r"""printf '    %s\n' "${hits[@]}" >&2""" in text
+    gitignore = (ROOT_DIR / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert "data/private/" in gitignore
+    assert not list((ROOT_DIR / "deploy").rglob("privacy_*.txt"))
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="runs the bash script; CI is Linux")
+def test_privacy_check_checks_added_lines_and_fails_closed(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    records = repo / "data" / "catalog" / "records"
+    private = repo / "data" / "private"
+    records.mkdir(parents=True)
+    private.mkdir(parents=True)
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "test")
+    old = records / "old.json"
+    # Pretty-printed like the real records, so checked_on sits on its own line.
+    record = '{\n  "note": "On the Example Tech campus",\n  "checked_on": "%s"\n}\n'
+    old.write_text(record % "2026-01-01")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "seed")
+
+    def run(*paths: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["bash", str(PRIVACY_PATH), *paths], cwd=repo, capture_output=True, text=True
+        )
+
+    rel_old = "data/catalog/records/old.json"
+    assert run(rel_old).returncode == 2  # no lists at all
+
+    (private / "privacy_names.txt").write_text("example tech\r\n\r\n", newline="")
+    (private / "privacy_abbrevs.txt").write_bytes(b"\xef\xbb\xbfXT\n")
+    assert run(rel_old).returncode == 2  # byte-order mark refused
+    (private / "privacy_abbrevs.txt").write_text("XT\n")
+
+    old.write_text(record % "2026-10-01")
+    assert run(rel_old).returncode == 0  # only checked_on changed
+
+    new = records / "new.json"
+    new.write_text('{"note": "for her: XT merit award"}\n')
+    result = run(rel_old, "data/catalog/records/new.json")
+    assert result.returncode == 1
+    assert "data/catalog/records/new.json" in result.stderr
+    assert "old.json" not in result.stderr
+    assert "XT" not in result.stdout + result.stderr
+
+    new.write_text('{"note": "NEXT steps for the XTRA fund"}\n')  # abbreviation inside words
+    assert run("data/catalog/records/new.json").returncode == 0
+
+    old.write_text(record % "2026-10-01" + '{"extra": "for her: EXAMPLE TECH"}\n')
+    assert run(rel_old).returncode == 1  # an added line, case-insensitive
