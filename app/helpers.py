@@ -32,6 +32,7 @@ CAPTION_OPACITY = 0.75
 # Award cards keep Save / Apply / Suggest in one row at phone width; full-width
 # buttons would stack them into three 44px rows.
 AWARD_CARD_SELECTOR = '[class*="st-key-award_"]'
+OPPORTUNITY_CARD_SELECTOR = '[class*="st-key-opp_"]'
 
 
 def phone_width_css() -> str:
@@ -59,7 +60,9 @@ def phone_width_css() -> str:
     min-height: {_MIN_TAP_TARGET_REM}rem;
   }}
   {AWARD_CARD_SELECTOR} [data-testid="stButton"] button,
-  {AWARD_CARD_SELECTOR} [data-testid="stLinkButton"] a {{
+  {AWARD_CARD_SELECTOR} [data-testid="stLinkButton"] a,
+  {OPPORTUNITY_CARD_SELECTOR} [data-testid="stButton"] button,
+  {OPPORTUNITY_CARD_SELECTOR} [data-testid="stLinkButton"] a {{
     width: auto;
   }}
   [data-testid="stTextInput"] input,

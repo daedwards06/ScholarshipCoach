@@ -27,14 +27,14 @@ def test_available_modes_hides_operator_unless_enabled() -> None:
 
 def test_student_nav_is_top_pages_plus_more() -> None:
     assert modes.pages_for_mode("student") == {
-        "": ("my_path", "todos", "essays"),
+        "": ("my_path", "todos", "opportunities", "essays"),
         "More": ("what_if", "recommenders", "profile"),
     }
 
 
 def test_parent_nav_is_her_path_money_and_family_tools() -> None:
     assert modes.pages_for_mode("parent") == {
-        "Her path": ("my_path", "todos", "essays", "what_if", "recommenders"),
+        "Her path": ("my_path", "todos", "opportunities", "essays", "what_if", "recommenders"),
         "Money": ("find", "applications", "colleges_money", "timeline", "outcomes"),
         "Family tools": ("catalog_inbox", "settings", "profile"),
     }

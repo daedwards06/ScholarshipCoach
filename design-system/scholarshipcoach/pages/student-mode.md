@@ -60,14 +60,23 @@ The student card headline is **the next step and its date**, not the money.
 │ ### Apply by Mar 15   (h3: the next step and its date)      │
 │ [badge: Open to 10th grade] [badge: Free / $2,000] [local]  │
 │ [badge: From your family, violet] (only when suggested)     │
-│ Why it fits: one line, max three reasons joined by " · "    │
 │ [ Add to my to-dos ] [ Apply ↗ ]   one row, Add = primary   │
-│ ▸ More about this (expander)                                │
+│ ▸ Why it fits & more (expander: reasons, description, who)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- Headline patterns: "Apply by Mar 15", "Opens Jan 10 · apply in 11th grade", "Date not posted
-  yet". An amount or cost is a badge ("Free", "$2,000", "Amount not listed"), never the h3.
+- Headline patterns: "Apply by Mar 15", "Opens Feb 1 · due ~Apr 1", "Opens in 11th grade",
+  "Not open yet · due Jan 5", "Date not posted yet", "Passed · next round ~Sep 1, 2027". "~" marks
+  a date projected from the usual cycle rather than posted by the sponsor. An amount or cost is a
+  badge ("Free", "Costs $1,550", "Cost not listed", "$2,000", "Amount not listed"), never the h3.
+- The grade badge appears only as "Open to <her grade>"; a record for a later grade says when it
+  opens in the headline instead. "Local" means limited to named counties (not Find's broader
+  "confirmed by the family"), since the family confirms every program.
+- "Why it fits" (max three reasons joined by " · ") opens the expander rather than sitting on the
+  face, as on Find's award card (2026-10-11): on the face it wraps at 400px. Measured 2026-10-11
+  at 400px with seven programs and the curated awards: median 290px (264–316). The remaining
+  height is two-line titles, the 44px button row and the 44px expander; the ≤ 260px target below
+  is unchanged pending the owner's call, as Find's was.
 - Something her grade cannot apply to yet never says "Apply now"; its headline says when it opens.
 - Once added, the card shows a green "On my to-dos" badge and Apply becomes primary.
 - Target ≤ 260px tall at 400px, as Master.

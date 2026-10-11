@@ -492,7 +492,7 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
       parents / family) in Parent mode; the author comes from A.2's identity, or the mode
 - [x] Grade-scoped milestones for her grade (PSAT, course registration added in Settings) appear in
       Coming up once each school year, as rows she can tick
-- [ ] Empty state: "Nothing to do this week" + the nearest dated item + a link to Opportunities
+- [x] Empty state: "Nothing to do this week" + the nearest dated item + a link to Opportunities
       (or Find in Parent mode); no `st.success` for empty
 - [x] The "this_week" key is removed; `todos` takes its place as the Student home until A.6
 - [x] Measured at 400px: the first row or the empty state's "Next up" is visible without scrolling;
@@ -738,23 +738,83 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] Catalog schema: `kind` enum `scholarship | program`, default `scholarship` when absent (every
+- [x] Catalog schema: `kind` enum `scholarship | program`, default `scholarship` when absent (every
       existing record stays valid unchanged); carried into the snapshot as a column
-- [ ] Catalog & Inbox form: "Kind" on the Basics tab; for `program` the money tab is optional and
+- [x] Catalog & Inbox form: "Kind" on the Basics tab; for `program` the money tab is optional and
       the card wording changes ("Cost" / "Free" instead of an award amount)
-- [ ] Find (Parent) and Stage 2/3 exclude `kind=program`; win-model features never see programs
-- [ ] `app/sections/opportunities.py`: programs and scholarships that pass Stage 1 for her grade
+- [x] Find (Parent) and Stage 2/3 exclude `kind=program`; win-model features never see programs
+- [x] `app/sections/opportunities.py`: programs and scholarships that pass Stage 1 for her grade
       **with an explicit grade match**, sorted by application date; groups **Open now**, **Opens
       later** (with the grade or month it opens), **Passed this year**; each card has "Add to my
       to-dos" (`source_kind=opportunity`) and Apply ↗; a violet "From your family" badge when a parent
       suggested it
-- [ ] Seed 6–10 NC summer programs for rising 10th–12th graders from several institutions (UNC
+- [x] Seed 6–10 NC summer programs for rising 10th–12th graders from several institutions (UNC
       system and private schools), entered through the form, `trust` per the existing rules, URLs
       verified. Commit messages list catalog IDs only and say nothing about her
-- [ ] Measured at 400px: S3 ≤ 2 taps from My Path; P2 adds a record that shows on her page after
+      *(2026-10-11: ten proposed in two rounds; six confirmed (`duke-pre-college`,
+      `girls-who-code-pathways`, `ncssm-summer-accelerator`, `ncssm-summer-ventures`,
+      `ncsu-summer-engineering-residential-camps`, `unc-charlotte-niner-academy-coding-camps`),
+      four rejected for fit with reasons. Girls Who Code is virtual and national, the one
+      record outside NC)*
+- [x] Measured at 400px: S3 ≤ 2 taps from My Path; P2 adds a record that shows on her page after
       the existing rebuild
-- [ ] Tests: schema default, program excluded from ranking, explicit-grade filter, to-do creation
-- [ ] All five CI commands green
+- [x] Tests: schema default, program excluded from ranking, explicit-grade filter, to-do creation
+- [x] All five CI commands green
+
+**Task notes (2026-10-11):**
+- *Schema.* `kind` (`scholarship | program`, default `scholarship`) and `cost` (programs only; 0 is
+  free, null not published) are optional, so the 34 records validate unchanged. Both are snapshot
+  columns (`CATALOG_COLUMNS`); feed rows and older snapshots have no `kind` and read as
+  scholarships (`src/rank/kinds.py`). `cost` was added because the card's "Cost / Free" wording
+  needs a source, and a $0 amount would trip Stage 1's `AMOUNT_ZERO`.
+- *Kept out of ranking.* `score_stage2`, `rerank_stage3` (so the win model's features), What If
+  and the synthetic win-model pairs drop programs; Find drops them before Stage 1, so they never
+  reach Timeline or the no-deadline count either. Golden students are unaffected: no program
+  exists in any snapshot yet.
+- *Opportunities.* `src/rank/opportunities.py` runs Stage 1 (trust enforced), keeps records that
+  name a grade, buckets them with `classify_timeline`, then groups: Open now; Opens later (a
+  future `cycle.opens_month`, status `upcoming`/`closed`, a later high-school grade, last year's
+  round not yet reopened, or no date); Passed this year (this school year's deadline gone, with
+  the projected next round, or none when she ages out). Awards that open only in college are
+  left off her high-school path. A projected date shows as "~Feb 1" and never becomes a to-do
+  date. The page shows both kinds with a Program/Award badge and filters (kind, free, local).
+- *To-dos and the family badge.* "Add to my to-dos" (Student) and "Suggest to her" (Parent)
+  write one `source_kind=opportunity` row per record, assigned to her, dated only by a posted
+  deadline. A row a parent created is the violet "From your family" badge on her card, as Find's
+  "Suggest to her" works. Opportunity rows link back here from To-dos and My Path's Coming up;
+  the To-dos and My Path empty states now link to Opportunities (closes A.4's open item).
+- *Card.* Per student-mode "Opportunity card", with three changes recorded there: "Why it fits"
+  moved into the expander as on Find; the grade badge only reads "Open to <her grade>"; "Local"
+  means county-limited. Measured at 400px: median 290px (264–316) against the ≤ 260px target,
+  which stays as it is for the owner's call (Find's was revised to 300px).
+- *Seeding (Claude half).* Seven programs queued in the inbox as `manual` proposals with
+  `trust: unverified`, built through prefill + `validate_form`, every URL opened (HTTP 200):
+  `ncssm-summer-ventures`, `nc-governors-school`, `ncsu-summer-engineering-residential-camps`,
+  `ncsu-young-investigators-nuclear-engineering`, `wake-forest-summer-immersion-program`,
+  `ncssm-summer-accelerator`, `duke-pre-college`. `grade_levels` is the grade when applying (a
+  program for rising 11th graders is applied to in 10th). Prefill read every title but only one
+  deadline. Davidson's July Experience is discontinued, and NC A&T's transportation academy page
+  was ambiguous about grades, so neither was queued. Until the owner confirms them they are
+  `TRUST_UNCONFIRMED` and do not show. The proposals sit in the development PC's git-ignored
+  `data/catalog/inbox/`, not on the server: confirm them there, or deploy A.7 first (the server's
+  schema has no `kind` before it) and copy them across.
+- *Measured at 400×860 (Edge, scratch DB and scratch catalog copy with the seven confirmed,
+  grade-10 demo profile).* P2: the scratch rebuild (same `run_ingest(only_sources=[curated])` as
+  the Rebuild button) gave 140 rows, 7 `program`; all seven listed on her page. S3: a parent
+  "Suggest to her" showed as "From your family"; My Path → Opportunities link (1) → "Add to my
+  to-dos" (2) = 2 taps, and the row landed on To-dos and, when dated, on My Path Coming up.
+- *Annual programs that fit later (owner request, 2026-10-11).* Two additions. (1) Re-verification
+  (`src/catalog/verify.py` `cycle_checkpoint`): a recurring record is also due in the 30 days
+  before its usual opening (`cycle.opens_month`, else two months before `deadline_month`) and in
+  the 45 days after, so a monthly run re-reads the page when the new round is likely posted. It
+  applies to recurring scholarships too. (2) A card's to-do (`todo_plan`) is "Apply to …" dated by
+  a posted deadline only; otherwise it is a reminder, "Watch for … to open" on the usual opening
+  or "Check the dates for …" a month before the usual deadline, moved to the year of a later
+  grade ("(11th grade)"), so an annual program she cannot do yet comes back in time. The to-do is
+  not rewritten when the sponsor later posts a date.
+- *Seeding outcome.* Owner confirmed six and rejected four with reasons (`nc-governors-school`,
+  `ncsu-young-investigators-nuclear-engineering`, `wake-forest-summer-immersion-program`,
+  `dukerep`); see the checklist item.
 
 ---
 

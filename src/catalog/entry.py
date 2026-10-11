@@ -120,6 +120,10 @@ def enum_options(field_path: str, schema_path: Path | None = None) -> tuple[str,
     return tuple(str(value) for value in values if value is not None)
 
 
+def kind_options() -> tuple[str, ...]:
+    return enum_options("kind")
+
+
 def status_options() -> tuple[str, ...]:
     return enum_options("status")
 
@@ -194,9 +198,11 @@ def blank_form() -> dict[str, Any]:
     values: dict[str, Any] = {
         "catalog_id": "",
         "title": "",
+        "kind": "scholarship",
         "source_url": "",
         "amount_min": None,
         "amount_max": None,
+        "cost": None,
         "amount_candidates": [],
         "deadline": "",
         "deadline_candidates": [],
@@ -285,8 +291,10 @@ def form_from_record(record: Mapping[str, Any]) -> dict[str, Any]:
     values = blank_form()
     for key in ("catalog_id", "title", "source_url", *_TEXT_FIELDS):
         values[key] = _text(record.get(key))
+    values["kind"] = _one_of(record.get("kind"), kind_options(), "scholarship")
     values["amount_min"] = _float_or_none(record.get("amount_min"))
     values["amount_max"] = _float_or_none(record.get("amount_max"))
+    values["cost"] = _float_or_none(record.get("cost"))
     deadline = _text(record.get("deadline"))
     values["deadline"] = deadline if _is_iso_date(deadline) else ""
     values["min_gpa"] = _float_or_none(record.get("min_gpa"))
@@ -353,12 +361,14 @@ def record_from_form(values: Mapping[str, Any], *, today: date | None = None) ->
     record: dict[str, Any] = {
         "catalog_id": catalog_id[:_MAX_CATALOG_ID_CHARS].strip("-"),
         "title": title,
+        "kind": _one_of(values.get("kind"), kind_options(), "scholarship"),
         "sponsor": _text_or_none(values.get("sponsor")),
         "source_url": _text(values.get("source_url")),
         "description": _text_or_none(values.get("description")),
         "eligibility_text": _text_or_none(values.get("eligibility_text")),
         "amount_min": _float_or_none(values.get("amount_min")),
         "amount_max": _float_or_none(values.get("amount_max")),
+        "cost": _float_or_none(values.get("cost")),
         "deadline": _iso_or_none(values.get("deadline")),
         "cycle": {
             "recurring": _tristate(values.get("cycle_recurring")),

@@ -34,7 +34,7 @@ _NO_REQUIREMENTS_MESSAGES: dict[str, str] = {
     "parent": "No requirements yet. Add them under this school in Colleges & Money.",
 }
 
-# Where the empty state points; Opportunities arrives in Task A.7.
+# Where the empty state points.
 _EMPTY_STATE_LINKS: dict[str, tuple[str, str]] = {
     "student": ("opportunities", "Browse opportunities"),
     "parent": ("colleges_money", "Open Colleges & Money"),

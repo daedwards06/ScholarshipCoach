@@ -45,6 +45,11 @@ REQUIREMENT_LABELS = {
     "interview": "Interview",
 }
 
+KIND_LABELS = {
+    "scholarship": "Scholarship (money for college)",
+    "program": "Program (a summer program or camp to attend)",
+}
+
 TRUST_LABELS = {
     "verified_local": "Verified by us",
     "structured_feed": "Structured feed",
@@ -227,6 +232,15 @@ def _award_form_values(values: dict[str, Any]) -> dict[str, Any]:
             ["Basics", "Money & dates", "Who it's for", "Requirements"]
         )
         with tab_basics:
+            kind_options = catalog_entry.kind_options()
+            form["kind"] = st.radio(
+                "Kind",
+                options=kind_options,
+                index=kind_options.index(values["kind"]) if values["kind"] in kind_options else 0,
+                format_func=lambda name: KIND_LABELS.get(str(name), str(name)),
+                horizontal=True,
+                help="Programs show on her Opportunities page by grade and date; they are never ranked with scholarships.",
+            )
             col_title, col_id = st.columns(2)
             form["title"] = col_title.text_input("Title", value=values["title"])
             form["catalog_id"] = col_id.text_input(
@@ -266,12 +280,20 @@ def _award_form_values(values: dict[str, Any]) -> dict[str, Any]:
             form["verified_by"] = col_by.text_input("Verified by", value=values["verified_by"])
             form["notes"] = st.text_area("Notes", value=values["notes"], height=68)
         with tab_money:
-            col_min, col_max, col_status = st.columns(3)
+            st.caption("For a program the amounts can stay empty: fill in Cost instead (0 means free).")
+            col_min, col_max, col_cost, col_status = st.columns(4)
             form["amount_min"] = col_min.number_input(
                 "Amount minimum", min_value=0.0, step=500.0, value=values["amount_min"]
             )
             form["amount_max"] = col_max.number_input(
                 "Amount maximum", min_value=0.0, step=500.0, value=values["amount_max"]
+            )
+            form["cost"] = col_cost.number_input(
+                "Cost (programs)",
+                min_value=0.0,
+                step=100.0,
+                value=values["cost"],
+                help="What the family pays to attend. 0 means free; leave empty when not published.",
             )
             status_options = catalog_entry.status_options()
             form["status"] = col_status.selectbox(
@@ -468,7 +490,11 @@ def _render_add_award_page() -> None:
     _set_catalog_notice(
         "success",
         f"Added **{record['title']}** to the catalog ({Path(path).name}). "
-        "Rebuild the snapshot to rank it.",
+        + (
+            "Rebuild the snapshot to show it on her Opportunities page."
+            if record.get("kind") == "program"
+            else "Rebuild the snapshot to rank it."
+        ),
     )
     st.rerun()
 

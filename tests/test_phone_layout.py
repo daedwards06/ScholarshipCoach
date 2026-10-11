@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import re
 
-from app.helpers import AWARD_CARD_SELECTOR, PHONE_BREAKPOINT_PX, phone_width_css
+from app.helpers import (
+    AWARD_CARD_SELECTOR,
+    OPPORTUNITY_CARD_SELECTOR,
+    PHONE_BREAKPOINT_PX,
+    phone_width_css,
+)
 
 
 def test_breakpoint_matches_streamlits_own_column_stacking_width() -> None:
@@ -66,3 +71,14 @@ def test_award_card_buttons_stay_in_one_row_at_phone_width() -> None:
 def test_award_card_selector_matches_the_keyed_card_container() -> None:
     # st.container(key="award_<id>") renders with the class "st-key-award_<id>".
     assert AWARD_CARD_SELECTOR == '[class*="st-key-award_"]'
+
+
+def test_opportunity_card_buttons_stay_in_one_row_at_phone_width() -> None:
+    phone_rules = phone_width_css().split("@media")[1]
+    # st.container(key="opp_<id>") renders with the class "st-key-opp_<id>".
+    assert OPPORTUNITY_CARD_SELECTOR == '[class*="st-key-opp_"]'
+    scoped = phone_rules[phone_rules.index(OPPORTUNITY_CARD_SELECTOR) :]
+    assert phone_rules.index("width: 100%;") < phone_rules.index(OPPORTUNITY_CARD_SELECTOR)
+    assert f'{OPPORTUNITY_CARD_SELECTOR} [data-testid="stButton"] button' in scoped
+    assert f'{OPPORTUNITY_CARD_SELECTOR} [data-testid="stLinkButton"] a' in scoped
+    assert "width: auto;" in scoped

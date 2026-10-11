@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.rank.kinds import scholarships_only
 from src.rank.stage2_scoring import build_scholarship_text, build_student_profile_text
 from src.win_model.features import FEATURE_COLUMNS, build_pair_features
 
@@ -124,6 +125,7 @@ def generate_synthetic_training_data(
         ValueError: If ``snapshot_df`` is empty, ``golden_profiles`` is empty,
             or ``n_samples < 1``.
     """
+    snapshot_df = scholarships_only(snapshot_df)
     if snapshot_df.empty:
         raise ValueError("Synthetic training requires at least one scholarship row.")
     if not golden_profiles:

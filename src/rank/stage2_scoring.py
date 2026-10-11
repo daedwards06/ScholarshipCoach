@@ -19,6 +19,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from src.embeddings import cache as embedding_cache
 from src.embeddings import model as embedding_model
+from src.rank.kinds import scholarships_only
 from src.rank.weights import Stage2Weights
 from src.text_utils import normalize_text as _normalize_text
 
@@ -199,9 +200,10 @@ def score_stage2(
         processed_dir: Override for the embeddings cache directory.
 
     Returns:
-        Copy of ``eligible_df`` with scoring columns appended.
+        Copy of ``eligible_df`` with scoring columns appended.  Program rows
+        are dropped: programs are listed by date, never ranked.
     """
-    scored_df = eligible_df.copy()
+    scored_df = scholarships_only(eligible_df).copy()
     transient_columns = [
         "tfidf_sim",
         "embed_sim",

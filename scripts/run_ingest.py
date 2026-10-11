@@ -147,7 +147,7 @@ def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
         if column not in df.columns:
             df[column] = None
 
-    for numeric_column in ("amount_min", "amount_max", "min_gpa"):
+    for numeric_column in ("amount_min", "amount_max", "min_gpa", "cost"):
         df[numeric_column] = pd.to_numeric(df[numeric_column], errors="coerce")
         df[numeric_column] = df[numeric_column].where(pd.notna(df[numeric_column]), None)
 

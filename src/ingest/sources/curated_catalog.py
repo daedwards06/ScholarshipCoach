@@ -178,6 +178,8 @@ class CuratedCatalogSource(BaseSource):
             "provenance": _fixed_shape(item.get("provenance"), _PROVENANCE_KEYS),
             "notes": _text_or_none(item.get("notes")),
             "aliases": _string_list(item.get("aliases")),
+            "kind": _text_or_none(item.get("kind")) or "scholarship",
+            "cost": _cost_or_none(item.get("cost")),
         }
 
 
@@ -201,6 +203,17 @@ def _text_or_none(value: Any) -> str | None:
 
 def _bool_or_none(value: Any) -> bool | None:
     return value if isinstance(value, bool) else None
+
+
+def _cost_or_none(value: Any) -> float | None:
+    """A program's cost, where 0 is "free" and so, unlike an amount, is kept."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    return result if result >= 0 else None
 
 
 def _float_or_none(value: Any) -> float | None:

@@ -1,0 +1,71 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "girls-who-code-pathways",
+  "citizenship": null,
+  "cost": 0.0,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 10,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": "2026-10-28",
+  "description": "Free, fully virtual program with tracks in game design, data science, AI, cybersecurity and web development; 6-7 weeks of self-paced projects. Spring, summer and fall cohorts.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Girls and non-binary students in grades 9-12, including rising 9th graders and graduating seniors; open worldwide.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": "female",
+  "grade_levels": [
+    "9",
+    "10",
+    "11",
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "computer science",
+    "coding",
+    "artificial intelligence",
+    "cybersecurity",
+    "virtual"
+  ],
+  "kind": "program",
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-10-11 by Claude (Roles Plan Task A.7, second round: technical programs). Not verified: open the source before setting trust to verified_local. grade_levels are the grade when applying. Spring 2027 cohort reported open with an Oct 28, 2026 priority deadline (from a Girls Who Code email, not the program page): check the application portal (girlswhocode.com/pathwaysapply) and enter the deadline. Cost: the page calls it a free year-round program. Also open to non-binary students; gender is recorded as female because the schema has one value.",
+  "provenance": {
+    "added_on": "2026-10-11",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "Dom",
+    "verified_on": "2026-10-11"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://girlswhocode.com/programs/pathways",
+  "sponsor": "Girls Who Code",
+  "states_allowed": [],
+  "status": "open",
+  "title": "Girls Who Code Pathways",
+  "trust": "verified_local"
+}

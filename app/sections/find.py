@@ -30,6 +30,7 @@ from app.helpers import (
 from app.sections.todos import author_for, viewer_role
 from src.embeddings.cache import ensure_embedding_store_for_df
 from src.profile.store import to_stage1_profile, to_stage2_profile
+from src.rank.kinds import scholarships_only
 from src.rank.stage1_eligibility import apply_eligibility_filter
 from src.rank.stage2_scoring import score_stage2
 from src.rank.stage3_rerank import is_local_award, rerank_stage3
@@ -173,8 +174,10 @@ def rank_snapshot(
 
     Cached on the profile, snapshot and date, so opening Find shows results at
     once after the first run and re-ranks only when one of them changes.
+    Programs are left out from the start, so they never show on Timeline or in
+    the no-deadline count either: they live on Opportunities.
     """
-    snapshot_df = state.load_snapshot_cached(snapshot_path_text)
+    snapshot_df = scholarships_only(state.load_snapshot_cached(snapshot_path_text))
     if similarity_mode == "embeddings":
         snapshot_df = ensure_embedding_store_for_df(
             snapshot_df, model_name, processed_dir=state.PROCESSED_DIR

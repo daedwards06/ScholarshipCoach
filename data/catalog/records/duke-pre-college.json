@@ -1,0 +1,69 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "duke-pre-college",
+  "citizenship": null,
+  "cost": null,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": null,
+    "opens_month": 10,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Summer residential and online courses for high school students on Duke's campus.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Current 9th-12th grade students who have completed one year of high school, at least 14 by the session start, with a 3.0+ GPA.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "9",
+    "10",
+    "11",
+    "12"
+  ],
+  "heritage": [],
+  "keywords": [
+    "computer science",
+    "summer program",
+    "residential"
+  ],
+  "kind": "program",
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": 3.0,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-10-11 by Claude (Roles Plan Task A.7). Not verified: open the source before setting trust to verified_local. grade_levels are the grade when applying: a program for rising 11th graders is applied to in 10th grade. 2027 dates and fees to be announced in October 2026; no individual scholarships.",
+  "provenance": {
+    "added_on": "2026-10-11",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "Dom",
+    "verified_on": "2026-10-11"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": true,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://provost.duke.edu/pre-college-programs/",
+  "sponsor": "Duke University",
+  "states_allowed": [],
+  "status": "upcoming",
+  "title": "Duke Pre-College",
+  "trust": "verified_local"
+}

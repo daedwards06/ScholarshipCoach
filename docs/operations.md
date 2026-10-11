@@ -266,6 +266,12 @@ nothing contradicting the record, which is a weaker claim. A record is due when 
 `verified_on` and `checked_on` is at least `--since-days` old, so a machine check still defers
 the next fetch.
 
+A recurring record (`cycle.recurring: true`) is also due around its usual opening, whatever
+`--since-days` says: once in the 30 days before the 1st of `cycle.opens_month`, and once in the
+45 days after it. A look inside each window satisfies it. With no opening month, applications are
+assumed to open two months before `cycle.deadline_month`. That way a monthly run re-reads an annual
+program's page when its new round is likely to be posted, not up to a year later.
+
 ### Run it by hand
 
 ```powershell

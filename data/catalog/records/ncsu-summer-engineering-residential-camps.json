@@ -1,0 +1,68 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "ncsu-summer-engineering-residential-camps",
+  "citizenship": null,
+  "cost": 1550.0,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 2,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Week-long residential camps exploring one field of engineering on the NC State campus.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Rising 11th and 12th grade high school students.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "10",
+    "11"
+  ],
+  "heritage": [],
+  "keywords": [
+    "engineering",
+    "computer science",
+    "summer program",
+    "residential"
+  ],
+  "kind": "program",
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-10-11 by Claude (Roles Plan Task A.7). Not verified: open the source before setting trust to verified_local. grade_levels are the grade when applying: a program for rising 11th graders is applied to in 10th grade. 2026 cost $1,550 with limited need-based funds; 2026 deadline was Feb 27, 2026. 2027 dates not posted yet.",
+  "provenance": {
+    "added_on": "2026-10-11",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "Dom",
+    "verified_on": "2026-10-11"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://precollege.ncsu.edu/summer-engineering-residential-camps/",
+  "sponsor": "NC State University College of Engineering",
+  "states_allowed": [],
+  "status": "upcoming",
+  "title": "NC State Summer Engineering Residential Camps",
+  "trust": "verified_local"
+}

@@ -1,0 +1,71 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "ncssm-summer-accelerator",
+  "citizenship": null,
+  "cost": 1925.0,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 1,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Three-week STEM courses (coding, engineering, AI, astronomy and more): two weeks online, then a week in Durham, Morganton or online.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Rising 10th, 11th and 12th graders.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "9",
+    "10",
+    "11"
+  ],
+  "heritage": [],
+  "keywords": [
+    "stem",
+    "coding",
+    "artificial intelligence",
+    "summer program"
+  ],
+  "kind": "program",
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-10-11 by Claude (Roles Plan Task A.7). Not verified: open the source before setting trust to verified_local. grade_levels are the grade when applying: a program for rising 11th graders is applied to in 10th grade. Summer 2027 details not posted yet (check back soon, says the page). 2026 fee $1,925 residential; online courses cost less. NC residency is implied, not stated: confirm before keeping states_allowed.",
+  "provenance": {
+    "added_on": "2026-10-11",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "Dom",
+    "verified_on": "2026-10-11"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.ncssm.edu/summer/summer-accelerator/accelerator-10th-12th",
+  "sponsor": "North Carolina School of Science and Mathematics",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "NCSSM Summer Accelerator (rising 10th-12th)",
+  "trust": "verified_local"
+}

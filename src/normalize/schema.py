@@ -55,3 +55,5 @@ class NormalizedScholarshipRecord:
     trust: Optional[str] = None
     provenance: Optional[dict[str, Any]] = None
     notes: Optional[str] = None
+    kind: Optional[str] = None
+    cost: Optional[float] = None
