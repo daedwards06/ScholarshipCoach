@@ -16,13 +16,14 @@ from typing import Any
 
 import pandas as pd
 
+from src.profile.grade_levels import GRADE_SEQUENCE, grade_level_rank
 from src.rank.stage1_eligibility import (
     TRUST_UNCONFIRMED_CODE,
     StudentProfile,
     apply_eligibility_filter,
 )
 from src.rank.kinds import scholarships_only
-from src.rank.timeline import TIMELINE_BUCKETS, classify_timeline
+from src.rank.timeline import TIMELINE_BUCKET_LABELS, TIMELINE_BUCKETS, classify_timeline
 
 # The profile attributes the what-if view offers, and the wording it uses.
 WHATIF_FIELD_LABELS: dict[str, str] = {
@@ -44,6 +45,23 @@ REASON_LABELS: dict[str, str] = {
 }
 
 
+# The same codes read from the other side: why an award now opens.
+OPENED_BY_LABELS: dict[str, str] = {
+    "GPA_BELOW_MIN": "your GPA meets its minimum",
+    "TEST_SCORE_BELOW_MIN": "your test score meets its minimum",
+    "NEED_BASED_NOT_MET": "it counts financial need",
+    "FIRST_GEN_ONLY": "it is for first-generation students",
+}
+
+# When an award can be acted on, in words that avoid the pipeline's terms.
+_WHEN_LABELS: dict[str, str] = {
+    "now": "Open now",
+    "check_grade": "Check which grade it's for",
+    "next_cycle": "Opens again next year",
+    "needs_date": "Date not posted yet",
+}
+
+
 def reason_label(code: str) -> str:
     """Return the family-facing phrasing for a Stage 1 reason code."""
     text = str(code).strip()
@@ -58,13 +76,35 @@ class WhatIfAward:
 
     scholarship_id: str
     title: str
-    amount: float
+    amount: float | None
     timeline_bucket: str
     reasons: list[str] = field(default_factory=list)
+    # The first grade the award takes, set only when that grade is still ahead.
+    opens_grade: str = ""
 
     @property
     def reason_text(self) -> str:
         return ", ".join(reason_label(code) for code in self.reasons if str(code).strip())
+
+    @property
+    def opened_by_text(self) -> str:
+        """"Opens because your GPA meets its minimum"; empty with no known reason."""
+        labels = [OPENED_BY_LABELS[code] for code in self.reasons if code in OPENED_BY_LABELS]
+        return f"Opens because {' and '.join(labels)}" if labels else ""
+
+    @property
+    def when_text(self) -> str:
+        if self.timeline_bucket == "senior_year" and self.opens_grade:
+            return f"Opens in {grade_words(self.opens_grade)}"
+        return _WHEN_LABELS.get(
+            self.timeline_bucket,
+            TIMELINE_BUCKET_LABELS.get(self.timeline_bucket, self.timeline_bucket),
+        )
+
+
+def grade_words(grade: str) -> str:
+    """"11" -> "11th grade"; any college year -> "college"."""
+    return f"{grade}th grade" if grade.isdigit() else "college"
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +119,7 @@ class WhatIfSummary:
 
     @property
     def dollars_unlocked(self) -> float:
+        """Listed dollars only; an award with no amount adds nothing."""
         return sum(self.dollars_by_bucket.values())
 
     @property
@@ -110,14 +151,27 @@ def apply_overrides(profile: StudentProfile, overrides: dict[str, Any]) -> Stude
     return replace(profile, **applied_overrides(profile, overrides))
 
 
-def _award_amount(row: pd.Series) -> float:
-    """Resolve an award's dollar value the way Stage 1 does: max, else min, else 0."""
+def _award_amount(row: pd.Series) -> float | None:
+    """Resolve an award's dollar value: max, else min, else ``None`` (not listed)."""
     for column in ("amount_max", "amount_min"):
         value = row.get(column)
         if value is None or pd.isna(value):
             continue
         return max(float(value), 0.0)
-    return 0.0
+    return None
+
+
+def _opens_grade(row: pd.Series) -> str:
+    """The lowest grade an award lists, for an award that opens in a later year."""
+    if _text(row.get("timeline_bucket")) != "senior_year":
+        return ""
+    grades = row.get("grade_levels")
+    if grades is None or isinstance(grades, (str, bytes)):
+        grades = [grades] if grades else []
+    elif hasattr(grades, "tolist"):
+        grades = grades.tolist()
+    ranks = [rank for rank in (grade_level_rank(str(g)) for g in grades) if rank is not None]
+    return GRADE_SEQUENCE[min(ranks)] if ranks else ""
 
 
 def _text(value: Any) -> str:
@@ -160,6 +214,7 @@ def _award(row: pd.Series, reasons: list[str]) -> WhatIfAward:
         amount=_award_amount(row),
         timeline_bucket=_text(row.get("timeline_bucket")) or "now",
         reasons=reasons,
+        opens_grade=_opens_grade(row),
     )
 
 
@@ -220,13 +275,13 @@ def whatif_eligibility(
     dollars_by_bucket: dict[str, float] = {}
     for award in newly_eligible:
         dollars_by_bucket[award.timeline_bucket] = (
-            dollars_by_bucket.get(award.timeline_bucket, 0.0) + award.amount
+            dollars_by_bucket.get(award.timeline_bucket, 0.0) + (award.amount or 0.0)
         )
 
     return WhatIfSummary(
         overrides=applied,
-        newly_eligible=sorted(newly_eligible, key=lambda award: -award.amount),
-        newly_ineligible=sorted(newly_ineligible, key=lambda award: -award.amount),
+        newly_eligible=sorted(newly_eligible, key=lambda award: -(award.amount or 0.0)),
+        newly_ineligible=sorted(newly_ineligible, key=lambda award: -(award.amount or 0.0)),
         dollars_by_bucket={
             bucket: dollars_by_bucket[bucket]
             for bucket in TIMELINE_BUCKETS

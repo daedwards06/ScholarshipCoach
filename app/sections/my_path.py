@@ -9,6 +9,7 @@ from app import identity, modes, state
 from app.components import render_empty_state
 from app.helpers import BadgeColor, markdown_safe
 from app.sections import todos as todos_page
+from app.sections.what_if import GOAL_QUERY_PARAM
 from src.store import repo, requirements, todos
 from src.store.db import open_db
 from src.store.repo import College, CollegeRequirement
@@ -67,10 +68,20 @@ def _pages() -> dict[str, Any]:
     return pages
 
 
-def _page_link(mode: modes.Mode, section: str, label: str | None = None) -> None:
+def _page_link(
+    mode: modes.Mode,
+    section: str,
+    label: str | None = None,
+    query_params: dict[str, str] | None = None,
+) -> None:
     pages = _pages()
     if modes.can_view(mode, section) and section in pages:
-        st.page_link(pages[section], label=label)
+        st.page_link(pages[section], label=label, query_params=query_params)
+
+
+def what_if_params(requirement: CollegeRequirement) -> dict[str, str]:
+    """The link's query, so What If opens at this row's target."""
+    return {GOAL_QUERY_PARAM: str(requirement.id)}
 
 
 def _set_status(requirement_id: int, widget_key: str, today: date) -> None:
@@ -106,7 +117,7 @@ def _render_requirement(
         if gap:
             with st.container(horizontal=True, gap="small", vertical_alignment="center"):
                 st.markdown(gap)
-                _page_link(mode, "what_if", "Try What If")
+                _page_link(mode, "what_if", "Try What If", what_if_params(requirement))
         if requirement.notes:
             st.caption(markdown_safe(requirement.notes))
 

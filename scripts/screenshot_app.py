@@ -63,6 +63,7 @@ SEED_REQUIREMENTS: tuple[tuple[str, str, str, str, str], ...] = (
     ("Precalculus", "course", "1 unit", "11", "not_started"),
     ("Summer program application", "program", "", "2027-02-01", "not_started"),
     ("Calculus", "course", "1 unit", "12", "not_started"),
+    ("SAT for merit aid", "test", "SAT 1200", "12", "not_started"),
     ("Biology", "course", "1 unit", "9", "met"),
 )
 

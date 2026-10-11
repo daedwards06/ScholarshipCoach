@@ -839,15 +839,15 @@ python scripts/screenshot_app.py --theme both --scratch-db --seed
 ```
 
 **Checklist:**
-- [ ] Result first: "Your goals" lists each GPA/test requirement of the first target school with
+- [x] Result first: "Your goals" lists each GPA/test requirement of the first target school with
       reached / not yet at the slider value ("3.50: reaches the program minimum; 0.25 short of the
       full-cost scholarship")
-- [ ] Below it, awards that open up, in friendly terms; "$0" for an unknown amount becomes "Amount
+- [x] Below it, awards that open up, in friendly terms; "$0" for an unknown amount becomes "Amount
       not listed"; awards for a later grade say when they open
-- [ ] My Path's GPA row links here with the target pre-set (S5 = 1 tap)
-- [ ] Results render above the controls or directly under the changed control at 400px
-- [ ] Tests: goal reach text at, below and above each threshold; unknown amount wording
-- [ ] All five CI commands green
+- [x] My Path's GPA row links here with the target pre-set (S5 = 1 tap)
+- [x] Results render above the controls or directly under the changed control at 400px
+- [x] Tests: goal reach text at, below and above each threshold; unknown amount wording
+- [x] All five CI commands green
 
 ---
 
