@@ -36,7 +36,7 @@ import logging
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -58,6 +58,15 @@ DEFAULT_REQUESTS_PER_SECOND = 0.5
 # Only a labeled, unambiguous value is allowed to contradict a curated record;
 # RegexExtractor scores those at 0.85 and everything looser at 0.6 or below.
 MIN_CHANGE_CONFIDENCE = 0.7
+
+# A recurring award or program posts its new round around the same month each
+# year, and a once-a-year check can land just after the window closes.  So it is
+# also due once in the month before its usual opening and once in the weeks
+# after.  Without an opening month, applications are assumed to open two months
+# before the deadline month.
+PRE_OPENING_DAYS = 30
+POST_OPENING_DAYS = 45
+DEADLINE_LEAD_MONTHS = 2
 
 OUTCOME_UNCHANGED = "unchanged"
 OUTCOME_CHANGED = "changed"
@@ -457,7 +466,8 @@ def _load_records(records_dir: Path) -> list[dict[str, Any]]:
 def _due_records(
     records: Sequence[Mapping[str, Any]], *, today: date, since_days: int
 ) -> list[dict[str, Any]]:
-    """Records never looked at, or last looked at ``since_days`` ago or more, oldest first.
+    """Records never looked at, last looked at ``since_days`` ago or more, or at a
+    cycle checkpoint (:func:`cycle_checkpoint`) since their last look, oldest first.
 
     "Looked at" is the later of a person's ``verified_on`` and this pass's
     ``checked_on``, so a machine check defers the next fetch too.
@@ -465,12 +475,46 @@ def _due_records(
     due: list[tuple[str, str, dict[str, Any]]] = []
     for record in records:
         last_seen = _last_seen_on(record)
-        if last_seen is not None and (today - last_seen).days < since_days:
+        checkpoint = cycle_checkpoint(record, today)
+        cycle_due = checkpoint is not None and (last_seen is None or last_seen < checkpoint)
+        if not cycle_due and last_seen is not None and (today - last_seen).days < since_days:
             continue
         sort_key = last_seen.isoformat() if last_seen else ""
         due.append((sort_key, str(record.get("catalog_id")), dict(record)))
     due.sort(key=lambda item: (item[0], item[1]))
     return [record for _, _, record in due]
+
+
+def usual_opening_month(record: Mapping[str, Any]) -> int | None:
+    """The month a recurring record usually opens, or ``None`` when it does not recur."""
+    cycle = record.get("cycle")
+    if not isinstance(cycle, Mapping) or cycle.get("recurring") is not True:
+        return None
+    opens = cycle.get("opens_month")
+    if isinstance(opens, int) and 1 <= opens <= 12:
+        return opens
+    deadline = cycle.get("deadline_month")
+    if isinstance(deadline, int) and 1 <= deadline <= 12:
+        return (deadline - 1 - DEADLINE_LEAD_MONTHS) % 12 + 1
+    return None
+
+
+def cycle_checkpoint(record: Mapping[str, Any], today: date) -> date | None:
+    """The latest cycle checkpoint on or before ``today``, if one is in play.
+
+    Around each usual opening (the 1st of the month) there are two: a month
+    before it, and the opening itself.  A look at the record since the
+    checkpoint satisfies it; outside the window there is none.
+    """
+    month = usual_opening_month(record)
+    if month is None:
+        return None
+    for year in (today.year - 1, today.year, today.year + 1):
+        opening = date(year, month, 1)
+        before = opening - timedelta(days=PRE_OPENING_DAYS)
+        if before <= today < opening + timedelta(days=POST_OPENING_DAYS):
+            return opening if today >= opening else before
+    return None
 
 
 def _last_seen_on(record: Mapping[str, Any]) -> date | None:

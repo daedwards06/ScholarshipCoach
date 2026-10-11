@@ -16,6 +16,7 @@ from src.types import ProfileLike
 import numpy as np
 import pandas as pd
 
+from src.rank.kinds import scholarships_only
 from src.rank.weights import Stage3Weights
 from src.text_utils import coerce_text
 from src.win_model.features import FEATURE_COLUMNS, build_pair_features
@@ -215,7 +216,8 @@ def rerank_stage3(
             absent when ``use_win_model=True``.
     """
     effective_today = today or date.today()
-    reranked_df = scored_df.copy()
+    # Programs never reach the score or the win model's features.
+    reranked_df = scholarships_only(scored_df).copy()
     active_weights = weights or Stage3Weights.baseline()
 
     if "stage2_score" not in reranked_df.columns:

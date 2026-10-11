@@ -1,0 +1,70 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "ncssm-summer-ventures",
+  "citizenship": null,
+  "cost": 0.0,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": 1,
+    "opens_month": 10,
+    "recurring": true
+  },
+  "deadline": "2027-01-05",
+  "description": "Free four-week residential STEM program on a UNC campus for NC rising juniors and seniors.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Students in their second or third year of high school who have not already participated; must clear NC residency.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "10",
+    "11"
+  ],
+  "heritage": [],
+  "keywords": [
+    "stem",
+    "summer program",
+    "residential",
+    "unc system"
+  ],
+  "kind": "program",
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-10-11 by Claude (Roles Plan Task A.7). Not verified: open the source before setting trust to verified_local. grade_levels are the grade when applying: a program for rising 11th graders is applied to in 10th grade. Apply on CFNC.org: opens Oct 15, 2026 4:00 PM, closes Jan 5, 2027; evaluations from a STEM teacher, an English teacher and the counselor due Feb 28, 2027; notification Apr 2, 2027. Set status to open after Oct 15.",
+  "provenance": {
+    "added_on": "2026-10-11",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "Dom",
+    "verified_on": "2026-10-11"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": true,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": 3,
+    "transcript": true,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://www.ncssm.edu/summer/summer-ventures/summer-ventures-admissions",
+  "sponsor": "North Carolina School of Science and Mathematics",
+  "states_allowed": [
+    "NC"
+  ],
+  "status": "upcoming",
+  "title": "Summer Ventures in Science and Mathematics",
+  "trust": "verified_local"
+}

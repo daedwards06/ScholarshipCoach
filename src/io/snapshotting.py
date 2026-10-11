@@ -80,6 +80,8 @@ CATALOG_COLUMNS = [
     "provenance",
     "notes",
     "aliases",
+    "kind",
+    "cost",
 ]
 CATALOG_LIST_COLUMNS = (
     "grade_levels",

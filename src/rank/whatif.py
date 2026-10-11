@@ -21,6 +21,7 @@ from src.rank.stage1_eligibility import (
     StudentProfile,
     apply_eligibility_filter,
 )
+from src.rank.kinds import scholarships_only
 from src.rank.timeline import TIMELINE_BUCKETS, classify_timeline
 
 # The profile attributes the what-if view offers, and the wording it uses.
@@ -193,6 +194,7 @@ def whatif_eligibility(
         return WhatIfSummary(overrides={})
 
     what_if_profile = replace(profile, **applied)
+    df = scholarships_only(df)
 
     base_eligible, base_ineligible = apply_eligibility_filter(df, profile)
     what_if_eligible, what_if_ineligible = apply_eligibility_filter(df, what_if_profile)

@@ -15,6 +15,7 @@ from src.catalog.verify import (
     OUTCOME_ERROR,
     OUTCOME_UNCHANGED,
     content_hash,
+    cycle_checkpoint,
     load_prior_hashes,
     parse_page_status,
     verify_catalog,
@@ -619,3 +620,53 @@ def test_cli_errors_on_an_empty_catalog(
 
     assert exit_code == 1
     assert "no catalog records found" in capsys.readouterr().out
+
+
+# -- cycle checkpoints ---------------------------------------------------------
+
+_ANNUAL = {"recurring": True, "opens_month": 11, "deadline_month": 1}
+
+
+def test_cycle_checkpoints_sit_a_month_before_and_at_the_usual_opening() -> None:
+    record = _record(cycle=_ANNUAL)
+    assert cycle_checkpoint(record, date(2026, 10, 1)) is None
+    assert cycle_checkpoint(record, date(2026, 10, 15)) == date(2026, 10, 2)
+    assert cycle_checkpoint(record, date(2026, 11, 20)) == date(2026, 11, 1)
+    assert cycle_checkpoint(record, date(2026, 12, 16)) is None
+    # No opening month: assumed two months before the deadline month.
+    deadline_only = _record(cycle={"recurring": True, "opens_month": None, "deadline_month": 1})
+    assert cycle_checkpoint(deadline_only, date(2026, 11, 5)) == date(2026, 11, 1)
+    # A one-off record has no cycle to watch.
+    assert cycle_checkpoint(_record(cycle={**_ANNUAL, "recurring": False}), date(2026, 11, 5)) is None
+
+
+@pytest.mark.parametrize(
+    ("checked_on", "today", "due"),
+    [
+        ("2026-09-01", date(2026, 10, 15), True),   # not looked at since the pre-opening checkpoint
+        ("2026-10-05", date(2026, 10, 15), False),  # looked at inside the window already
+        ("2026-10-05", date(2026, 11, 3), True),    # the opening is a second checkpoint
+        ("2026-09-01", date(2026, 9, 12), False),   # outside the window: the yearly rule applies
+    ],
+)
+def test_a_recently_checked_annual_record_is_due_again_around_its_opening(
+    catalog_dirs: tuple[Path, Path, Path], checked_on: str, today: date, due: bool
+) -> None:
+    records, _, reports = catalog_dirs
+    _write_record(
+        records,
+        _record(
+            cycle=_ANNUAL,
+            provenance=_human_provenance(
+                verified_on="2026-08-01", checked_on=checked_on, checked_by="verify_catalog"
+            ),
+        ),
+    )
+    client = _StubClient({"https://example.invalid/award": _page()})
+
+    report = verify_catalog(
+        records_dir=records, reports_dir=reports, client=client, today=today, since_days=365,
+        write_report=False,
+    )
+
+    assert report.records_due == (1 if due else 0)

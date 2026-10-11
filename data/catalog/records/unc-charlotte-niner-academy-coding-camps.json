@@ -1,0 +1,70 @@
+{
+  "amount_max": null,
+  "amount_min": null,
+  "catalog_id": "unc-charlotte-niner-academy-coding-camps",
+  "citizenship": null,
+  "cost": 450.0,
+  "counties_allowed": [],
+  "cycle": {
+    "deadline_month": null,
+    "opens_month": null,
+    "recurring": true
+  },
+  "deadline": null,
+  "description": "Week-long coding and drone camps on the UNC Charlotte campus, run with partner Black Rocket; 9 AM-4 PM.",
+  "disability": null,
+  "education_level": "high school",
+  "eligibility_text": "Rising grades 9-12.",
+  "employer_restricted": [],
+  "first_gen_only": null,
+  "gender": null,
+  "grade_levels": [
+    "9",
+    "10",
+    "11"
+  ],
+  "heritage": [],
+  "keywords": [
+    "computer science",
+    "coding",
+    "drones",
+    "day camp",
+    "charlotte"
+  ],
+  "kind": "program",
+  "majors_allowed": [],
+  "membership_required": [],
+  "military_family": null,
+  "min_gpa": null,
+  "min_test_scores": {
+    "act": null,
+    "sat": null
+  },
+  "need_based": null,
+  "notes": "Seeded 2026-10-11 by Claude (Roles Plan Task A.7, second round: technical programs). Not verified: open the source before setting trust to verified_local. grade_levels are the grade when applying. 2026: Monday-Friday weeks June 8 - August 7 (none June 29 - July 3), $450 a week plus a $100 nonrefundable deposit; day camp. Registration until full, no deadline posted. The camp list on the page loads by script; summer 2027 sessions expected early 2027.",
+  "provenance": {
+    "added_on": "2026-10-11",
+    "checked_by": null,
+    "checked_on": null,
+    "source_kind": "sponsor_site",
+    "verified_by": "Dom",
+    "verified_on": "2026-10-11"
+  },
+  "religion": null,
+  "renewal_terms": null,
+  "requirements": {
+    "essay": null,
+    "essay_prompts": [],
+    "fafsa": null,
+    "interview": null,
+    "recommendation_letters": null,
+    "transcript": null,
+    "video_or_portfolio": null
+  },
+  "source_url": "https://youth.charlotte.edu/camps-on-campus/academic-camps/",
+  "sponsor": "UNC Charlotte Continuing Education (Niner Academy)",
+  "states_allowed": [],
+  "status": "upcoming",
+  "title": "UNC Charlotte Niner Academy Coding Camps",
+  "trust": "verified_local"
+}

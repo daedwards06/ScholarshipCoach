@@ -40,9 +40,10 @@ _SOURCE_PAGES: dict[str, str] = {
     "checklist": "applications",
     "letter": "recommenders",
     "requirement": "my_path",
+    "opportunity": "opportunities",
 }
 
-# The page the empty state points to; Opportunities arrives in Task A.7.
+# The page the empty state points to.
 _EMPTY_STATE_LINKS: dict[str, tuple[str, str]] = {
     "student": ("opportunities", "Browse opportunities"),
     "parent": ("find", "Find scholarships"),
