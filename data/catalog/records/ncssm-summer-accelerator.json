@@ -43,8 +43,8 @@
   "notes": "Seeded 2026-10-11 by Claude (Roles Plan Task A.7). Not verified: open the source before setting trust to verified_local. grade_levels are the grade when applying: a program for rising 11th graders is applied to in 10th grade. Summer 2027 details not posted yet (check back soon, says the page). 2026 fee $1,925 residential; online courses cost less. NC residency is implied, not stated: confirm before keeping states_allowed.",
   "provenance": {
     "added_on": "2026-10-11",
-    "checked_by": null,
-    "checked_on": null,
+    "checked_by": "verify_catalog",
+    "checked_on": "2026-11-01",
     "source_kind": "sponsor_site",
     "verified_by": "Dom",
     "verified_on": "2026-10-11"

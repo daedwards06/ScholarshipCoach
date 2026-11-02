@@ -38,8 +38,8 @@
   "notes": "Seeded 2026-09-26 by Claude through the Add Award prefill path (Catalog Integrity Task 2.2). Not verified: open the source page before setting trust to verified_local. Prefill missed: deadline ('first Monday in February' is a rule, not a date); letters; essay prompts. The page does not state the amount.",
   "provenance": {
     "added_on": "2026-09-26",
-    "checked_by": null,
-    "checked_on": null,
+    "checked_by": "verify_catalog",
+    "checked_on": "2026-11-01",
     "source_kind": "membership_org",
     "verified_by": "daedwards06",
     "verified_on": "2026-09-26"

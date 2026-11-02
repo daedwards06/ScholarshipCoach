@@ -35,8 +35,8 @@
   "notes": "Seeded 2026-09-26 by Claude (Catalog Integrity Task 2.2, Gaston/Mecklenburg pass). Not verified: open the source before setting trust to verified_local. FFTC Fund ID 4334 (search the portal by name; FFTC fund pages are ASP.NET postbacks with no per-fund URL, so prefill cannot reach them).",
   "provenance": {
     "added_on": "2026-09-26",
-    "checked_by": null,
-    "checked_on": null,
+    "checked_by": "verify_catalog",
+    "checked_on": "2026-11-01",
     "source_kind": "community_foundation",
     "verified_by": "daedwards06",
     "verified_on": "2026-09-26"

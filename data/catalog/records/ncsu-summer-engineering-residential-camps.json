@@ -42,8 +42,8 @@
   "notes": "Seeded 2026-10-11 by Claude (Roles Plan Task A.7). Not verified: open the source before setting trust to verified_local. grade_levels are the grade when applying: a program for rising 11th graders is applied to in 10th grade. 2026 cost $1,550 with limited need-based funds; 2026 deadline was Feb 27, 2026. 2027 dates not posted yet.",
   "provenance": {
     "added_on": "2026-10-11",
-    "checked_by": null,
-    "checked_on": null,
+    "checked_by": "verify_catalog",
+    "checked_on": "2026-11-01",
     "source_kind": "sponsor_site",
     "verified_by": "Dom",
     "verified_on": "2026-10-11"
