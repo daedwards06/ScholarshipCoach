@@ -1111,8 +1111,10 @@ python scripts/screenshot_app.py --journeys --scratch-db
   `state.program_ids()`). Only a program's row whose title starts "Apply to " records it;
   "Watch for …", "Check the dates for …" and the follow-ups do not. Un-ticking drops the row
   while it is still `applied`; a result she has recorded survives. Added an "I applied"
-  button on the card for a program whose apply to-do is still open, so "here" in the checklist
-  has a control (the walk uses it as S7's setup).
+  button on the card, so "here" in the checklist has a control (the walk uses it as S7's
+  setup). *(2026-11-13, after the first real use: it shows on any program on her to-dos with no
+  result, whatever the to-do says and whether it is ticked. Her first acceptance came through a
+  ticked "Check the dates for …" reminder, which records nothing, and left no way to record it.)*
 - *Opportunities.* A program with a result shows "Heard back?" (a segmented control of the next
   statuses) for her and a status badge for a parent. `accepted`/`completed` cards go to
   **Yours** (after Opens later, before Passed this year) with the h3 "Accepted · Summer 2027"

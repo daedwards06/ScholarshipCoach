@@ -313,3 +313,47 @@ def test_parent_week_shows_the_acceptance_without_notes(
     assert experiences.recently_accepted(
         experiences.list_experiences(conn, sid), date(2030, 1, 1), 14
     ) == []
+
+
+def test_i_applied_works_from_a_ticked_reminder(
+    conn: sqlite3.Connection, sid: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reminder = todos.create_todo(
+        conn, sid, "Check the dates for Example Camp", source_kind="opportunity", source_ref=PROGRAM
+    )
+    todos.set_todo_done(conn, reminder.id, True, today=TODAY)
+    reminder = todos.get_todo(conn, reminder.id)  # type: ignore[assignment]
+    row = pd.Series(
+        {"catalog_id": PROGRAM, "title": "Example Camp", "sponsor": "Example Org", "is_program": True}
+    )
+    award = pd.Series({"catalog_id": "award", "title": "Award", "is_program": False})
+    assert opp_page.offers_i_applied(row, reminder, None, "student")
+    assert not opp_page.offers_i_applied(row, reminder, None, "parent")
+    assert not opp_page.offers_i_applied(row, None, None, "student")
+    assert not opp_page.offers_i_applied(award, reminder, None, "student")
+
+    class _Db:
+        def __enter__(self) -> sqlite3.Connection:
+            return conn
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+    class _Rerun(Exception):
+        pass
+
+    def _rerun() -> None:
+        raise _Rerun
+
+    monkeypatch.setattr(opp_page, "open_db", _Db)
+    monkeypatch.setattr(opp_page.identity, "current_identity", lambda: None)
+    monkeypatch.setattr(opp_page.st, "rerun", _rerun)
+    for _ in range(2):
+        with pytest.raises(_Rerun):
+            opp_page._mark_applied(row, reminder, TODAY)
+
+    (recorded,) = experiences.list_experiences(conn, sid)
+    assert (recorded.status, recorded.title, recorded.organization) == (
+        "applied", "Example Camp", "Example Org"
+    )
+    assert opp_page.offers_i_applied(row, reminder, recorded, "student") is False
