@@ -327,19 +327,42 @@ def _add_membership(name: str) -> None:
     st.rerun()
 
 
-def _mark_applied(todo: todos.Todo, today: date) -> None:
-    """The card's tick for its apply to-do, as ticking it on To-dos."""
+def offers_i_applied(
+    row: pd.Series,
+    todo: todos.Todo | None,
+    result: experiences.Experience | None,
+    role: str,
+) -> bool:
+    """Any program on her to-dos with no result yet, whatever its to-do says.
+
+    A reminder ("Check the dates for …") or a to-do already ticked records
+    nothing on its own, so the card is where she says she applied.
+    """
+    return (
+        role == "student"
+        and todo is not None
+        and result is None
+        and bool(row.get("is_program"))
+    )
+
+
+def _mark_applied(row: pd.Series, todo: todos.Todo, today: date) -> None:
     who = identity.current_identity()
+    done_by = who.name if who is not None else ""
     try:
         with open_db() as conn:
-            todos.set_row_done(
+            experiences.record_applied(
                 conn,
-                todos.row_from_todo(todo),
-                True,
-                done_by=who.name if who is not None else "",
+                todo.student_id,
+                row_catalog_id(row),
+                coerce_text(row.get("title")) or row_catalog_id(row),
                 today=today,
-                program_ids=frozenset({todo.source_ref}),
+                organization=coerce_text(row.get("sponsor")),
+                created_by=done_by,
+                created_role="student",
             )
+            if not todo.done:
+                todos.set_todo_done(conn, todo.id, True, done_by=done_by, today=today)
     except Exception as exc:
         st.error(f"Could not save that: {exc}")
         return
@@ -496,15 +519,10 @@ def _render_card(
             elif todo is not None:
                 label = "On my to-dos" if role == "student" else "On her to-dos"
                 st.badge(label, icon=":material/check_circle:", color="green")
-                can_tick = (
-                    role == "student"
-                    and result is None
-                    and not todo.done
-                    and bool(row.get("is_program"))
-                    and todo.title.startswith(todos.APPLY_PREFIX)
-                )
-                if can_tick and st.button("I applied", key=f"opp_applied_{catalog_id}"):
-                    _mark_applied(todo, today)
+                if offers_i_applied(row, todo, result, role) and st.button(
+                    "I applied", key=f"opp_applied_{catalog_id}"
+                ):
+                    _mark_applied(row, todo, today)
             elif st.button(
                 "Add to my to-dos" if role == "student" else "Suggest to her",
                 key=f"opp_add_{catalog_id}",
