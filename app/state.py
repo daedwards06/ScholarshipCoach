@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from app import modes
-from app.helpers import csv_list, csv_text
+from app.helpers import csv_list, csv_text, row_catalog_id
 from scripts.run_ingest import get_latest_snapshot_path
 from src.catalog.entry import STATE_OPTIONS, state_codes, state_names
 from src.profile.grade_levels import (
@@ -24,6 +24,7 @@ from src.profile.store import (
     profile_path,
     to_stage1_profile,
 )
+from src.rank.kinds import program_mask
 from src.rank.stage1_eligibility import (
     PERMANENT_RESIDENT,
     US_CITIZEN,
@@ -345,6 +346,19 @@ def build_stage1_profile(profile: dict[str, Any]) -> StudentProfile:
 @st.cache_data(show_spinner=False)
 def load_snapshot_cached(path_text: str) -> pd.DataFrame:
     return pd.read_parquet(Path(path_text))
+
+
+def program_ids() -> frozenset[str]:
+    """Catalog IDs of the programs in the active snapshot (none without one)."""
+    snapshot_path_text = active_snapshot_path()
+    if snapshot_path_text is None:
+        return frozenset()
+    try:
+        snapshot_df = load_snapshot_cached(snapshot_path_text)
+    except Exception:
+        return frozenset()
+    programs = snapshot_df[program_mask(snapshot_df)]
+    return frozenset(row_catalog_id(row) for _, row in programs.iterrows())
 
 
 def current_student_id() -> str:

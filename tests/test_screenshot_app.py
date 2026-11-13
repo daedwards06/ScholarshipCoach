@@ -61,7 +61,7 @@ def test_seed_refuses_the_live_database() -> None:
 def test_journeys_walk_every_plan_journey_once() -> None:
     ids = [journey.id for journey in screenshot_app.journeys()]
 
-    assert sorted(ids) == ["P1", "P2", "P3", "P4", "S1", "S2", "S3", "S4", "S5", "S6"]
+    assert sorted(ids) == ["P1", "P2", "P3", "P4", "S1", "S2", "S3", "S4", "S5", "S6", "S7"]
     for journey in screenshot_app.journeys():
         assert journey.who == ("student" if journey.id.startswith("S") else "parent")
 
@@ -73,7 +73,7 @@ def test_journey_budgets_match_the_plan() -> None:
     }
 
     assert budgets == {
-        "S1": "0", "S2": "1", "S3": "2", "S4": "2", "S5": "1", "S6": "2",
+        "S1": "0", "S2": "1", "S3": "2", "S4": "2", "S5": "1", "S6": "2", "S7": "3",
         "P1": "3 + nav", "P2": "1 + form", "P3": "1", "P4": "0 + form",
     }
 

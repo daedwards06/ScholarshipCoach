@@ -6,10 +6,11 @@ nothing is downloaded), and writes ``<width>_<mode>_<section>_<theme>.png``.
 By default the sweep runs against a scratch copy of ``data/private/``, so it
 never writes the family's database; ``--live-db`` opts out.  ``--seed`` saves
 the top three Find results and adds an essay and a recommender through the UI
-first, and writes a made-up first target school with requirements straight
-into the scratch database, so populated states are captured too.
+first, and writes a made-up first target school with requirements, an
+accepted program and a club straight into the scratch database, so populated
+states are captured too.
 
-``--journeys`` walks the plan's journeys (S1-S6, P1-P4) instead, step by step
+``--journeys`` walks the plan's journeys (S1-S7, P1-P4) instead, step by step
 at 400px, writing one PNG per step and printing taps per journey against its
 budget.  It always starts from a fresh scratch database holding the demo
 profile set to a 10th grader, and from scratch copies of the catalog records
@@ -35,6 +36,7 @@ import time
 import urllib.request
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from datetime import date, timedelta
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -45,7 +47,7 @@ from src.normalize.catalog_schema import CATALOG_DIR
 from src.profile import store as profile_store
 from src.profile.grade_levels import infer_graduation_year
 from src.profile.store import DEFAULT_STUDENT_ID
-from src.store import repo
+from src.store import experiences, repo
 from src.store.db import PRIVATE_DIR, connect
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -80,6 +82,9 @@ SEED_REQUIREMENTS: tuple[tuple[str, str, str, str, str], ...] = (
     ("SAT for merit aid", "test", "SAT 1200", "12", "not_started"),
     ("Biology", "course", "1 unit", "9", "met"),
 )
+# Made up too: never the program she applied to or got into.
+SEED_PROGRAM_RESULT = ("example-robotics-institute", "Example Robotics Institute", "Example University")
+SEED_CLUB = ("Robotics club", "Example High School")
 
 
 @dataclass(frozen=True)
@@ -299,6 +304,17 @@ def seed_path(private_dir: Path) -> None:
                 conn, college.id, label, category,
                 target=target, due_by=due_by, status=status, position=position,
             )
+        catalog_id, title, organization = SEED_PROGRAM_RESULT
+        program = experiences.record_applied(
+            conn, DEFAULT_STUDENT_ID, catalog_id, title, organization=organization,
+            today=date.today(),
+        )
+        experiences.set_status(conn, program.id, "accepted")
+        experiences.update_experience(conn, program.id, term="Summer 2027")
+        experiences.create_experience(
+            conn, DEFAULT_STUDENT_ID, SEED_CLUB[0], organization=SEED_CLUB[1], kind="club",
+            term="9th–10th grade", hours_per_week=3,
+        )
     finally:
         conn.close()
 
@@ -359,8 +375,10 @@ JOURNEY_GRADE = "10"
 # R3: a page change through the folded nav costs three taps (open the menu,
 # open the group, pick the page).  The walk opens the URL and charges three.
 NAV_TAPS = 3
+# "setup" puts state in place before a journey starts (S7: she has applied).
 STEP_TAPS: dict[str, int] = {
-    "open": 0, "type": 0, "check": 0, "form": 0, "tap": 1, "link": 1, "nav": NAV_TAPS,
+    "open": 0, "type": 0, "check": 0, "form": 0, "setup": 0, "tap": 1, "link": 1,
+    "nav": NAV_TAPS,
 }
 
 SEED_ESSAY = (
@@ -374,6 +392,9 @@ SEED_PROGRAM_URL = "https://example.org/coding-camp"
 SEED_PROGRAM_GRADE = "High School Sophomore"
 SEED_PARENT_ASK = "Pay the PSAT fee"
 SEED_LABEL_EDIT = "Precalculus (honors)"
+SEED_PROGRAM_TERM = "Summer 2027"
+# Inside To-dos' Coming up window, so the walk can see the Start row.
+SEED_PROGRAM_STARTS_IN_DAYS = 20
 EDITOR_ROW_PX = 35
 
 Act = Callable[["Walker"], None]
@@ -600,6 +621,26 @@ def _ask_parents(walker: Walker) -> None:
     _expect_text(page, SEED_PARENT_ASK)
 
 
+def _mark_applied(walker: Walker) -> None:
+    walker.open("student", "opportunities")
+    page = walker.page("student")
+    _click(page, _program_card(page).get_by_role("button", name="I applied"))
+    _expect_text(page, "Heard back?")
+
+
+def _fill_accepted_dates(walker: Walker) -> None:
+    page = walker.page("student")
+    form = _program_card(page).locator('[data-testid="stForm"]')
+    form.get_by_label("Term", exact=True).fill(SEED_PROGRAM_TERM)
+    starts = form.locator('[data-testid="stDateInput"]').filter(has_text="Starts").locator("input")
+    # The date picker drops a value that is filled in rather than typed.
+    starts.click()
+    page.keyboard.type(
+        f"{date.today() + timedelta(days=SEED_PROGRAM_STARTS_IN_DAYS):%m/%d/%Y}", delay=40
+    )
+    page.keyboard.press("Tab")
+
+
 def _edit_requirement_label(walker: Walker) -> None:
     """Retype the Precalculus row's Requirement cell in the editor.
 
@@ -624,6 +665,13 @@ def _edit_requirement_label(walker: Walker) -> None:
     # The grid hands the edit to the form a moment later; Save before that
     # submits the old rows.
     page.wait_for_timeout(1000)
+
+
+def _open_done_recently(walker: Walker) -> None:
+    walker.open("parent", "todos")
+    page = walker.page("parent")
+    _click(page, _expander("Done recently")(page))
+    _expect_text(page, f"Accepted to {SEED_PROGRAM}")
 
 
 def journeys() -> tuple[Journey, ...]:
@@ -730,6 +778,27 @@ def journeys() -> tuple[Journey, ...]:
             )),
             Step("Her My Path shows it", "check",
                  _open(student, "my_path", SEED_LABEL_EDIT), mode=student),
+        )),
+        Journey("S7", student, "Hear back from a program, mark it accepted", Budget(3), (
+            Step("She applied (I applied on the card)", "setup", _mark_applied),
+            Step("Open the app", "open", _open(student, "my_path", "Activities & Honors")),
+            Step("Opportunities link", "link", _tap(student, _home_link("Opportunities"))),
+            Step("Accepted", "tap", _tap(
+                student,
+                lambda page: _program_card(page).get_by_role("button", name="Accepted", exact=True),
+                "Save dates",
+            )),
+            Step("Term and start date", "type", _fill_accepted_dates),
+            Step("Save dates", "tap", _tap(
+                student,
+                lambda page: page.get_by_role("button", name="Save dates"),
+                f"Accepted · {SEED_PROGRAM_TERM}",
+            )),
+            Step("It is in Activities & Honors", "check",
+                 _open(student, "my_path", SEED_PROGRAM), mode=student),
+            Step("Start is on her To-dos", "check",
+                 _open(student, "todos", f"Start {SEED_PROGRAM}"), mode=student),
+            Step("Parent's Done recently says so", "check", _open_done_recently, mode=parent),
         )),
     )
 

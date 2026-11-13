@@ -22,8 +22,8 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import date
 
+from src.store import experiences, repo, tracker
 from src.store import milestones as milestone_store
-from src.store import repo, tracker
 from src.store.db import utc_now
 from src.store.repo import UNSET, _delete, _fetch_one, _insert, _set, _update
 
@@ -384,6 +384,39 @@ def assemble_rows(
     return rows
 
 
+APPLY_PREFIX = "Apply to "
+
+
+def is_program_apply_row(row: TodoRow, program_ids: frozenset[str]) -> bool:
+    """A program's "Apply to …" row (not a reminder, a follow-up or an award's)."""
+    return (
+        row.kind == "todo"
+        and row.source_kind == "opportunity"
+        and row.source_ref in program_ids
+        and row.title.startswith(APPLY_PREFIX)
+    )
+
+
+def _record_program_tick(
+    conn: sqlite3.Connection, row: TodoRow, done: bool, today: date | None
+) -> None:
+    todo = get_todo(conn, row.ref_id)
+    if todo is None:
+        return
+    if done:
+        experiences.record_applied(
+            conn,
+            todo.student_id,
+            row.source_ref,
+            row.title.removeprefix(APPLY_PREFIX),
+            today=today or date.today(),
+            created_by=todo.created_by,
+            created_role=todo.created_role,
+        )
+    else:
+        experiences.undo_applied(conn, todo.student_id, row.source_ref)
+
+
 def set_row_done(
     conn: sqlite3.Connection,
     row: TodoRow,
@@ -391,6 +424,7 @@ def set_row_done(
     *,
     done_by: str = "",
     today: date | None = None,
+    program_ids: frozenset[str] = frozenset(),
 ) -> bool:
     """Tick a row, acting on its source.
 
@@ -400,7 +434,10 @@ def set_row_done(
     is done, so only stored rows and checklist steps can be un-ticked here.
     A requirement's row ticks the requirement too (met, or back to in
     progress), so My Path and the list agree, and ticking an "Ask ... by ..."
-    row marks that letter asked.
+    row marks that letter asked.  A program's "Apply to …" row records that
+    she applied (``program_ids`` says which catalog IDs are programs, since an
+    award's row looks the same); un-ticking it takes that back while nothing
+    has been heard.
     """
     if row.kind == "todo":
         if row.source_kind == "requirement" and row.source_ref.isdigit():
@@ -411,6 +448,8 @@ def set_row_done(
             request = repo.get_recommendation_request(conn, int(row.source_ref))
             if request is not None and tracker.normalize_request_status(request.status) == "planned":
                 tracker.set_request_status(conn, request.id, "asked", today=today)
+        if is_program_apply_row(row, program_ids):
+            _record_program_tick(conn, row, done, today)
         return set_todo_done(conn, row.ref_id, done, done_by=done_by, today=today)
     if row.kind == "checklist":
         return repo.update_checklist_item(conn, row.ref_id, done=done)
@@ -529,6 +568,77 @@ def sync_letter_todo(
     update_todo(conn, existing.id, title=title, notes=notes, due_on=due.isoformat())
     if existing.done:
         set_todo_done(conn, existing.id, False)
+    return get_todo(conn, existing.id)
+
+
+PROGRAM_FOLLOW_UPS: tuple[str, ...] = ("start", "finish")
+
+
+def program_follow_up_ref(catalog_id: str, step: str) -> str:
+    """``<catalog_id>:start``: never the bare ID, which is the apply row's."""
+    return f"{catalog_id}:{step}"
+
+
+def sync_program_todos(
+    conn: sqlite3.Connection,
+    experience: experiences.Experience,
+    *,
+    created_by: str = "",
+    created_role: str = "",
+) -> list[Todo]:
+    """Keep "Start …" and "Finish …" in step with an accepted program's dates.
+
+    A date set or moved writes or redates its open row; a date cleared drops
+    it.  A row she has ticked is left alone.
+    """
+    if experience.catalog_id is None:
+        return []
+    written: list[Todo] = []
+    for step, due_on in zip(
+        PROGRAM_FOLLOW_UPS, (experience.starts_on, experience.ends_on), strict=True
+    ):
+        ref = program_follow_up_ref(experience.catalog_id, step)
+        existing = find_todo(conn, experience.student_id, "opportunity", ref)
+        title = f"{step.capitalize()} {experience.title}"
+        if not due_on:
+            if existing is not None and not existing.done:
+                delete_todo(conn, existing.id)
+            continue
+        if existing is None:
+            written.append(
+                create_todo(
+                    conn,
+                    experience.student_id,
+                    title,
+                    due_on=due_on,
+                    assignee="student",
+                    created_by=created_by,
+                    created_role=created_role,
+                    source_kind="opportunity",
+                    source_ref=ref,
+                )
+            )
+        elif not existing.done:
+            update_todo(conn, existing.id, title=title, due_on=due_on)
+            found = get_todo(conn, existing.id)
+            if found is not None:
+                written.append(found)
+    return written
+
+
+def reopen_apply_todo(
+    conn: sqlite3.Connection,
+    student_id: str,
+    catalog_id: str,
+    name: str,
+    due_on: str | None,
+) -> Todo | None:
+    """"Apply again": the program's own to-do, un-ticked and redated for this round."""
+    existing = find_todo(conn, student_id, "opportunity", catalog_id)
+    if existing is None:
+        return None
+    update_todo(conn, existing.id, title=f"{APPLY_PREFIX}{name}", due_on=due_on)
+    set_todo_done(conn, existing.id, False)
     return get_todo(conn, existing.id)
 
 

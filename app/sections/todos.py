@@ -7,8 +7,8 @@ import streamlit as st
 
 from app import identity, modes, state
 from app.components import render_empty_state
-from app.helpers import deadline_badge, friendly_date, parse_date
-from src.store import requirements, todos
+from app.helpers import deadline_badge, friendly_date, markdown_safe, parse_date
+from src.store import experiences, requirements, todos
 from src.store.db import open_db
 
 ERROR_STATE_KEY = "todos_error"
@@ -108,6 +108,11 @@ def next_up_text(groups: dict[str, list[todos.TodoRow]], today: date) -> str | N
     return None
 
 
+def acceptance_line(experience: experiences.Experience) -> str:
+    """Her week, as a parent reads it: the result only, never her notes."""
+    return f"Accepted to {experience.title}"
+
+
 def _recently_done(rows: list[todos.TodoRow], today: date) -> list[todos.TodoRow]:
     cutoff = today - timedelta(days=DONE_VISIBLE_DAYS)
     return [row for row in rows if (parse_date(row.done_on) or today) >= cutoff]
@@ -117,7 +122,12 @@ def _tick(row: todos.TodoRow, widget_key: str, done_by: str, today: date) -> Non
     try:
         with open_db() as conn:
             todos.set_row_done(
-                conn, row, bool(st.session_state.get(widget_key)), done_by=done_by, today=today
+                conn,
+                row,
+                bool(st.session_state.get(widget_key)),
+                done_by=done_by,
+                today=today,
+                program_ids=state.program_ids(),
             )
     except Exception as exc:
         st.session_state[ERROR_STATE_KEY] = f"Could not save that tick: {exc}"
@@ -217,6 +227,13 @@ def render() -> None:
             todos.sync_milestone_todos(conn, student_id, grade_level or None, today=today_value)
             requirements.sync_requirement_todos(conn, student_id, today=today_value)
             rows = todos.assemble_rows(conn, student_id, role, today=today_value)
+            accepted = (
+                experiences.recently_accepted(
+                    experiences.list_experiences(conn, student_id), today_value, DONE_VISIBLE_DAYS
+                )
+                if role == "parent"
+                else []
+            )
     except Exception as exc:
         st.error(f"Could not open the family database: {exc}")
         return
@@ -248,7 +265,10 @@ def render() -> None:
                 draw(row)
 
     done = _recently_done(groups["done"], today_value)
-    if done:
-        with st.expander(f"Done recently ({len(done)})"):
+    if done or accepted:
+        with st.expander(f"Done recently ({len(done) + len(accepted)})"):
+            for experience in accepted:
+                with st.container(border=True, key=f"accepted_{experience.id}"):
+                    st.markdown(f":material/celebration: {markdown_safe(acceptance_line(experience))}")
             for row in done:
                 draw(row)

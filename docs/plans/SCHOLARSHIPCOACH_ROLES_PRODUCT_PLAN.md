@@ -1053,7 +1053,7 @@ python scripts/screenshot_app.py --journeys --scratch-db
 ```
 
 **Checklist:**
-- [ ] `src/store/migrations/0010_experiences.sql`, `CREATE … IF NOT EXISTS` only (A.1 rule):
+- [x] `src/store/migrations/0010_experiences.sql`, `CREATE … IF NOT EXISTS` only (A.1 rule):
       `experiences` (`id`, `student_id` FK cascade, `catalog_id` nullable, `title`,
       `organization`, `kind` in `program|club|award|job|volunteer|other`, `status` in
       `applied|accepted|waitlisted|not_accepted|declined|completed|active`, `starts_on`,
@@ -1061,41 +1061,80 @@ python scripts/screenshot_app.py --journeys --scratch-db
       `created_by`, `created_role`, `created_at`, `updated_at`); a partial unique index on
       (`student_id`, `catalog_id`, `term`) where `catalog_id` is not null. Named `experiences`,
       not `activities`, because `activity_days` (0009) already means app logins
-- [ ] `src/store/experiences.py`: CRUD plus a status graph in the tracker's style.
+- [x] `src/store/experiences.py`: CRUD plus a status graph in the tracker's style.
       Program results: `applied → accepted | waitlisted | not_accepted`, `waitlisted → accepted |
       not_accepted`, `accepted → completed | declined`, each able to step back one (a misclick is
       not permanent). Hand-entered rows (clubs, awards, jobs) use `active | completed` only. Pure
       helpers: `record_applied`, `set_status`, `honors_list` (accepted / completed / active rows,
       newest first), `honors_text` (plain-text brag sheet)
-- [ ] Opportunities: once a program is on her to-dos, the card shows its result. Ticking the
+- [x] Opportunities: once a program is on her to-dos, the card shows its result. Ticking the
       "Apply to …" to-do (here or on To-dos) records `applied`; the card then offers the next
       statuses. A program that is `accepted` or `completed` moves to a **Yours** group with
       "Accepted · Spring 2027" instead of reappearing under Open now / Opens later in a later
       year; `not_accepted` keeps the card where it was and next year's to-do offers "Apply
       again". Scholarships on this page are unchanged (they still go to Applications)
-- [ ] On `accepted`: a short form for term and start/end dates, then to-dos for "Starts …" and
+- [x] On `accepted`: a short form for term and start/end dates, then to-dos for "Starts …" and
       "Finish …" (`source_kind=opportunity`, `source_ref=<catalog_id>:start` / `:finish`, so
       `_opportunity_todos` keyed on the bare ID still finds only the apply to-do). No `todos`
       CHECK rebuild in this task (see B.3's deferred note)
-- [ ] On `accepted`: one offered button, "Add <sponsor> to my memberships", so catalog records
+- [x] On `accepted`: one offered button, "Add <sponsor> to my memberships", so catalog records
       with `membership_required` (alumni awards) match her in Stage 1. Never automatic
-- [ ] My Path: an **Activities & Honors** section under the checklist: `honors_list` rows,
+- [x] My Path: an **Activities & Honors** section under the checklist: `honors_list` rows,
       "Add an activity" (title, organization, kind, term or dates, hours, notes) and a
       `st.download_button` for `honors_text` (the brag sheet for counselors and applications).
       Student edits; Parent sees it read-only on her My Path, like her requirements
-- [ ] Parent To-dos / P3: an acceptance shows in "what she did this week" as one line
+- [x] Parent To-dos / P3: an acceptance shows in "what she did this week" as one line
       ("Accepted to <program>"), with no notes text
-- [ ] Screenshot seed: a fictional program record taken from applied to accepted, plus one
+- [x] Screenshot seed: a fictional program record taken from applied to accepted, plus one
       hand-entered club. No committed file, seed or commit message says which program she
       applied to or got into; her real entry is made in the app on the server
-- [ ] Measured at 400px: from My Path, record "accepted" on a program on her to-dos in ≤ 3 taps
+- [x] Measured at 400px: from My Path, record "accepted" on a program on her to-dos in ≤ 3 taps
       (S7); the honors list loads on My Path with 0 extra taps
-- [ ] Tests: migration re-runs cleanly on a database at 0009 and keeps every row; status graph
+- [x] Tests: migration re-runs cleanly on a database at 0009 and keeps every row; status graph
       (allowed, refused, step back); ticking the apply to-do records `applied` once (idempotent);
       accepted programs leave Open now / Opens later and appear under Yours; `not_accepted`
       does not; follow-up to-do refs do not collide with the apply to-do; programs still absent
       from Applications, Outcomes, Colleges & Money and the win-model export
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-11-13):**
+- *Data.* `0010_experiences.sql` is CREATE-only (table plus the partial unique index and a
+  student index); a test upgrades a populated 0009 database and re-runs the file. A program's
+  first row has `term` = the school year ("2026–27") until she names one on acceptance, so a
+  program she was not accepted to can be applied to again next year as a new row.
+- *Status graph.* `src/store/experiences.py`, as specified. The step back from `accepted` is
+  `applied`; `not_accepted` steps back to `applied`; `declined` and `completed` step back to
+  `accepted`. Catalog rows follow the program graph and hand-entered rows `active | completed`,
+  decided by whether `catalog_id` is set.
+- *Recording `applied`.* A to-do does not say whether its record is a program or an award, so
+  `set_row_done` takes `program_ids` (the To-dos tick reads them from the snapshot,
+  `state.program_ids()`). Only a program's row whose title starts "Apply to " records it;
+  "Watch for …", "Check the dates for …" and the follow-ups do not. Un-ticking drops the row
+  while it is still `applied`; a result she has recorded survives. Added an "I applied"
+  button on the card for a program whose apply to-do is still open, so "here" in the checklist
+  has a control (the walk uses it as S7's setup).
+- *Opportunities.* A program with a result shows "Heard back?" (a segmented control of the next
+  statuses) for her and a status badge for a parent. `accepted`/`completed` cards go to
+  **Yours** (after Opens later, before Passed this year) with the h3 "Accepted · Summer 2027"
+  and no Apply button. "Apply again" re-opens the program's own to-do (un-ticked, retitled,
+  redated by `todo_plan`), so `_opportunity_todos` still keys on the bare ID. The accepted
+  form (term, starts, ends) shows until a start date is saved. The follow-ups read "Start …"
+  and "Finish …" (imperative, like the other to-dos) rather than "Starts …".
+- *My Path.* Activities & Honors sits under Coming up, not between the checklist and Coming
+  up, so the next three things stay next to the path. A parent sees the list without her
+  notes and without Add or Remove; both can download the brag sheet. Hand-entered rows have a
+  Remove button for a mistaken entry.
+- *Parent week (P3).* "Done recently" in Parent mode adds one line per program accepted in the
+  last 14 days ("Accepted to …"), counted in the expander label, using `updated_at` as the
+  date (no new column).
+- *Measured (journeys, 400×860).* S7: 3 taps against 3 (Opportunities link, Accepted, Save
+  dates; typing is free); the honors list is on My Path at 0 extra taps. The other journeys
+  are unchanged from A.10 (P2, P3, P4 over, as recorded there). P4 failed once with the
+  requirements editor dropping the first keystrokes, then passed on the rerun.
+- *Seed.* `seed_path` adds "Example Robotics Institute" (applied, then accepted, Summer 2027)
+  and a "Robotics club". Both are made up; her real entry is made on the server.
+- *Deploy note.* Pushing this adds `src/store/migrations/0010_experiences.sql`; the next server
+  update migrates the family database after its backup.
 
 ---
 
