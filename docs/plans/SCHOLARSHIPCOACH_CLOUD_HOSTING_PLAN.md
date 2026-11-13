@@ -499,12 +499,18 @@ everything she sees and is told on day one has to be in place before it.
       the server's snapshot, and one built before Task A.7 has no `kind` column, so her
       Opportunities page lists no programs until it is rebuilt. Check that the summer programs
       show on Opportunities in Student view
-- [ ] Task 1.4 (catalog sync privacy guard) deployed and its terms file in place on the server
+- [x] Task 1.4 (catalog sync privacy guard) deployed and its terms file in place on the server
+      *(2026-10-11: deployed at `1b1d994` and drilled; see Task 1.4's owner item)*
 - [ ] Each parent told the catalog rule: a catalog record is published to the public repo the
       night it is saved, so nothing about her goes into any field (no "for her", no "her first
       choice" in Notes, no family names in Verified by: sign as "Parent"; the records already
       signed before 2026-10-11 stay as they are); her school and plans live only in
       Colleges & Money, My Path and To-dos, which stay in `coach.db`
+- [ ] Each family member handed a written setup guide written for a first-time user (accepting
+      the tailnet invite, Tailscale and home-screen setup on iPhone/Android, optional
+      Windows/Mac setup, what each page is for, what the app counts, a troubleshooting table;
+      the parent guide also carries the catalog rule above). The guides stay git-ignored under
+      `data/private/`, since they carry the real tailnet address
 - [x] The private-list `git grep` for her school's name (Roles & Product Plan Task A.10) comes
       back clean *(2026-10-11, see that task's notes)*
 
