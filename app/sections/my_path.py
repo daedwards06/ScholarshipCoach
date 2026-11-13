@@ -10,7 +10,7 @@ from app.components import render_empty_state
 from app.helpers import BadgeColor, markdown_safe
 from app.sections import todos as todos_page
 from app.sections.what_if import GOAL_QUERY_PARAM
-from src.store import repo, requirements, todos
+from src.store import experiences, repo, requirements, todos
 from src.store.db import open_db
 from src.store.repo import College, CollegeRequirement
 
@@ -204,6 +204,127 @@ def _render_coming_up(
         )
 
 
+def honors_caption(experience: experiences.Experience) -> str:
+    parts = [
+        experiences.summary_line(experience),
+        experiences.dates_text(experience),
+        experiences.hours_text(experience.hours_per_week),
+    ]
+    return " · ".join(part for part in parts if part)
+
+
+def _add_activity(values: dict[str, Any], role: str) -> bool:
+    created_by, created_role = todos_page.author_for(identity.current_identity(), role)
+    starts_on, ends_on = values["starts_on"], values["ends_on"]
+    try:
+        with open_db() as conn:
+            experiences.create_experience(
+                conn,
+                state.ensure_student(conn),
+                values["title"],
+                organization=values["organization"],
+                kind=values["kind"],
+                status=values["status"],
+                term=values["term"],
+                starts_on=starts_on.isoformat() if isinstance(starts_on, date) else None,
+                ends_on=ends_on.isoformat() if isinstance(ends_on, date) else None,
+                hours_per_week=float(values["hours"]) or None,
+                notes=values["notes"],
+                created_by=created_by,
+                created_role=created_role,
+            )
+    except Exception as exc:
+        st.error(f"Could not add that: {exc}")
+        return False
+    return True
+
+
+def _remove_activity(experience_id: int) -> None:
+    try:
+        with open_db() as conn:
+            experiences.delete_experience(conn, experience_id)
+    except Exception as exc:
+        st.session_state[ERROR_STATE_KEY] = f"Could not remove that: {exc}"
+
+
+def _render_add_activity(role: str, expanded: bool) -> None:
+    with st.expander("Add an activity", icon=":material/add:", expanded=expanded):
+        with st.form("add_activity", clear_on_submit=True, border=False):
+            title = st.text_input("Activity", placeholder="Robotics club")
+            organization = st.text_input("Organization (optional)")
+            kind = st.selectbox(
+                "Kind",
+                options=experiences.KINDS,
+                index=experiences.KINDS.index("club"),
+                format_func=lambda value: experiences.KIND_LABELS[str(value)],
+            )
+            status = st.radio(
+                "Status",
+                options=experiences.HAND_ENTERED_STATUSES,
+                format_func=lambda value: experiences.STATUS_LABELS[str(value)],
+                horizontal=True,
+            )
+            term = st.text_input("Term or years (optional)", placeholder="9th–10th grade")
+            starts_on = st.date_input("Started (optional)", value=None, format="MM/DD/YYYY")
+            ends_on = st.date_input("Ended (optional)", value=None, format="MM/DD/YYYY")
+            hours = st.number_input("Hours per week", min_value=0.0, max_value=80.0, step=1.0)
+            notes = st.text_area("What you did (optional)", height=80)
+            if st.form_submit_button("Add activity", type="primary") and title.strip():
+                added = _add_activity(
+                    {
+                        "title": title.strip(),
+                        "organization": organization.strip(),
+                        "kind": str(kind),
+                        "status": str(status),
+                        "term": term.strip(),
+                        "starts_on": starts_on,
+                        "ends_on": ends_on,
+                        "hours": hours,
+                        "notes": notes.strip(),
+                    },
+                    role,
+                )
+                if added:
+                    st.rerun()
+
+
+def _render_honors(
+    found: list[experiences.Experience], *, mode: modes.Mode, role: str, name: str, today: date
+) -> None:
+    st.subheader("Activities & Honors")
+    rows = experiences.honors_list(found)
+    if not rows:
+        st.caption(
+            "Programs you get into and activities you add show here."
+            if role == "student"
+            else "Programs she gets into and activities she adds show here."
+        )
+    for experience in rows:
+        with st.container(border=True, key=f"honor_{experience.id}", gap="small"):
+            st.markdown(f"**{markdown_safe(experience.title)}**")
+            st.caption(markdown_safe(honors_caption(experience)))
+            # Her own words stay hers; a parent sees the list, not the notes.
+            if role == "student" and experience.notes:
+                st.caption(markdown_safe(experience.notes))
+            if mode == "student" and not experience.from_catalog:
+                st.button(
+                    "Remove",
+                    key=f"honor_remove_{experience.id}",
+                    on_click=_remove_activity,
+                    args=(experience.id,),
+                )
+    if mode == "student":
+        _render_add_activity(role, expanded=False)
+    st.download_button(
+        "Download brag sheet",
+        data=experiences.honors_text(found, name=name, today=today),
+        file_name="activities-and-honors.txt",
+        mime="text/plain",
+        icon=":material/download:",
+        help="A plain list for counselors writing letters, and for applications.",
+    )
+
+
 def render() -> None:
     mode = state.current_mode()
     role = todos_page.viewer_role(mode)
@@ -225,6 +346,7 @@ def render() -> None:
             college = repo.first_target_college(conn, student_id)
             items = [] if college is None else repo.list_requirements(conn, college.id)
             rows = todos.assemble_rows(conn, student_id, role, today=today_value)
+            found = experiences.list_experiences(conn, student_id)
     except Exception as exc:
         st.error(f"Could not open the family database: {exc}")
         return
@@ -247,6 +369,9 @@ def render() -> None:
         )
 
     _render_coming_up(rows, mode=mode, role=role, viewer_name=viewer_name, today=today_value)
+    _render_honors(
+        found, mode=mode, role=role, name=str(profile.get("name") or ""), today=today_value
+    )
 
     if mode == "student":
         modes.render_home_links(mode, "my_path")

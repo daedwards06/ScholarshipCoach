@@ -16,11 +16,17 @@ PHASE_A_MIGRATIONS = (
     "0007_college_priority.sql",
     "0008_essay_sharing.sql",
     "0009_activity.sql",
+    "0010_experiences.sql",
 )
 
 # Each Phase A file creates only IF NOT EXISTS objects or holds a single ALTER,
 # so an interrupted CREATE-only file can be run again from the top.
-RERUNNABLE = ("0005_shared_todos.sql", "0006_college_requirements.sql", "0009_activity.sql")
+RERUNNABLE = (
+    "0005_shared_todos.sql",
+    "0006_college_requirements.sql",
+    "0009_activity.sql",
+    "0010_experiences.sql",
+)
 
 TABLES_AT_0004 = (
     "students",
@@ -104,7 +110,7 @@ def _counts(conn: sqlite3.Connection) -> dict[str, int]:
 
 def test_phase_a_migrations_ship_in_order() -> None:
     names = [path.name for path in migration_files()]
-    assert names[4:9] == list(PHASE_A_MIGRATIONS)
+    assert names[4:10] == list(PHASE_A_MIGRATIONS)
 
 
 @pytest.mark.parametrize("last", PHASE_A_MIGRATIONS)

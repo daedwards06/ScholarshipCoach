@@ -286,7 +286,7 @@ python scripts/validate_catalog.py
 - [x] `catalog_sync.sh` runs it on the changed record files and delta reports **before**
       `git commit`. Any non-zero exit means nothing is committed or pushed. Fails closed: a
       missing terms file stops the sync, so a forgotten file cannot let a record through
-- [ ] The server copy of the lists holds the school's own names and abbreviations, plus her first
+- [x] The server copy of the lists holds the school's own names and abbreviations, plus her first
       name: no place names that the local catalog legitimately contains (they would hold every
       new local award), and not the family surname (the repo's authorship is public already)
       *(2026-10-11, owner: her first name added, since a "for her" note is the slip most likely
@@ -301,10 +301,15 @@ python scripts/validate_catalog.py
 - [x] Tests in `tests/test_deploy_config.py`: the sync calls the check before `git commit`; the
       check uses fixed strings and prints file names only; the terms file is under
       `data/private/`
-- [ ] *Owner, on the server:* copy the two lists from the development PC's `data/private/` (minus
+- [x] *Owner, on the server:* copy the two lists from the development PC's `data/private/` (minus
       the control line, place names and the family surname; plus her first name), then drill: a scratch record change that
       adds one term makes `privacy_check.sh` exit 1 and name the file; a `checked_on`-only change
       to an existing record that already contains a place name exits 0
+      *(2026-10-11: lists copied to the server, coach owned, mode 600, LF, no byte-order mark;
+      the school's names and abbreviations plus her first name, nickname and surname, no
+      places. Drilled after deploying `1b1d994`: a scratch record naming the school exited 1
+      and named only the file; a `checked_on` change to a record naming the county exited 0;
+      the checkout was left clean. The dev PC's audit lists now carry the school terms too)*
 - [x] All five CI commands green
       *(2026-10-11: the check pins `LC_ALL=C.UTF-8` and treats a grep error as exit 2, so a
       crashed grep holds the sync instead of reading as clean. `bootstrap.sh` lists the two
@@ -494,12 +499,18 @@ everything she sees and is told on day one has to be in place before it.
       the server's snapshot, and one built before Task A.7 has no `kind` column, so her
       Opportunities page lists no programs until it is rebuilt. Check that the summer programs
       show on Opportunities in Student view
-- [ ] Task 1.4 (catalog sync privacy guard) deployed and its terms file in place on the server
+- [x] Task 1.4 (catalog sync privacy guard) deployed and its terms file in place on the server
+      *(2026-10-11: deployed at `1b1d994` and drilled; see Task 1.4's owner item)*
 - [ ] Each parent told the catalog rule: a catalog record is published to the public repo the
       night it is saved, so nothing about her goes into any field (no "for her", no "her first
       choice" in Notes, no family names in Verified by: sign as "Parent"; the records already
       signed before 2026-10-11 stay as they are); her school and plans live only in
       Colleges & Money, My Path and To-dos, which stay in `coach.db`
+- [ ] Each family member handed a written setup guide written for a first-time user (accepting
+      the tailnet invite, Tailscale and home-screen setup on iPhone/Android, optional
+      Windows/Mac setup, what each page is for, what the app counts, a troubleshooting table;
+      the parent guide also carries the catalog rule above). The guides stay git-ignored under
+      `data/private/`, since they carry the real tailnet address
 - [x] The private-list `git grep` for her school's name (Roles & Product Plan Task A.10) comes
       back clean *(2026-10-11, see that task's notes)*
 

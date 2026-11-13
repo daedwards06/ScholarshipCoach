@@ -5,7 +5,7 @@
 ### A scholarship decision-support tool for one family, with a recommender inside
 
 [![CI](https://github.com/daedwards06/ScholarshipCoach/actions/workflows/ci.yml/badge.svg)](https://github.com/daedwards06/ScholarshipCoach/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-89%25%20%28CI--enforced%20%E2%89%A5%2070%25%29-brightgreen)](https://github.com/daedwards06/ScholarshipCoach)
+[![Coverage](https://img.shields.io/badge/coverage-90%25%20%28CI--enforced%20%E2%89%A5%2070%25%29-brightgreen)](https://github.com/daedwards06/ScholarshipCoach)
 [![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -20,8 +20,9 @@
 actually apply to, when each one is due, what each one needs written, and how the outside money
 compares to the institutional and state aid that is usually the larger number.
 
-It runs on a home PC, is opened from a phone on the same Wi-Fi, and has no public deployment —
-it holds a real student's profile, essays and application history.
+It runs on a small cloud server reachable only over the family's private Tailscale network, is
+opened from a phone, and has no public deployment — it holds a real student's profile, essays and
+application history.
 
 Ranking is one component of that, not the product. A deterministic four-stage pipeline filters on
 eligibility, buckets awards onto the student's timeline, scores semantic fit, and reranks by a
@@ -35,11 +36,14 @@ plus date, so a run is reproducible and a result is explainable to the person ac
 | **Catalog** | Hand-curated JSON records plus a licensed structured feed. Automation proposes into an inbox; a person confirms before anything counts |
 | **Eligibility** | Filters on major, state, county, education level, grade, GPA, test scores, citizenship, need, first-gen, heritage, military, disability, religion, employer and membership — 20 reason codes, one per way an award can be ruled out |
 | **Timeline** | Every surviving award lands in `now`, `next_cycle`, `senior_year`, `expired` or `not_applicable`, with the next cycle projected for recurring awards |
+| **My Path** | The courses, tests, GPA targets and programs her first target school asks for, by school year |
+| **To-dos** | One shared list the student and parents both add to, with who asked and who finished |
+| **Opportunities** | Summer programs and camps (catalog `kind: program`), kept apart from awards |
 | **Tracker** | Applications, per-award checklists, milestones, calendar export |
-| **Essays** | Versioned essay bank linked to the applications that reuse each one; recommender requests |
+| **Essays** | Versioned essay bank linked to the applications that reuse each one, private until she shares a draft; recommender requests |
 | **Colleges and money** | Outside awards sized against institutional and state aid |
-| **What-if** | What a higher GPA, a test score or more service hours would unlock, in awards and dollars |
-| **Modes** | Student (daily view), parent (curation, money, settings), operator (pipeline controls, off by default) |
+| **What-if** | What a higher GPA, a test score or more service hours would unlock, in awards and in her school goals |
+| **Modes** | Student (her path: My Path, To-dos, Opportunities, Essays), parent (the money view: Find, Applications, Colleges & Money, Timeline, plus curation and settings), operator (pipeline controls, off by default) |
 
 ---
 
@@ -104,17 +108,20 @@ flag and a dated note per source.
 
 | Source | Trust | Records | License / terms |
 |---|---|---:|---|
-| `curated_catalog` — hand-curated records in `data/catalog/records/` | `verified_local` | 34 | Project-owned |
+| `curated_catalog` — hand-curated records in `data/catalog/records/` | `verified_local` | 40 (34 awards + 6 programs) | Project-owned |
 | `open_scholarships` — [Open Scholarships](https://github.com/Grudged/open-scholarships) structured API feed | `structured_feed` | 99 | CC BY 4.0 |
 | `scholarship_america` — public listing scrape | — | disabled | Awards enter through the inbox (URL prefill) instead |
 | `bold_org` | — | disabled | Client-rendered listing; returned 0 records since June 2026 |
 
-*Counts are from `scholarships_snapshot_20260926.parquet` (133 records)*, a curated-only rebuild:
-the 34 catalog records were re-parsed and the 99 `open_scholarships` rows were carried forward
+*Counts are from `scholarships_snapshot_20261011.parquet` (139 records)*, a curated-only rebuild:
+the 40 catalog records were re-parsed and the 99 `open_scholarships` rows were carried forward
 from the prior snapshot. The feed contributed 102 rows on 2026-09-12; "Dell Scholars Program" now
 collapses onto the curated Dell Technologies record, and "Golden Door Scholars" and "Out to
 Innovate Scholarship" are no longer in the carried-forward set. 23 of the
-34 curated records are NC-scoped, 12 of those to named counties. `scholarship_america`
+34 curated awards are NC-scoped, 12 of those to named counties. The 6 programs (summer programs
+and camps, 2 of them NC-only) are filtered out before Stage 1 in the app and appear only on
+Opportunities. The golden evaluation still scores all 139 rows, and the programs leave its
+headline metrics unchanged. `scholarship_america`
 contributed nothing in the builds before it was disabled: every run capped
 it to zero listing pages, and the health check reported
 `Source 'scholarship_america' returned 0 records but returned 13 on the prior run` each time. It
@@ -201,9 +208,11 @@ Evaluation is **offline and snapshot-based**. Proxy relevance labels are heurist
 configurable (`hybrid` = keyword OR similarity threshold; `no_similarity` = structured + keyword
 only).
 
-**Measured 2026-09-26** on `scholarships_snapshot_20260926.parquet` — **133 records**
-(34 `verified_local` + 99 `structured_feed`, no `unverified` or `aggregator` rows) — across
-**9 golden profiles**, K=10, embeddings similarity mode, win model off:
+**Measured 2026-11-02** on `scholarships_snapshot_20261011.parquet` — **139 records**
+(40 `verified_local`, 6 of them programs, + 99 `structured_feed`, no `unverified` or
+`aggregator` rows) — across **9 golden profiles**, K=10, embeddings similarity mode, win model
+off. Every metric below matches the 2026-09-26 run on the 133-record snapshot to three decimals;
+only the pair counts grew with the six program records:
 
 | Configuration | NDCG@10 (hybrid) | NDCG@10 (no_similarity) | Coverage@10 | Unique awards |
 |:---|---:|---:|---:|---:|
@@ -211,7 +220,8 @@ only).
 | **Tuned (`best_weights.json`)** | **0.803** | **0.624** | **0.456** | **41** |
 
 Every number is lower than on 2026-09-13 (0.831 tuned), and the cause is the catalog, not the
-code: the current code on the old `scholarships_snapshot_20260912.parquet` still scores 0.831. The
+code: the code as of 2026-09-26, run on the old `scholarships_snapshot_20260912.parquet`, still
+scored 0.831. The
 22 NC awards seeded since then are not the cause either — they widen the NC CS persona's eligible
 set from 104 to 124, but no golden profile's top-10 changes with or without them. What moved the
 number is the records that were corrected or left before the seeding: the five `unverified` curated
@@ -227,7 +237,7 @@ the tuner learning the shape of one label rule.
 
 | Metric | Value |
 |:---|---:|
-| Eligibility precision | 0.529 (633 eligible of 1,197 profile×award pairs) |
+| Eligibility precision | 0.511 (639 eligible of 1,251 profile×award pairs) |
 | Amount in top-10 (mean / median / max) | $28,905 / $10,000 / $250,000 |
 | Ranking stability (re-run determinism) | Exact match |
 | NDCG@10, TF-IDF mode (same weights) | 0.648 |
@@ -243,12 +253,12 @@ The 2026-09-12 review found `majors_allowed`, `min_gpa` and `education_level` at
 in every snapshot in the repo** — Stage 1 was effectively a state-plus-deadline filter. The
 reason-code breakdown across the 9 golden profiles is the check that this changed:
 
-| Reason code | Rejections (2026-09-26, 1,197 pairs) | Rejections (2026-09-13, 963 pairs) |
+| Reason code | Rejections (2026-11-02, 1,251 pairs) | Rejections (2026-09-13, 963 pairs) |
 |:---|---:|---:|
-| `EDUCATION_LEVEL_MISMATCH` | 484 | 336 |
-| `STATE_NOT_ALLOWED` | 161 | — |
+| `EDUCATION_LEVEL_MISMATCH` | 532 | 336 |
+| `STATE_NOT_ALLOWED` | 175 | — |
 | `MAJOR_NOT_ALLOWED` | 80 | 12 |
-| `GPA_BELOW_MIN` | 38 | 21 |
+| `GPA_BELOW_MIN` | 39 | 21 |
 | `CITIZENSHIP_MISMATCH` | 11 | 2 |
 
 `STATE_NOT_ALLOWED` is new because the catalog had no state-restricted curated award until the NC
@@ -325,9 +335,9 @@ scheme, and the win model still in the ranking path.
 The headline metrics come with caveats worth stating plainly. Full methodology in
 [`docs/evaluation.md`](docs/evaluation.md).
 
-- **The catalog is small, and 99 of 133 records come from one feed.** Open Scholarships is
+- **The catalog is small, and 99 of 133 awards come from one feed.** Open Scholarships is
   Nevada-focused, so state-restricted awards skew accordingly, and a single source dominating the
-  catalog limits what cross-profile coverage can mean. All **34** curated records are
+  catalog limits what cross-profile coverage can mean. All **34** curated awards are
   `verified_local`; **23** of them are NC-scoped and **12** of those are restricted to named
   county lists, every one of which includes Gaston. That is the whole local catalog — one
   county's awards and a handful of statewide ones, not a statewide survey.
@@ -346,8 +356,9 @@ The headline metrics come with caveats worth stating plainly. Full methodology i
 
   The filter is only as selective as the axes a record fills in, and most feed rows fill few.
 - **Most eligible awards still need a date.** Of the demo student's 106 eligible awards, **76**
-  land in the `needs_date` bucket — no deadline, no cycle month and `status: unknown` — against 21
-  in Now, 5 in Next cycle and 4 in a later school year. The bucket keeps Now honest; it does not
+  land in the `needs_date` bucket — no deadline, no cycle month and `status: unknown` — against 17
+  in Now, 9 in Next cycle and 4 in a later school year (as of 2026-11-02; the split moves with the
+  date). The bucket keeps Now honest; it does not
   make those 76 actionable. All 76 are feed rows, and each needs a person to look the date up.
 - **Proxy labels share features with the ranker.** Relevance labels are built from
   `keyword_overlap` and text similarity — the same signals Stage 2 scores on. Tuning weights to
@@ -497,54 +508,50 @@ no private profile present, the app loads the committed demo profile behind a vi
 
 ### 6 — Serve it to the family
 
-The app runs on one home PC and is opened from a phone on the same Wi-Fi. It binds to localhost
-by default; LAN exposure is opt-in and explicit:
+The family copy runs on a small Linux cloud server that has no public port. Streamlit binds to
+`127.0.0.1`, and `tailscale serve` is the only way in, giving the family's own devices an HTTPS
+name on the tailnet. **There is no public deployment:** `data/private/` holds a real student's
+profile, essays and application history, so access goes through a private network overlay,
+never a hosted URL.
 
-```powershell
-streamlit run app/main.py --server.address 0.0.0.0
-```
+- **Who is who.** The Tailscale login names each family member, and the `[family]` table in
+  `.streamlit/secrets.toml` (git-ignored) maps logins to student or parent. A `parent_pin` is the
+  fallback when no identity header arrives.
+- **Server scripts** live in [`deploy/`](deploy/): systemd units, `bootstrap.sh`, `update.sh`
+  (backs up, merges `main`, reinstalls, restarts, health-checks), nightly encrypted `restic`
+  backups with a drilled `restore.sh`, monthly catalog re-verification, and a nightly catalog
+  sync that pushes server-side catalog edits to a `server` branch for review. A fail-closed
+  privacy check holds that sync if a change contains any term from a private list.
+- **Deploying** is `.\scripts\deploy.ps1` from the dev PC after a push: it waits for green CI on
+  that commit, then runs `update.sh` over Tailscale SSH.
 
-Set a `parent_pin` in `.streamlit/secrets.toml` (git-ignored) first — it gates parent and operator
-modes while leaving the student's daily view open. **There is no public deployment:**
-`data/private/` holds a real student's profile, essays and application history, so off-network
-access goes through a private network overlay (Tailscale), never a hosted URL.
-
-See [`docs/operations.md`](docs/operations.md) for the runbook — start on boot, firewall scope,
-weekly backups of `data/private/`, restore steps.
+See [`docs/operations.md`](docs/operations.md) and
+[`docs/plans/SCHOLARSHIPCOACH_CLOUD_HOSTING_PLAN.md`](docs/plans/SCHOLARSHIPCOACH_CLOUD_HOSTING_PLAN.md)
+for the runbook and the reasons behind each choice.
 
 ---
 
 ## Screenshots
 
-Captured from the running app on the committed demo profile (Jordan Rivera, fictional). Launch it
-with `streamlit run app/main.py` to explore interactively.
+Captured with `scripts/screenshot_app.py` from a scratch database holding only the committed
+demo profile (fictional, moved to 10th grade) and a made-up first target school. Launch it with
+`streamlit run app/main.py` to explore interactively.
 
-**Ranked cards, student mode.** Each award is a card with its amount, deadline urgency, timeline
-bucket and plain-English reasons it matched; **Save** puts it on Applications, and the raw
-stage scores sit behind **Signal details**.
+**Student mode at phone width.** My Path lays out what her first target school asks for, by
+school year; What If shows how a GPA or test-score change moves her toward those goals.
 
-![Ranked scholarship cards in student mode](docs/images/ranked_cards.png)
+<img src="docs/images/my_path_what_if_phone.png" alt="My Path and What If in student mode at phone width" width="70%">
 
-<table>
-<tr>
-<td width="34%" valign="top">
+**Find Scholarships, parent mode.** Ranked award cards with amount, deadline badge and a flag for
+any eligibility axis the record leaves blank ("Confirm you meet: grade level"). **Save** puts an
+award on Applications; **Suggest to her** adds a to-do to her list.
 
-**This Week on a phone.** What is due in the next 14 days across saved applications, at the width
-the student actually opens it.
+![Ranked award cards in parent mode](docs/images/find_parent.png)
 
-<img src="docs/images/this_week_phone.png" alt="This Week view at phone width" width="100%">
+**Timeline, parent mode.** Deadlines, tasks and milestones by month, split into Apply now, Next
+cycle, A later school year and Needs a date, with a calendar export.
 
-</td>
-<td width="66%" valign="top">
-
-**The Inbox, parent mode.** A re-verification proposal shown as a field-level diff against the
-catalog record. Nothing reaches `data/catalog/records/` until a person confirms it here.
-
-<img src="docs/images/inbox_proposal.png" alt="Catalog inbox with a re-verification proposal diff" width="100%">
-
-</td>
-</tr>
-</table>
+![Timeline grouped by month and bucket](docs/images/timeline_parent.png)
 
 ---
 
@@ -567,16 +574,21 @@ ScholarshipCoach/
 │   ├── validate_catalog.py
 │   ├── evaluate_golden_students.py
 │   ├── make_labeling_worksheet.py
-│   └── tune_weights.py
+│   ├── tune_weights.py
+│   ├── screenshot_app.py # Page sweep and journey walk at 400px / 1366px (Playwright)
+│   └── deploy.ps1       # Wait for green CI, then update the server over Tailscale SSH
 ├── app/
-│   ├── main.py          # Streamlit app
-│   └── modes.py         # Student / parent / operator views
+│   ├── main.py          # Streamlit entry point and router
+│   ├── modes.py         # Student / parent / operator page lists
+│   ├── identity.py      # Tailscale identity, family PIN fallback
+│   └── sections/        # One module per page
+├── deploy/              # Server: systemd units, bootstrap/update, backups, catalog sync
 ├── data/
 │   ├── catalog/         # Curated records + schema + inbox (committed)
 │   ├── demo/            # Fictional demo profile (committed)
 │   ├── private/         # Real profile, coach.db, essays (git-ignored)
-│   ├── raw/             # Snapshot parquet files (git-ignored)
-│   └── processed/       # Weight profiles, evaluation reports
+│   ├── raw/             # Cached source fetches (git-ignored)
+│   └── processed/       # Snapshot parquet (git-ignored), weight profiles
 ├── tests/               # pytest suite
 ├── docs/
 │   ├── decisions.md     # Dated decision log
@@ -598,8 +610,8 @@ ScholarshipCoach/
 - **Additive schema changes** — old snapshots, golden profiles and tests keep working
 - **Private data never enters git** — profiles, database, essays and outcomes are git-ignored;
   a demo profile ships for anyone cloning
-- **Student owns, parent oversees** — parent mode adds curation, money and settings, and does not
-  edit the student's essays
+- **Student owns, parent oversees** — parent mode adds curation, money and settings; essays stay
+  private until the student shares a draft, and parents never edit them
 - **Measure the thing that exists** — README metrics describe the current catalog, and superseded
   numbers stay labeled rather than deleted
 
