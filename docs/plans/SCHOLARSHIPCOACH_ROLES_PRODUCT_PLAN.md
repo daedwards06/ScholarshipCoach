@@ -6,7 +6,7 @@
 > Owns **what** exists (roles, pages, what each page is for, data and catalog changes). The Design
 > Refresh Plan owns **how it looks**; the Cloud Hosting Plan owns **where it runs**
 > Executor: Claude via Claude Code, with owner-dependent tasks called out as such
-> Est. effort: Phase A 11 tasks → go/no-go gate → Phase B 5 tasks (only past the gate)
+> Est. effort: Phase A 12 tasks (A.11 added 2026-11-13) → go/no-go gate → Phase B 5 tasks (only past the gate)
 
 ---
 
@@ -234,6 +234,7 @@ from the current page, 3 through the folded nav (R3).
 | S4 | Student | Ask a parent for something ("Pay the PSAT fee") → it shows on their To-dos | 2 + typing | Seeing it marked done |
 | S5 | Student | What If: move GPA → see which target-school thresholds and awards it reaches | 1 from My Path | The gap on My Path ("0.25 to the program minimum") |
 | S6 | Student | Write an essay → share it with parents | 2 from Essays | A parent comment arrives as a to-do |
+| S7 | Student | Hear back from a program → mark it accepted → it lands in Activities & Honors *(A.11)* | 3 from My Path | "Starts …" in To-dos; the brag sheet |
 | P1 | Parent | Weekly: Find (results on arrival) → save an award → assign a step to her | 3 + nav | Deadlines in Applications and Timeline |
 | P2 | Parent | Add a program or award in Catalog & Inbox → it appears in her Opportunities with a "From your family" badge | form + 1 | Her "Added to my to-dos" shown on the parent To-dos |
 | P3 | Parent | See what she did this week (done to-dos, requirement progress) without opening her essays | 1 from home | Her activity |
@@ -1016,6 +1017,88 @@ python scripts/screenshot_app.py --journeys --scratch-db
 
 ---
 
+## Task A.11: When She Gets In — Program Results and Activities & Honors *(added 2026-11-13; before Hosting 3.1)*
+
+**Why:** A.7 stops at "Add to my to-dos". A program's to-do can only be ticked, so a ticked
+"Apply to …" is the last thing the app knows: there is no applied / accepted / not accepted, no
+follow-up once she is in, and nothing she can point to later. And a `recurring` program record
+comes back on Opportunities next year as if she had never done it. This is not hypothetical: she
+applied to a catalog program this fall and was accepted, and today there is nowhere to put that.
+Scholarship applications and essays (and later college applications) ask for activities and
+honors, and counselors ask for a brag sheet before writing a letter, so what she gets into is
+worth keeping in one list she owns. Programs stay out of the money views (Applications,
+Outcomes, Colleges & Money, the win model), as A.7 decided.
+
+**Preflight Files:**
+- `src/store/migrations/` (all, for numbering and the A.1 rule), `src/store/db.py`
+- `src/store/todos.py` (`SOURCE_KINDS`, `find_todo`, `create_todo`), `src/store/tracker.py`
+  (status-graph pattern: `ALLOWED_TRANSITIONS`, `can_transition`, `next_statuses`)
+- `app/sections/opportunities.py` (`todo_plan`, `_opportunity_todos`, `_add_to_todos`,
+  `_render_card`), `app/sections/my_path.py`, `app/sections/todos.py` (`source_page`)
+- `app/sections/profile.py` (Memberships), `app/state.py`
+- `app/modes.py` (who can view and edit what), `scripts/screenshot_app.py` (seed + journeys)
+- `design-system/scholarshipcoach/pages/student-mode.md` ("Opportunities", "Opportunity card"),
+  `design-system/scholarshipcoach/pages/parent-mode.md`
+- This plan's A.1 task notes (migration rule) and A.7 task notes
+
+**Validation Commands:**
+```powershell
+python -m pytest tests/ -q
+ruff check src/ scripts/ app/ tests/
+python -m mypy src/
+python -m mypy app/
+python scripts/validate_catalog.py
+python scripts/screenshot_app.py --theme both --scratch-db --seed
+python scripts/screenshot_app.py --journeys --scratch-db
+```
+
+**Checklist:**
+- [ ] `src/store/migrations/0010_experiences.sql`, `CREATE … IF NOT EXISTS` only (A.1 rule):
+      `experiences` (`id`, `student_id` FK cascade, `catalog_id` nullable, `title`,
+      `organization`, `kind` in `program|club|award|job|volunteer|other`, `status` in
+      `applied|accepted|waitlisted|not_accepted|declined|completed|active`, `starts_on`,
+      `ends_on`, `term` (free text, e.g. "Spring 2027"), `hours_per_week` nullable, `notes`,
+      `created_by`, `created_role`, `created_at`, `updated_at`); a partial unique index on
+      (`student_id`, `catalog_id`, `term`) where `catalog_id` is not null. Named `experiences`,
+      not `activities`, because `activity_days` (0009) already means app logins
+- [ ] `src/store/experiences.py`: CRUD plus a status graph in the tracker's style.
+      Program results: `applied → accepted | waitlisted | not_accepted`, `waitlisted → accepted |
+      not_accepted`, `accepted → completed | declined`, each able to step back one (a misclick is
+      not permanent). Hand-entered rows (clubs, awards, jobs) use `active | completed` only. Pure
+      helpers: `record_applied`, `set_status`, `honors_list` (accepted / completed / active rows,
+      newest first), `honors_text` (plain-text brag sheet)
+- [ ] Opportunities: once a program is on her to-dos, the card shows its result. Ticking the
+      "Apply to …" to-do (here or on To-dos) records `applied`; the card then offers the next
+      statuses. A program that is `accepted` or `completed` moves to a **Yours** group with
+      "Accepted · Spring 2027" instead of reappearing under Open now / Opens later in a later
+      year; `not_accepted` keeps the card where it was and next year's to-do offers "Apply
+      again". Scholarships on this page are unchanged (they still go to Applications)
+- [ ] On `accepted`: a short form for term and start/end dates, then to-dos for "Starts …" and
+      "Finish …" (`source_kind=opportunity`, `source_ref=<catalog_id>:start` / `:finish`, so
+      `_opportunity_todos` keyed on the bare ID still finds only the apply to-do). No `todos`
+      CHECK rebuild in this task (see B.3's deferred note)
+- [ ] On `accepted`: one offered button, "Add <sponsor> to my memberships", so catalog records
+      with `membership_required` (alumni awards) match her in Stage 1. Never automatic
+- [ ] My Path: an **Activities & Honors** section under the checklist: `honors_list` rows,
+      "Add an activity" (title, organization, kind, term or dates, hours, notes) and a
+      `st.download_button` for `honors_text` (the brag sheet for counselors and applications).
+      Student edits; Parent sees it read-only on her My Path, like her requirements
+- [ ] Parent To-dos / P3: an acceptance shows in "what she did this week" as one line
+      ("Accepted to <program>"), with no notes text
+- [ ] Screenshot seed: a fictional program record taken from applied to accepted, plus one
+      hand-entered club. No committed file, seed or commit message says which program she
+      applied to or got into; her real entry is made in the app on the server
+- [ ] Measured at 400px: from My Path, record "accepted" on a program on her to-dos in ≤ 3 taps
+      (S7); the honors list loads on My Path with 0 extra taps
+- [ ] Tests: migration re-runs cleanly on a database at 0009 and keeps every row; status graph
+      (allowed, refused, step back); ticking the apply to-do records `applied` once (idempotent);
+      accepted programs leave Open now / Opens later and appear under Yours; `not_accepted`
+      does not; follow-up to-do refs do not collide with the apply to-do; programs still absent
+      from Applications, Outcomes, Colleges & Money and the win-model export
+- [ ] All five CI commands green
+
+---
+
 # Go/No-Go Gate
 
 **When:** about four weeks after Cloud Hosting Task 3.1 onboards the family (D7). Ideally the window
@@ -1159,9 +1242,10 @@ Then, in order:
   A.8 What If bridge          ← absorbs Refresh 2.3 (What If)
   A.9 essays sharing          ← absorbs Refresh 2.3 (Essays, Recommenders); may run any time after A.2
   A.10 sweep + journey harness
+  A.11 program results + Activities & Honors   (added 2026-11-13: a real acceptance had no home)
 
 Design Refresh 3.2 (Timeline, Colleges & Money, Outcomes): after A.6
-Hosting 3.1 onboarding: after A.10 is deployed
+Hosting 3.1 onboarding: after A.11 is deployed
   → about four weeks of real use → Go/No-Go Gate
 Phase B (only on Go; B.4 also on Partial)
 Last, across everything: Design Refresh 4.1 sweep → 4.2 screenshots + docs
@@ -1171,7 +1255,8 @@ A.1 comes first because every page writes to its tables, and the server migrates
 request after an update. A.2 precedes A.4 so to-dos carry an author from their first row. A.3
 before the page tasks so each one only adds its own entry. A.4 and A.5 before A.6 so a failed gate
 falls back to a finished model A. A.10 last, so the family onboards to a version that is not about
-to change.
+to change. A.11 goes in before onboarding for the same reason, and so that her first real
+result is entered in the version she will use.
 
 Every task that adds a file under `src/store/migrations/` is flagged when pushed: the server update
 migrates the family database irreversibly, after a backup (CLAUDE.md Step 6).
@@ -1192,3 +1277,5 @@ migrates the family database irreversibly, after a backup (CLAUDE.md Step 6).
 8. No committed file names her first target school or identifies her.
 9. The go/no-go gate is held with recorded evidence before any Phase B task starts.
 10. All five CI commands green after every task.
+11. A program she gets into is recorded once, leaves the "apply" groups on Opportunities, and
+    shows in her Activities & Honors; programs still never appear in a money view.
