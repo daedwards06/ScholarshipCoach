@@ -278,29 +278,76 @@ python scripts/verify_catalog.py --since-days 0 --inbox-dir $env:TEMP\coach_inbo
 ```
 
 **Checklist:**
-- [ ] A fixture set first: saved page text for the failure cases already written down in
+- [x] A fixture set first: saved page text for the failure cases already written down in
       `docs/operations.md` (year-less "March 1"; an open date beside a labeled deadline; a
       sidebar post date; "first Monday in February"), each with the date a person would read
-- [ ] Year-less dates: a labeled month and day with no year becomes a candidate dated to its
+- [x] Year-less dates: a labeled month and day with no year becomes a candidate dated to its
       next occurrence, but only when it agrees with the record's `cycle.deadline_month`. It is
       proposed with a note saying the year was inferred
-- [ ] A date under a deadline label outranks any other date on the page; a date in a sentence
+- [x] A date under a deadline label outranks any other date on the page; a date in a sentence
       about opening ("opens", "will open", "available") is never the deadline
-- [ ] A proposed deadline must be in the future and within 14 months. A past date is not a new
+- [x] A proposed deadline must be in the future and within 14 months. A past date is not a new
       cycle
-- [ ] When the page's new date and the record's `cycle.deadline_month` disagree, the proposal
+- [x] When the page's new date and the record's `cycle.deadline_month` disagree, the proposal
       carries both the deadline and the corrected month, and its note says so
-- [ ] Rejections are remembered (V8): a proposal whose changed fields equal those of a rejected
+- [x] Rejections are remembered (V8): a proposal whose changed fields equal those of a rejected
       proposal with the same id is not written again; it is counted in the report as
-      `previously_rejected`. Applies to every proposal kind
-- [ ] Measured and recorded in the task notes: of the fixtures, how many dates are read correctly
+      `previously_rejected`. Applies to every proposal kind *(the Add Award form opts out; see
+      the notes)*
+- [x] Measured and recorded in the task notes: of the fixtures, how many dates are read correctly
       before and after; and on a dry run over all 40 records (to temp directories), how many
       deadline proposals result and how many of those a person agrees with. A wrong deadline
       proposal is worse than none: if precision on the dry run is under 9 in 10, tighten until it
       is, and record what was left unread
-- [ ] `docs/operations.md`: the "What prefill missed" items this fixes are marked fixed, the rest
+- [x] `docs/operations.md`: the "What prefill missed" items this fixes are marked fixed, the rest
       stay
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-11-14):**
+- *Fixtures.* `tests/resources/verify_deadline_fixtures.json`: ten page texts in the shape of the
+  real pages. Four are the `docs/operations.md` cases (year-less "DEADLINE March 1", an open date
+  beside a labeled deadline, sidebar post dates, "first Monday in February"). Six are guards: a
+  deadline in another month, "closes on" under a label, last cycle's date still posted, several
+  different labeled deadlines on one page, a year-less date in another month, and a calendar
+  that puts the date before its label. Each records the date a person would read, and a test
+  asserts what verify proposes for each one.
+- *Fixtures measured.* Before: of the 8 with a date to read, 2 read correctly, 6 missed, 0 wrong.
+  After: 6 read correctly, 2 left unread on purpose (the year-less date in another month, and
+  "2027 JAN 12 Application Deadline"), 0 wrong. The 2 with nothing to read propose nothing, before
+  and after.
+- *Dry run, all 40 records.* Every page was fetched once into a scratch cache, and verify ran
+  over a temp copy of the records. Before: 0 deadline proposals. The first version of the change
+  proposed 12, and a person would agree with 1. Ten AFCEA pages date the transcript-mailing
+  cutoff with "no later than May 1, 2027", and Duke's page dates the immunization upload with
+  "no later than June 1, 2027". Tightened so that "due", "no later than" and "closes on" count
+  only in a sentence (capped at 100 characters, because bulleted pages have no full stops) that
+  says "deadline" or "application", or with a colon. "Deadline" itself still needs no sentence.
+  After tightening: 1 deadline proposal (NCAE MLK Jr., "first Monday in February", proposed as
+  2027-02-01 with the inferred-year note), and a person agrees: 1 of 1. The live run behind the
+  validation command matches it.
+- *Why so few today.* Most dated pages still show last cycle's date ("Deadline March 2, 2026" on
+  the Gaston pages, March 13, 2026 for Space Grant). Those are now read, and refused by the past-date
+  rule. They should start proposing when the sponsors post the 2027 dates, around December–January,
+  which is when the cycle checkpoints re-read them.
+- *Left unread.* Dell ("2027 JAN 12 Application Deadline": the date comes before its label, and
+  the record's month, 2, disagrees, which it would correct). SWE (two different labeled deadlines
+  for different scholarships: ambiguous, so nothing is proposed). Golden LEAF ("March 1, 2027
+  Deadline to submit": the date comes before the label, but it already matches the record). An
+  unlabeled year-less date is never read.
+- *Rejections.* `inbox.propose` refuses (`PreviouslyRejectedError`) when `inbox/rejected/` holds a
+  file under the same id with the same changed fields: the diff's new values, or the whole record
+  for a new award, leaving out `provenance` because verify stamps a fresh `checked_on` every
+  run. The Add Award form passes `respect_rejections=False`: there a person enters and confirms
+  in one step, and an earlier rejection must not block them. Verify counts these as
+  `previously_rejected` in the report and the CLI line, and does not stamp `checked_on`, since the
+  page still disagrees.
+- *Side effect on the Add Award form.* An opening date ("Applications open ...") is no longer
+  offered as a deadline candidate. Two tests that expected it were updated.
+- *Validation command.* `verify_catalog.py` as listed in this task leaves `--records-dir` at its
+  default, so it stamps `checked_on` into the committed records. It was run with `--records-dir`
+  pointed at a temp copy. On that run the AFCEA NC chapter page returned 404, although it had
+  fetched normally about twenty minutes earlier. That dead-link proposal comes from the site, not
+  from this change.
 
 ---
 

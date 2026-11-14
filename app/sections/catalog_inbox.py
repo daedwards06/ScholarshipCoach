@@ -452,7 +452,12 @@ def _confirm_award_record(record: dict[str, Any], proposal_id: str | None) -> Pa
     """
     if proposal_id:
         return inbox.confirm(proposal_id, edits=record)
-    proposal = inbox.propose(record, kind="manual", notes="Entered by hand on the catalog page.")
+    proposal = inbox.propose(
+        record,
+        kind="manual",
+        notes="Entered by hand on the catalog page.",
+        respect_rejections=False,
+    )
     return inbox.confirm(proposal.proposal_id)
 
 

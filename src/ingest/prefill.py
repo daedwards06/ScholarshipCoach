@@ -19,22 +19,22 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 from src.ingest.extract_common import (
+    YearlessDate,
     extract_amounts,
     extract_field_value,
+    find_deadline_dates,
     find_min_gpa,
     find_nc_counties,
     find_requirement_flags,
     find_states,
     html_to_text,
     meta_content,
-    parse_date_candidates,
     tag_text,
 )
 
 logger = logging.getLogger(__name__)
 
 _MAX_TEXT_CHARS = 20_000
-_LABELED_DEADLINE_FIELDS = ["deadline", "due", "application deadline", "closes"]
 _LABELED_AMOUNT_FIELDS = ["amount", "award", "award amount", "value"]
 _LABELED_STATE_FIELDS = ["state/territory", "state", "territory", "residency"]
 
@@ -46,9 +46,14 @@ class ExtractionResult:
     Every field is ``None`` or empty unless the text stated it.  ``confidence``
     maps a field name to a 0-1 score for the fields that were populated; a
     field absent from ``confidence`` was not extracted.
+
+    ``deadline_yearless`` holds labeled deadlines the page gave without a
+    year, and only when it gave no labeled deadline with one: which year a
+    "March 1" means is the caller's call, made against the award's cycle.
     """
 
     deadline_candidates: list[str] = field(default_factory=list)
+    deadline_yearless: list[YearlessDate] = field(default_factory=list)
     amount_candidates: list[float] = field(default_factory=list)
     amount_min: float | None = None
     amount_max: float | None = None
@@ -106,14 +111,14 @@ class RegexExtractor:
         haystack = str(text)
         confidence: dict[str, float] = {}
 
-        labeled_deadline = extract_field_value(haystack, _LABELED_DEADLINE_FIELDS)
-        labeled_candidates = parse_date_candidates(labeled_deadline)
-        page_candidates = parse_date_candidates(haystack)
-        result.deadline_candidates = labeled_candidates or page_candidates
+        dates = find_deadline_dates(haystack)
+        result.deadline_candidates = dates.labeled or dates.other
         if result.deadline_candidates:
             confidence["deadline"] = _candidate_confidence(
-                count=len(result.deadline_candidates), labeled=bool(labeled_candidates)
+                count=len(result.deadline_candidates), labeled=bool(dates.labeled)
             )
+        if not dates.labeled:
+            result.deadline_yearless = dates.yearless
 
         labeled_amount = extract_field_value(haystack, _LABELED_AMOUNT_FIELDS)
         labeled_amounts = extract_amounts(labeled_amount)

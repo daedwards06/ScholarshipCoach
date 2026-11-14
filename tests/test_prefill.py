@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from src.ingest.extract_common import (
+    YearlessDate,
     extract_amount_range,
+    find_deadline_dates,
     find_nc_counties,
     find_requirement_flags,
     find_states,
@@ -63,6 +66,66 @@ def test_html_to_text_drops_script_and_style_bodies() -> None:
 def test_parse_date_candidates_merges_all_three_formats_in_page_order() -> None:
     text = "Opens 2027-01-10, closes 4/30/2027, final round June 1, 2027."
     assert parse_date_candidates(text) == ["2027-01-10", "2027-04-30", "2027-06-01"]
+
+
+def test_a_labeled_deadline_outranks_post_dates_in_the_sidebar() -> None:
+    text = (
+        "Deadline March 2, 2027. Please click here to apply. "
+        "Recent News October 7, 2025 Annual meeting recap"
+    )
+    dates = find_deadline_dates(text)
+    assert dates.labeled == ["2027-03-02"]
+    assert dates.other == ["2025-10-07"]
+
+
+def test_an_opening_date_is_dropped_even_without_a_label() -> None:
+    text = "The application will open on Monday, January 12, 2027. Results follow in May."
+    dates = find_deadline_dates(text)
+    assert dates.labeled == [] and dates.other == []
+
+
+def test_a_deadline_label_reads_through_a_time_and_a_weekday() -> None:
+    text = "Student application deadline : 5 p.m. ET, Friday, March 13, 2027 Faculty letters"
+    assert find_deadline_dates(text).labeled == ["2027-03-13"]
+
+
+def test_year_less_dates_count_only_under_a_deadline_label() -> None:
+    dates = find_deadline_dates("DEADLINE March 1 Apply through CFNC. Awards announced May 15.")
+    assert dates.yearless == [YearlessDate(month=3, day=1)]
+
+
+def test_a_weekday_in_a_month_is_a_year_less_date() -> None:
+    text = "Deadline for all materials: no later than the first Monday in February."
+    assert find_deadline_dates(text).yearless == [YearlessDate(month=2, weekday=0, nth=1)]
+
+
+def test_due_and_no_later_than_need_a_sentence_about_the_deadline() -> None:
+    mailing = "Official documents must be mailed to the address below no later than May 1, 2027."
+    immunization = "You must upload proof of immunizations no later than June 1, 2027."
+    assert find_deadline_dates(mailing).labeled == []
+    assert find_deadline_dates(immunization).labeled == []
+    assert find_deadline_dates("Application Questions are due January 5, 2027.").labeled == [
+        "2027-01-05"
+    ]
+    assert find_deadline_dates("Due: January 5, 2027").labeled == ["2027-01-05"]
+
+
+def test_year_less_date_resolves_in_a_given_year() -> None:
+    assert YearlessDate(month=2, weekday=0, nth=1).on(2027) == date(2027, 2, 1)
+    assert YearlessDate(month=2, weekday=0, nth=1).on(2026) == date(2026, 2, 2)
+    assert YearlessDate(month=5, weekday=4, nth=-1).on(2027) == date(2027, 5, 28)
+    assert YearlessDate(month=2, day=29).on(2027) == date(2027, 2, 28)
+
+
+def test_regex_extractor_keeps_year_less_deadlines_only_without_a_dated_one() -> None:
+    extractor = RegexExtractor()
+    yearless_only = extractor.extract(None, "Deadline: March 1. Submit one essay.")
+    assert yearless_only.deadline_candidates == []
+    assert yearless_only.deadline_yearless == [YearlessDate(month=3, day=1)]
+
+    both = extractor.extract(None, "Deadline: March 1, 2027. Late deadline: March 8.")
+    assert both.deadline == "2027-03-01"
+    assert both.deadline_yearless == []
 
 
 def test_parse_date_candidates_dedupes_and_rejects_impossible_dates() -> None:
@@ -164,9 +227,10 @@ def test_form_dict_carries_every_field_the_entry_form_needs() -> None:
 # --- aggregator page ------------------------------------------------------
 
 
-def test_aggregator_page_returns_every_date_candidate_without_choosing() -> None:
+def test_aggregator_page_returns_every_closing_date_without_choosing() -> None:
     extraction = _prefill(_AGGREGATOR).extraction
-    assert extraction.deadline_candidates == ["2027-01-10", "2027-04-30", "2027-06-01"]
+    # "Applications open 2027-01-10" is the opening date, never the deadline.
+    assert extraction.deadline_candidates == ["2027-04-30", "2027-06-01"]
     assert extraction.deadline is None
 
 

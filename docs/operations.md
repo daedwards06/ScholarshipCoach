@@ -323,6 +323,20 @@ A recurring record (`cycle.recurring: true`) is also due around its usual openin
 assumed to open two months before `cycle.deadline_month`. That way a monthly run re-reads an annual
 program's page when its new round is likely to be posted, not up to a year later.
 
+A deadline is proposed only when the page states exactly one under a label, and only when it falls
+after the run date and within 14 months: last cycle's date still on the page is not a new cycle.
+"Due" and "no later than" count as labels only in a sentence about the deadline or the application,
+because pages use them for transcript mailing, immunization forms and payments too. A labeled date
+with no year is dated to its next occurrence when its month is the record's `cycle.deadline_month`,
+and the proposal's note says the year was inferred. A dated deadline in a different month than
+`cycle.deadline_month` proposes the corrected month alongside it, with a note.
+
+A change a person rejected is not proposed again: when the proposal id and the changed fields
+(ignoring the `checked_*` stamp) match a file in `inbox/rejected/`, the run counts it as
+`previously_rejected` instead of writing it. This holds for every proposal kind; only the Add
+Award form, where a person enters and confirms at once, skips the check. A change to different
+values is proposed as usual.
+
 ### Run it by hand
 
 ```powershell
@@ -477,19 +491,26 @@ cycle's date before the award reaches the Now bucket.
 ### What prefill missed
 
 Recorded while seeding, for a later prefill task. Every one of these was corrected by hand before
-proposing.
+proposing. Items marked *fixed* name the task that fixed them.
 
-- **Year-less dates.** "March 1", "April 15", "February 1", and "first Monday in February" produce
-  no candidate. Pages state a recurring month far more often than a dated deadline.
-- **Wrong date chosen.** On CFNC pages the application-open date ("will open on Monday, January 12,
-  2026") was taken as the deadline, while the labeled "DEADLINE March 1" was missed. Unrelated dates
-  (info sessions, award announcements) crowd the candidate list.
+- **Year-less dates.** *Fixed (Freshness Task 1.2) under a deadline label:* "Deadline March 1" and
+  "no later than the first Monday in February" are read, and the verify pass dates them to their
+  next occurrence when the month is the record's `cycle.deadline_month`; the proposal's note says
+  the year was inferred. Still unread: a year-less date with no label, one in a month the record's
+  cycle disagrees with, and calendar layouts that put the date before its label ("JAN 12
+  Application Deadline"). The Add Award form still offers only dated candidates.
+- **Wrong date chosen.** *Fixed (Freshness Task 1.2):* a date right after "opens", "will open",
+  "open date" or "available" is never a deadline candidate, and a date right after a deadline label
+  ("DEADLINE March 1, 2027", "Deadline Due", "closes on", with or without a colon) outranks every
+  other date on the page. Unlabeled dates (info sessions, award announcements) still crowd the
+  candidate list when the page has no label.
 - **County lists.** The county pattern requires "X County" after every name, so "Alamance, Bertie,
   …, Swain or Warren county" yields only Warren, and "Cleveland, Gaston, Lincoln, Polk, and
   Rutherford Counties" yields two of five. A list in a linked PDF yields nothing. (Single-county
   pages — "Gaston County students" — were read correctly every time.)
-- **Page chrome dates.** On the Gaston foundation's pages, sidebar post dates ("October 7, 2025")
-  crowd out the labeled "Deadline March 2, 2026"; one page proposed the post date as its deadline.
+- **Page chrome dates.** *Fixed (Freshness Task 1.2):* on the Gaston foundation's pages, sidebar
+  post dates ("October 7, 2025") crowded out the labeled "Deadline March 2, 2026" because the label
+  had no colon; the label is now read without one and outranks the post dates.
 - **Postback portals.** FFTC's CommunityForce portal has no URL per fund, so there is nothing to
   paste into Add Award.
 - **Counties and states from prose.** "a native of Guilford County" restricted a statewide award to
