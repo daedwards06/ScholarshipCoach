@@ -50,6 +50,10 @@ class ProposalError(RuntimeError):
     """A proposal could not be written, found, or confirmed."""
 
 
+class PreviouslyRejectedError(ProposalError):
+    """A person already rejected this proposal with the same changes."""
+
+
 @dataclass(slots=True)
 class Proposal:
     """One pending change to the curated catalog, awaiting a person."""
@@ -123,12 +127,18 @@ def propose(
     created_on: date | str | None = None,
     inbox_dir: Path | None = None,
     records_dir: Path | None = None,
+    rejected_dir: Path | None = None,
+    respect_rejections: bool = True,
 ) -> Proposal:
     """Write ``record`` to the inbox as a proposal and return it.
 
     The record is deliberately not schema-validated here: automation is allowed
     to propose something incomplete, and a person fills the gaps at
     :func:`confirm` time.
+
+    A proposal that would change the same fields to the same values as a
+    rejected proposal with the same id is not written again, so a scheduled
+    source does not re-ask a question a person already answered.
 
     Args:
         record: A partial catalog record.
@@ -139,8 +149,13 @@ def propose(
         inbox_dir: Defaults to ``data/catalog/inbox/``.
         records_dir: Catalog searched for the record this proposal would
             replace, to compute ``diff``.  Defaults to ``data/catalog/records/``.
+        rejected_dir: Where rejections are read from.  Defaults to
+            ``rejected/`` under the inbox.
+        respect_rejections: False when a person is entering this record
+            themselves, so an earlier rejection must not stand in their way.
 
     Raises:
+        PreviouslyRejectedError: When a matching rejection exists.
         ProposalError: On an unknown ``kind``, an empty record, or an id that is
             not a safe slug.
     """
@@ -162,6 +177,12 @@ def propose(
         notes=notes,
         path=path,
     )
+    if respect_rejections and _matches_rejection(
+        proposal, _rejected_dir(inbox_dir, rejected_dir)
+    ):
+        raise PreviouslyRejectedError(
+            f"proposal {resolved_id!r} was rejected before with the same changes"
+        )
     write_json_atomic(proposal.to_dict(), path)
     return proposal
 
@@ -245,8 +266,8 @@ def reject(
 ) -> Path:
     """Archive a proposal under ``inbox/rejected/`` with the reason it was refused.
 
-    Rejections are kept rather than deleted so a later re-verification pass can
-    tell that a person already looked at this award and said no.
+    Rejections are kept rather than deleted so a later pass can tell that a
+    person already looked at this award and said no (see :func:`propose`).
     """
     cleaned = reason.strip()
     if not cleaned:
@@ -257,12 +278,43 @@ def reject(
     payload["proposal"]["rejected_on"] = _as_iso_date(None)
     payload["proposal"]["reason"] = cleaned
 
-    target_dir = rejected_dir or ((inbox_dir / "rejected") if inbox_dir else REJECTED_DIR)
-    target = target_dir / f"{proposal.proposal_id}.json"
+    target = _rejected_dir(inbox_dir, rejected_dir) / f"{proposal.proposal_id}.json"
     write_json_atomic(payload, target)
     if proposal.path is not None:
         proposal.path.unlink(missing_ok=True)
     return target
+
+
+def _rejected_dir(inbox_dir: Path | None, rejected_dir: Path | None) -> Path:
+    return rejected_dir or ((inbox_dir / "rejected") if inbox_dir else REJECTED_DIR)
+
+
+def _matches_rejection(proposal: Proposal, rejected_dir: Path) -> bool:
+    """True when the rejection filed under this id asked for the same changes."""
+    path = rejected_dir / f"{proposal.proposal_id}.json"
+    if not path.is_file():
+        return False
+    try:
+        rejected = Proposal.from_dict(json.loads(path.read_text(encoding="utf-8-sig")), path=path)
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError, ProposalError) as exc:
+        logger.error("inbox: cannot read rejection %s: %s", path, exc)
+        return False
+    return _changed_fields(rejected) == _changed_fields(proposal)
+
+
+def _changed_fields(proposal: Proposal) -> dict[str, Any]:
+    """What a proposal asks to change: its diff, or the whole record for a new award.
+
+    ``provenance`` is left out because a re-verification stamps a fresh
+    ``checked_on`` into every proposal it writes.
+    """
+    if proposal.diff:
+        return {
+            key: change.get("new")
+            for key, change in proposal.diff.items()
+            if key != "provenance" and isinstance(change, dict)
+        }
+    return {key: value for key, value in proposal.record.items() if key != "provenance"}
 
 
 def _proposal_path(proposal_id: str, inbox_dir: Path | None) -> Path:

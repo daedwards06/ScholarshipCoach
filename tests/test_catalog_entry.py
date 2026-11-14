@@ -170,13 +170,22 @@ def test_prefill_payload_seeds_the_form_without_guessing() -> None:
 
 
 def test_ambiguous_dates_stay_candidates_instead_of_being_picked() -> None:
-    html = "<html><body><p>Applications open 2026-11-01 and close 2027-03-01.</p></body></html>"
+    html = "<html><body><p>Round one closes 2026-11-01; round two, 2027-03-01.</p></body></html>"
     payload = prefill_from_html(html, url="https://example.org/award").to_form_dict()
 
     values = entry.form_from_prefill(payload)
 
     assert values["deadline"] == ""
     assert values["deadline_candidates"] == ["2026-11-01", "2027-03-01"]
+
+
+def test_an_opening_date_is_never_offered_as_the_deadline() -> None:
+    html = "<html><body><p>Applications open 2026-11-01 and close 2027-03-01.</p></body></html>"
+    payload = prefill_from_html(html, url="https://example.org/award").to_form_dict()
+
+    values = entry.form_from_prefill(payload)
+
+    assert values["deadline_candidates"] == ["2027-03-01"]
 
 
 def test_diff_rows_render_every_value_kind() -> None:

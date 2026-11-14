@@ -9,6 +9,7 @@ import pytest
 from scripts.catalog_inbox import main as inbox_main
 from src.catalog.inbox import (
     INBOX_DIR,
+    PreviouslyRejectedError,
     ProposalError,
     confirm,
     list_proposals,
@@ -147,6 +148,66 @@ def test_reject_archives_the_proposal_with_its_reason(catalog_dirs: tuple[Path, 
     assert payload["proposal"]["rejected_on"] == date.today().isoformat()
     assert not proposal.path.exists()
     assert list_proposals(inbox) == []
+
+
+@pytest.mark.parametrize("kind", ["prefill", "feed", "reverify", "manual"])
+def test_a_rejected_proposal_is_not_proposed_again(
+    catalog_dirs: tuple[Path, Path], kind: str
+) -> None:
+    inbox, records = catalog_dirs
+    proposal = propose(_valid_record(), kind=kind, inbox_dir=inbox, records_dir=records)
+    reject(proposal.proposal_id, "not for this family", inbox_dir=inbox)
+
+    with pytest.raises(PreviouslyRejectedError):
+        propose(_valid_record(), kind=kind, inbox_dir=inbox, records_dir=records)
+    assert list_proposals(inbox) == []
+
+
+def test_a_rejection_ignores_a_fresh_provenance_stamp(catalog_dirs: tuple[Path, Path]) -> None:
+    inbox, records = catalog_dirs
+    (records / "test-foundation-award.json").write_text(
+        json.dumps(_valid_record()), encoding="utf-8"
+    )
+    changed = _valid_record(deadline="2027-04-01")
+    proposal = propose(changed, kind="reverify", inbox_dir=inbox, records_dir=records)
+    reject(proposal.proposal_id, "the page is wrong", inbox_dir=inbox)
+
+    restamped = _valid_record(deadline="2027-04-01")
+    restamped["provenance"] = {**restamped["provenance"], "checked_on": "2026-12-06"}
+    with pytest.raises(PreviouslyRejectedError):
+        propose(restamped, kind="reverify", inbox_dir=inbox, records_dir=records)
+
+
+def test_a_different_change_after_a_rejection_is_proposed(
+    catalog_dirs: tuple[Path, Path],
+) -> None:
+    inbox, records = catalog_dirs
+    proposal = propose(_valid_record(), kind="feed", inbox_dir=inbox, records_dir=records)
+    reject(proposal.proposal_id, "deadline looked wrong", inbox_dir=inbox)
+
+    again = propose(
+        _valid_record(deadline="2027-04-01"), kind="feed", inbox_dir=inbox, records_dir=records
+    )
+
+    assert again.path is not None and again.path.exists()
+
+
+def test_a_person_entering_by_hand_is_not_stopped_by_a_rejection(
+    catalog_dirs: tuple[Path, Path],
+) -> None:
+    inbox, records = catalog_dirs
+    proposal = propose(_valid_record(), kind="manual", inbox_dir=inbox, records_dir=records)
+    reject(proposal.proposal_id, "changed my mind", inbox_dir=inbox)
+
+    again = propose(
+        _valid_record(),
+        kind="manual",
+        inbox_dir=inbox,
+        records_dir=records,
+        respect_rejections=False,
+    )
+
+    assert again.path is not None and again.path.exists()
 
 
 def test_reject_needs_a_reason(catalog_dirs: tuple[Path, Path]) -> None:

@@ -13,8 +13,10 @@ scholarship would say.
 """
 from __future__ import annotations
 
+import calendar
 import re
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from html import unescape
 from typing import Any
 
@@ -26,12 +28,48 @@ SCRIPT_STYLE_PATTERN = re.compile(
 MONEY_PATTERN = re.compile(r"\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
 ISO_DATE_PATTERN = re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
 US_DATE_PATTERN = re.compile(r"\b(\d{1,2}/\d{1,2}/20\d{2})\b")
-LONG_DATE_PATTERN = re.compile(
-    r"\b((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+_MONTH_NAMES = (
+    r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
     r"jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|"
-    r"dec(?:ember)?)\s+\d{1,2},?\s+20\d{2})\b",
+    r"dec(?:ember)?)"
+)
+LONG_DATE_PATTERN = re.compile(
+    rf"\b({_MONTH_NAMES}\s+\d{{1,2}},?\s+20\d{{2}})\b",
     flags=re.IGNORECASE,
 )
+YEARLESS_DATE_PATTERN = re.compile(
+    rf"\b({_MONTH_NAMES})\.?\s+(\d{{1,2}})(?:st|nd|rd|th)?\b(?!,?\s*20\d{{2}})(?![:\d])",
+    flags=re.IGNORECASE,
+)
+NTH_WEEKDAY_PATTERN = re.compile(
+    r"\b(first|second|third|fourth|last)\s+"
+    r"(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:in|of)\s+"
+    rf"({_MONTH_NAMES})\b",
+    flags=re.IGNORECASE,
+)
+# A deadline label counts only when it sits right before the date, give or
+# take a colon, "Due", a time of day and a weekday ("Deadline: 5 p.m. ET,
+# Friday, March 13").  Read loosely -- the date anywhere after the label --
+# it picks up the next date on the page, which is often a different event.
+_DATE_LEAD_IN = (
+    r"\s*(?:date\s*)?(?:is\s*)?[:\-–—]?\s*(?:(?:due|on|by|the)\s+)*"
+    r"(?:\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?\s*(?:[ECMP][SD]?T\s*)?,?\s*)?"
+    r"(?:(?:mon|tues|wednes|thurs|fri|satur|sun)day,?\s*)?$"
+)
+DEADLINE_LEAD_PATTERN = re.compile(rf"\bdeadlines?{_DATE_LEAD_IN}", flags=re.IGNORECASE)
+# "Due" and "no later than" date the transcript mailing, the immunization
+# form and the payment as often as the application, so they count only in a
+# sentence about the deadline or the application, or as a "Due:" label.
+WEAK_DEADLINE_LEAD_PATTERN = re.compile(
+    rf"\b(?:due|no later than|closes? on){_DATE_LEAD_IN}", flags=re.IGNORECASE
+)
+_DEADLINE_SENTENCE_PATTERN = re.compile(r"\b(?:deadlines?|applications?)\b", re.IGNORECASE)
+OPENING_LEAD_PATTERN = re.compile(
+    rf"\b(?:opens?|opening|will open|available|begins?|starts?|starting){_DATE_LEAD_IN}",
+    flags=re.IGNORECASE,
+)
+_LEAD_WINDOW_CHARS = 80
+_SENTENCE_CAP_CHARS = 100
 LABEL_BLOCK_PATTERN = re.compile(
     r"(Sponsor|Provider|Organization|Eligibility|Deadline|Amount|Award|Education|"
     r"Institution|Status|State|Territory|County|Essay(?: Prompt)?|Essay Required)\s*:?\s*",
@@ -98,6 +136,53 @@ _NUMBER_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 
 _NEGATION_PATTERN = re.compile(r"\b(no|not|without)\b", re.IGNORECASE)
 _MAX_REQUIREMENT_EVIDENCE_CHARS = 160
+
+_MONTH_PREFIXES = (
+    "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+)
+_WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+_ORDINALS = {"first": 1, "second": 2, "third": 3, "fourth": 4, "last": -1}
+
+
+@dataclass(frozen=True, slots=True)
+class YearlessDate:
+    """A date a page states without a year: "March 1", "first Monday in February".
+
+    Which year it means depends on when the page is read and on the award's
+    usual cycle, so the caller resolves it with :meth:`on`.
+    """
+
+    month: int
+    day: int | None = None
+    weekday: int | None = None
+    nth: int | None = None
+    text: str = field(default="", compare=False)
+
+    def on(self, year: int) -> date:
+        """The date this falls on in ``year`` (Feb 29 clamps to Feb 28)."""
+        last_day = calendar.monthrange(year, self.month)[1]
+        if self.weekday is None or self.nth is None:
+            return date(year, self.month, min(self.day or 1, last_day))
+        if self.nth < 0:
+            last = date(year, self.month, last_day)
+            return date(year, self.month, last_day - (last.weekday() - self.weekday) % 7)
+        first = date(year, self.month, 1)
+        offset = (self.weekday - first.weekday()) % 7
+        return date(year, self.month, 1 + offset + 7 * (self.nth - 1))
+
+
+@dataclass(slots=True)
+class DeadlineDates:
+    """The dates on a page, sorted by what sits in front of them.
+
+    ``labeled`` dates follow a deadline label; ``yearless`` are labeled dates
+    with no year; ``other`` dates have no label at all.  A date that follows
+    an opening phrase ("will open on", "Open date:") is in none of them.
+    """
+
+    labeled: list[str] = field(default_factory=list)
+    yearless: list[YearlessDate] = field(default_factory=list)
+    other: list[str] = field(default_factory=list)
 
 
 def strip_html(html: str) -> str:
@@ -167,23 +252,62 @@ def parse_date_candidates(text: str | None) -> list[str]:
     """
     if not text:
         return []
-    haystack = str(text)
-    found: list[tuple[int, str]] = []
-
-    for iso_match in ISO_DATE_PATTERN.finditer(haystack):
-        if _is_valid_iso(iso_match.group(1)):
-            found.append((iso_match.start(), iso_match.group(1)))
-    for us_match in US_DATE_PATTERN.finditer(haystack):
-        parsed_us = _parse_us_date(us_match.group(1))
-        if parsed_us:
-            found.append((us_match.start(), parsed_us))
-    for long_match in LONG_DATE_PATTERN.finditer(haystack):
-        parsed_long = _parse_long_date(long_match.group(1))
-        if parsed_long:
-            found.append((long_match.start(), parsed_long))
-
-    ordered = [value for _, value in sorted(found, key=lambda pair: pair[0])]
+    ordered = [value for _, value in _dated_mentions(str(text))]
     return list(dict.fromkeys(ordered))
+
+
+def find_deadline_dates(text: str | None) -> DeadlineDates:
+    """Sort the dates in ``text`` by the words right in front of them.
+
+    A labeled date outranks every other date on the page, so a sidebar post
+    date or an info-session date cannot crowd out ``Deadline March 2``.  A
+    date announcing when applications open is dropped outright: it is never
+    the deadline.  Year-less dates are kept only under a deadline label;
+    loose in body copy they are as often an event as a cutoff.  Each list is
+    deduped, in page order.
+    """
+    found = DeadlineDates()
+    if not text:
+        return found
+    haystack = str(text)
+
+    for start, value in _dated_mentions(haystack):
+        lead = _lead_kind(haystack, start)
+        if lead == "deadline":
+            found.labeled.append(value)
+        elif lead is None:
+            found.other.append(value)
+
+    yearless: list[tuple[int, YearlessDate]] = []
+    for day_match in YEARLESS_DATE_PATTERN.finditer(haystack):
+        month = _month_number(day_match.group(1))
+        day = int(day_match.group(2))
+        if month and _is_valid_month_day(month, day):
+            yearless.append(
+                (day_match.start(), YearlessDate(month=month, day=day, text=day_match.group(0)))
+            )
+    for nth_match in NTH_WEEKDAY_PATTERN.finditer(haystack):
+        month = _month_number(nth_match.group(3))
+        if month:
+            yearless.append(
+                (
+                    nth_match.start(),
+                    YearlessDate(
+                        month=month,
+                        weekday=_WEEKDAYS.index(nth_match.group(2).lower()),
+                        nth=_ORDINALS[nth_match.group(1).lower()],
+                        text=nth_match.group(0),
+                    ),
+                )
+            )
+    for start, mention in sorted(yearless, key=lambda pair: pair[0]):
+        if _lead_kind(haystack, start) == "deadline":
+            found.yearless.append(mention)
+
+    found.labeled = list(dict.fromkeys(found.labeled))
+    found.yearless = list(dict.fromkeys(found.yearless))
+    found.other = list(dict.fromkeys(found.other))
+    return found
 
 
 def parse_first_date(text: str | None) -> str | None:
@@ -321,6 +445,51 @@ def find_requirement_flags(text: str | None) -> tuple[dict[str, Any], dict[str, 
             continue
         flags[key] = True
     return flags, evidence
+
+
+def _dated_mentions(haystack: str) -> list[tuple[int, str]]:
+    """Every full date in ``haystack`` as ``(position, iso)``, in page order."""
+    found: list[tuple[int, str]] = []
+    for iso_match in ISO_DATE_PATTERN.finditer(haystack):
+        if _is_valid_iso(iso_match.group(1)):
+            found.append((iso_match.start(), iso_match.group(1)))
+    for us_match in US_DATE_PATTERN.finditer(haystack):
+        parsed_us = _parse_us_date(us_match.group(1))
+        if parsed_us:
+            found.append((us_match.start(), parsed_us))
+    for long_match in LONG_DATE_PATTERN.finditer(haystack):
+        parsed_long = _parse_long_date(long_match.group(1))
+        if parsed_long:
+            found.append((long_match.start(), parsed_long))
+    return sorted(found, key=lambda pair: pair[0])
+
+
+def _lead_kind(haystack: str, start: int) -> str | None:
+    """``"deadline"`` or ``"opening"`` when that phrase sits right before ``start``."""
+    lead = haystack[max(0, start - _LEAD_WINDOW_CHARS) : start]
+    if DEADLINE_LEAD_PATTERN.search(lead):
+        return "deadline"
+    weak = WEAK_DEADLINE_LEAD_PATTERN.search(lead)
+    if weak:
+        cue_start = start - len(lead) + weak.start()
+        # Bulleted pages have no full stops, so a "sentence" is capped too.
+        sentence_start = max(_sentence_start(haystack, cue_start), cue_start - _SENTENCE_CAP_CHARS)
+        sentence = haystack[sentence_start:cue_start]
+        if ":" in weak.group(0) or _DEADLINE_SENTENCE_PATTERN.search(sentence):
+            return "deadline"
+    if OPENING_LEAD_PATTERN.search(lead):
+        return "opening"
+    return None
+
+
+def _month_number(name: str) -> int | None:
+    prefix = name.strip(".").lower()[:3]
+    return _MONTH_PREFIXES.index(prefix) + 1 if prefix in _MONTH_PREFIXES else None
+
+
+def _is_valid_month_day(month: int, day: int) -> bool:
+    # A leap year, so "February 29" on a page is accepted and clamped later.
+    return 1 <= day <= calendar.monthrange(2000, month)[1]
 
 
 def _is_valid_iso(value: str) -> bool:

@@ -97,7 +97,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     counts = report.counts
     print(
         "unchanged={unchanged} changed={changed} dead_link={dead_link} "
-        "blocked={blocked} error={error}".format(**counts)
+        "blocked={blocked} error={error} previously_rejected={rejected}".format(
+            **counts, rejected=report.previously_rejected
+        )
     )
     if report.proposal_ids:
         print(

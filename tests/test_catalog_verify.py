@@ -7,13 +7,14 @@ from pathlib import Path
 import pytest
 
 from scripts.verify_catalog import main as verify_main
-from src.catalog.inbox import list_proposals
+from src.catalog.inbox import list_proposals, reject
 from src.catalog.verify import (
     OUTCOME_BLOCKED,
     OUTCOME_CHANGED,
     OUTCOME_DEAD_LINK,
     OUTCOME_ERROR,
     OUTCOME_UNCHANGED,
+    compare_record,
     content_hash,
     cycle_checkpoint,
     load_prior_hashes,
@@ -21,6 +22,7 @@ from src.catalog.verify import (
     verify_catalog,
 )
 from src.ingest.extract_common import html_to_text
+from src.ingest.prefill import prefill_from_html
 
 _TODAY = date(2026, 9, 12)
 
@@ -670,3 +672,100 @@ def test_a_recently_checked_annual_record_is_due_again_around_its_opening(
     )
 
     assert report.records_due == (1 if due else 0)
+
+
+_DEADLINE_FIXTURES = json.loads(
+    (Path(__file__).resolve().parent / "resources" / "verify_deadline_fixtures.json").read_text(
+        encoding="utf-8"
+    )
+)["cases"]
+
+
+@pytest.mark.parametrize("case", _DEADLINE_FIXTURES, ids=lambda case: case["name"])
+def test_deadline_fixtures_propose_what_a_person_reads_or_nothing(case: dict) -> None:
+    record = _record(
+        deadline=case["record_deadline"],
+        cycle={"recurring": True, "deadline_month": case["deadline_month"]},
+    )
+    prefill = prefill_from_html(
+        f"<html><body><p>{case['text']}</p></body></html>", url="https://example.invalid/award"
+    )
+
+    changes = compare_record(record, prefill, today=date.fromisoformat(case["today"]))
+
+    assert changes.get("deadline", {}).get("new") == case["expect"]
+
+
+def test_an_inferred_year_is_said_in_the_proposal(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, inbox, _ = catalog_dirs
+    _write_record(records, _record(deadline=None, cycle=_ANNUAL | {"deadline_month": 3}))
+    client = _StubClient({"https://example.invalid/award": _page(deadline="March 1")})
+
+    report = _run(catalog_dirs, client)
+
+    assert report.results[0].changes["deadline"]["new"] == "2027-03-01"
+    proposal = list_proposals(inbox)[0]
+    assert proposal.record["deadline"] == "2027-03-01"
+    assert "no year" in (proposal.notes or "")
+    assert "note" not in proposal.record
+
+
+def test_a_deadline_in_another_month_corrects_the_cycle_month(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, inbox, _ = catalog_dirs
+    _write_record(records, _record(deadline=None, cycle=_ANNUAL | {"deadline_month": 2}))
+    client = _StubClient({"https://example.invalid/award": _page(deadline="January 12, 2027")})
+
+    report = _run(catalog_dirs, client)
+
+    changes = report.results[0].changes
+    assert changes["deadline"]["new"] == "2027-01-12"
+    assert changes["cycle"]["new"]["deadline_month"] == 1
+    proposal = list_proposals(inbox)[0]
+    assert proposal.record["cycle"]["deadline_month"] == 1
+    assert proposal.record["cycle"]["recurring"] is True
+    assert "cycle month is corrected" in (proposal.notes or "")
+
+
+@pytest.mark.parametrize(
+    "page_deadline",
+    [
+        "March 2, 2026",   # last cycle's date, still on the page
+        "September 12, 2026",  # the run date itself
+        "December 1, 2027",  # more than 14 months out
+    ],
+)
+def test_a_deadline_outside_the_next_cycle_is_not_proposed(
+    catalog_dirs: tuple[Path, Path, Path], page_deadline: str
+) -> None:
+    records, inbox, _ = catalog_dirs
+    _write_record(records, _record())
+    client = _StubClient({"https://example.invalid/award": _page(deadline=page_deadline)})
+
+    report = _run(catalog_dirs, client)
+
+    assert "deadline" not in report.results[0].changes
+    assert list_proposals(inbox) == []
+
+
+def test_a_rejected_change_is_counted_not_proposed_again(
+    catalog_dirs: tuple[Path, Path, Path],
+) -> None:
+    records, inbox, _ = catalog_dirs
+    _write_record(records, _record())
+    page = {"https://example.invalid/award": _page(deadline="April 15, 2027")}
+    first = _run(catalog_dirs, _StubClient(page))
+    reject(first.results[0].proposal_id, "the sponsor's page is out of date", inbox_dir=inbox)
+
+    second = _run(catalog_dirs, _StubClient(page))
+
+    result = second.results[0]
+    assert result.outcome == OUTCOME_CHANGED
+    assert result.previously_rejected is True
+    assert result.proposal_id is None
+    assert second.previously_rejected == 1
+    assert second.to_dict()["previously_rejected"] == 1
+    assert list_proposals(inbox) == []

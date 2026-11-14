@@ -22,6 +22,12 @@ recall-oriented and the queue is only useful while it stays short:
   copy are a sponsor's endowment as often as this award's value.  A labeled
   value *does* count against a field the record leaves ``null`` -- a next
   cycle finally being announced is the whole point of the pass.
+* a proposed ``deadline`` must fall after the run date and within
+  :data:`MAX_DEADLINE_MONTHS_AHEAD`: last cycle's date still on the page is
+  not a new cycle.  A labeled date with no year ("Deadline March 1") is dated
+  to its next occurrence, and only when its month is the record's
+  ``cycle.deadline_month``.  A dated deadline in another month corrects the
+  cycle month in the same proposal.
 * ``status`` is read from an explicit ``Status:`` label or from unambiguous
   closed/open wording -- never from a bare "open" loose in the body.
 * requirement flags count only when the record states a value and the page
@@ -30,6 +36,7 @@ recall-oriented and the queue is only useful while it stays short:
 """
 from __future__ import annotations
 
+import calendar
 import hashlib
 import json
 import logging
@@ -41,9 +48,9 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from src.catalog.inbox import INBOX_DIR, ProposalError, propose
+from src.catalog.inbox import INBOX_DIR, PreviouslyRejectedError, ProposalError, propose
 from src.ingest.extract_common import extract_field_value
-from src.ingest.prefill import Extractor, PrefillResult, prefill_from_html
+from src.ingest.prefill import ExtractionResult, Extractor, PrefillResult, prefill_from_html
 from src.io.snapshotting import write_json_atomic
 from src.normalize.catalog_schema import RECORDS_DIR, ROOT_DIR, iter_catalog_files
 
@@ -58,6 +65,10 @@ DEFAULT_REQUESTS_PER_SECOND = 0.5
 # Only a labeled, unambiguous value is allowed to contradict a curated record;
 # RegexExtractor scores those at 0.85 and everything looser at 0.6 or below.
 MIN_CHANGE_CONFIDENCE = 0.7
+
+# A deadline further out than the next cycle is more likely a typo, a
+# multi-year program's final date, or someone else's event than this award's.
+MAX_DEADLINE_MONTHS_AHEAD = 14
 
 # A recurring award or program posts its new round around the same month each
 # year, and a once-a-year check can land just after the window closes.  So it is
@@ -137,6 +148,7 @@ class RecordVerification:
     proposal_id: str | None = None
     message: str | None = None
     check_by_hand: bool = False
+    previously_rejected: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -151,6 +163,7 @@ class RecordVerification:
             "proposal_id": self.proposal_id,
             "message": self.message,
             "check_by_hand": self.check_by_hand,
+            "previously_rejected": self.previously_rejected,
         }
 
 
@@ -180,6 +193,11 @@ class VerificationReport:
         return tally
 
     @property
+    def previously_rejected(self) -> int:
+        """Changes a person already rejected, found again and not re-proposed."""
+        return sum(1 for result in self.results if result.previously_rejected)
+
+    @property
     def proposal_ids(self) -> list[str]:
         return [result.proposal_id for result in self.results if result.proposal_id]
 
@@ -196,6 +214,7 @@ class VerificationReport:
             "records_checked": len(self.results),
             "since_days": self.since_days,
             "counts": self.counts,
+            "previously_rejected": self.previously_rejected,
             "proposals": self.proposal_ids,
             "results": [result.to_dict() for result in self.results],
         }
@@ -229,16 +248,18 @@ def parse_page_status(text: str | None) -> str | None:
 
 
 def compare_record(
-    record: Mapping[str, Any], prefill: PrefillResult
+    record: Mapping[str, Any], prefill: PrefillResult, *, today: date | None = None
 ) -> dict[str, dict[str, Any]]:
-    """Return the fields where the page contradicts the record."""
+    """Return the fields where the page contradicts the record.
+
+    A deadline change may carry a ``note`` beside ``old`` / ``new`` for
+    whoever works the queue: the year was inferred, or the cycle month moved.
+    """
     changes: dict[str, dict[str, Any]] = {}
     extraction = prefill.extraction
     confidence = prefill.confidence
 
-    deadline = extraction.deadline
-    if deadline and deadline != record.get("deadline") and _is_stated(confidence, "deadline"):
-        changes["deadline"] = {"old": record.get("deadline"), "new": deadline}
+    changes.update(_deadline_changes(record, extraction, confidence, today or date.today()))
 
     amounts = (("amount_min", extraction.amount_min), ("amount_max", extraction.amount_max))
     for key, value in amounts:
@@ -264,6 +285,7 @@ def verify_record(
     client: Any,
     extractor: Extractor | None = None,
     prior_hash: str | None = None,
+    today: date | None = None,
 ) -> tuple[RecordVerification, dict[str, Any] | None]:
     """Fetch one record's page and classify it.
 
@@ -300,7 +322,7 @@ def verify_record(
 
     prefill = prefill_from_html(html, url=source_url, extractor=extractor)
     digest = content_hash(prefill.text)
-    changes = compare_record(record, prefill)
+    changes = compare_record(record, prefill, today=today)
     result = RecordVerification(
         catalog_id=catalog_id,
         source_url=source_url,
@@ -369,6 +391,7 @@ def verify_catalog(
                 client=http_client,
                 extractor=extractor,
                 prior_hash=prior_hashes.get(str(record.get("catalog_id") or "")),
+                today=run_date,
             )
             if proposed is not None:
                 _record_proposal(
@@ -642,6 +665,9 @@ def _record_proposal(
         proposed["provenance"] = _checked_provenance(proposed, run_date)
         fields = ", ".join(sorted(result.changes))
         notes = f"Annual re-verification: the page disagrees with the record on {fields}."
+        deadline_note = result.changes.get("deadline", {}).get("note")
+        if deadline_note:
+            notes = f"{notes} {deadline_note}"
 
     try:
         proposal = propose(
@@ -652,11 +678,69 @@ def _record_proposal(
             inbox_dir=inbox_dir,
             records_dir=records_dir,
         )
+    except PreviouslyRejectedError:
+        result.previously_rejected = True
+        result.message = "a person rejected this same change before; not proposed again"
+        return
     except ProposalError as exc:
         result.message = f"could not queue a proposal: {exc}"
         logger.error("verify: %s: %s", result.catalog_id, result.message)
         return
     result.proposal_id = proposal.proposal_id
+
+
+def _deadline_changes(
+    record: Mapping[str, Any],
+    extraction: ExtractionResult,
+    confidence: Mapping[str, float],
+    today: date,
+) -> dict[str, dict[str, Any]]:
+    """The ``deadline`` (and, if its month moved, ``cycle``) change the page supports."""
+    cycle = record.get("cycle")
+    cycle_month = cycle.get("deadline_month") if isinstance(cycle, Mapping) else None
+    latest = _add_months(today, MAX_DEADLINE_MONTHS_AHEAD)
+
+    note = None
+    if extraction.deadline and _is_stated(confidence, "deadline"):
+        try:
+            proposed = date.fromisoformat(extraction.deadline)
+        except ValueError:
+            return {}
+    elif len(extraction.deadline_yearless) == 1 and isinstance(cycle_month, int):
+        stated = extraction.deadline_yearless[0]
+        if stated.month != cycle_month:
+            return {}
+        proposed = stated.on(today.year)
+        if proposed <= today:
+            proposed = stated.on(today.year + 1)
+        note = (
+            f'The page says "{stated.text}" with no year; {proposed.year} is inferred '
+            "from the record's cycle."
+        )
+    else:
+        return {}
+
+    if not today < proposed <= latest or proposed.isoformat() == record.get("deadline"):
+        return {}
+
+    changes: dict[str, dict[str, Any]] = {}
+    if isinstance(cycle, Mapping) and isinstance(cycle_month, int) and cycle_month != proposed.month:
+        changes["cycle"] = {"old": dict(cycle), "new": {**cycle, "deadline_month": proposed.month}}
+        note = (
+            f"The page's deadline is in {calendar.month_name[proposed.month]}; the record's "
+            f"cycle said {calendar.month_name[cycle_month]}, so the cycle month is corrected too."
+        )
+    changes["deadline"] = {"old": record.get("deadline"), "new": proposed.isoformat()}
+    if note:
+        changes["deadline"]["note"] = note
+    return changes
+
+
+def _add_months(day: date, months: int) -> date:
+    years, month_index = divmod(day.month - 1 + months, 12)
+    year = day.year + years
+    month = month_index + 1
+    return date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
 
 
 def _requirement_changes(

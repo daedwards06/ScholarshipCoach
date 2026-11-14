@@ -1,0 +1,95 @@
+{
+  "_about": "Page text for the deadline cases in docs/operations.md 'What prefill missed', written in the shape the real pages use. person_reads is the date a person would take from the page (null: there is no new date to take); expect is what the verify pass should propose (null: nothing). Where the two differ the case is deliberately left unread.",
+  "cases": [
+    {
+      "name": "yearless-labeled-deadline",
+      "text": "Golden Example Scholarship. Up to $5,000 for students at participating NC colleges. DEADLINE March 1 Apply through CFNC. Award notifications are sent in May.",
+      "deadline_month": 3,
+      "record_deadline": null,
+      "today": "2026-12-01",
+      "person_reads": "2027-03-01",
+      "expect": "2027-03-01"
+    },
+    {
+      "name": "open-date-beside-labeled-deadline",
+      "text": "Application Process. The 2027 application will open on Monday, January 12, 2027. DEADLINE March 1, 2027 Submit the application and transcript. An information session is on January 20, 2027.",
+      "deadline_month": 3,
+      "record_deadline": null,
+      "today": "2026-11-14",
+      "person_reads": "2027-03-01",
+      "expect": "2027-03-01"
+    },
+    {
+      "name": "sidebar-post-dates",
+      "text": "Awards are based on academics, character and financial need. Deadline March 2, 2027. Please click here to apply. BACK TO SCHOLARSHIPS Recent News October 7, 2025 Annual meeting recap September 12, 2026 Golf classic results",
+      "deadline_month": 3,
+      "record_deadline": null,
+      "today": "2026-12-10",
+      "person_reads": "2027-03-02",
+      "expect": "2027-03-02"
+    },
+    {
+      "name": "first-monday-in-february",
+      "text": "Two letters of recommendation are required. 2) Deadline for all required materials must be submitted no later than the first Monday in February. The applicant is responsible for confirming receipt.",
+      "deadline_month": 2,
+      "record_deadline": null,
+      "today": "2026-11-14",
+      "person_reads": "2027-02-01",
+      "expect": "2027-02-01"
+    },
+    {
+      "name": "labeled-deadline-in-another-month",
+      "text": "Scholars Program. Application Deadline: January 12, 2027. Finalists are announced later in the winter.",
+      "deadline_month": 2,
+      "record_deadline": null,
+      "today": "2026-11-14",
+      "person_reads": "2027-01-12",
+      "expect": "2027-01-12"
+    },
+    {
+      "name": "closes-on-under-a-label",
+      "text": "Application Deadline: 2027-28 application closes on February 14, 2027. Note: the application is separate from each campus application.",
+      "deadline_month": 2,
+      "record_deadline": null,
+      "today": "2026-11-14",
+      "person_reads": "2027-02-14",
+      "expect": "2027-02-14"
+    },
+    {
+      "name": "last-cycle-date-still-posted",
+      "text": "Students are eligible to apply for a one time $2,000 scholarship. Deadline Due March 2, 2026. Please click here to apply.",
+      "deadline_month": 3,
+      "record_deadline": null,
+      "today": "2026-11-14",
+      "person_reads": null,
+      "expect": null
+    },
+    {
+      "name": "several-labeled-deadlines",
+      "text": "Upperclass Scholars Open date: December 1, 2026 Deadline: February 1, 2027 Interest Form. Emerging First Year Scholars Open date: February 8, 2027 Deadline: March 31, 2027 Interest Form.",
+      "deadline_month": null,
+      "record_deadline": null,
+      "today": "2026-11-14",
+      "person_reads": null,
+      "expect": null
+    },
+    {
+      "name": "yearless-deadline-in-another-month",
+      "text": "Founders Scholarship. Deadline: April 15. Submit one essay.",
+      "deadline_month": 3,
+      "record_deadline": null,
+      "today": "2026-11-14",
+      "person_reads": "2027-04-15",
+      "expect": null
+    },
+    {
+      "name": "calendar-date-before-its-label",
+      "text": "Important Dates 2026 OCT 1 Application Opens 2027 JAN 12 Application Deadline JAN 21 Finalists Announced MARCH 31 Finalist Materials Due MAY 6 Award Letter Due",
+      "deadline_month": 2,
+      "record_deadline": null,
+      "today": "2026-11-14",
+      "person_reads": "2027-01-12",
+      "expect": null
+    }
+  ]
+}
