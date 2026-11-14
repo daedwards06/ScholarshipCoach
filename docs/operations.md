@@ -465,6 +465,63 @@ systemctl enable --now scholarshipcoach-discover.timer
 systemctl list-timers scholarshipcoach-discover.timer
 ```
 
+## Watch list
+
+Local awards and summer programs are in no feed; they sit on a few dozen pages that change a few
+times a year. `scripts/check_watchlist.py` re-reads those pages and proposes what changed. It
+never confirms a proposal and never writes under `data/catalog/records/`.
+
+**Two lists, one shape.** `data/catalog/watchlist.json` is committed and holds only pages that say
+nothing about her (the county foundation, statewide programs). Her school's counselor page,
+employers and congregations go in `data/private/watchlist.json` on the server, which is merged at
+run time and backed up with the rest of `data/private/`. `scripts/validate_catalog.py` checks the
+committed list against `data/catalog/watchlist.schema.json` and, where the privacy term lists
+exist, refuses an entry that names one (it prints the entry id, never the term).
+
+Each entry has an `id`, `url`, `label`, `page` (`single`: one award or program; `listing`: a page
+of links, one per award), `kind` (`scholarship` or `program`), the `months` it is worth checking,
+`enabled`, `notes`, and a `terms_note` with the day a person read the site's terms and robots.txt.
+An entry whose `terms_note` is null does not run.
+
+| What it found | What it does |
+|---|---|
+| First sight of a page | Records a baseline; proposes nothing. To have a new page read now, paste it into Add Award |
+| Page unchanged | One request; nothing written |
+| `single` page changed, no record shares its URL | A `prefill` proposal for a new record, `trust: unverified` |
+| `single` page changed, a record shares its URL | A `prefill` proposal with the fields the page now contradicts (the verify pass's rules, plus a program's cost and grades) |
+| `single` page changed, everything read still matches the record | Finding: "changed, still matches the record; open it" |
+| `listing` page changed | Each new same-site link that matches no record and no rejected proposal is fetched and prefilled, at most 10 a page; one proposal per award, never one for the listing. Links over the 10 are kept unsaved, so the next change follows them |
+| `listing` changed with no new link | Finding (or "postback portal" when its links are form buttons) |
+| A PDF, a refused fetch (401/403/429/5xx), a dead link (404/410), or a page with no title or no date, amount or grade | Finding with the URL to open; no proposal |
+| Host unreachable | `error`; no finding, because an offline laptop is not news |
+
+At most 15 proposals a run; the rest are counted (`over_cap`) and asked again on the next change.
+Proposal ids are `prefill-<watch id>-<page slug>`, so a re-run replaces its own proposal, and a
+change a person rejected is not proposed again (Task 1.2's rule). A new record never carries the
+page's last-cycle deadline: a date already past is left out and named in the record's notes.
+
+The inbox shows "From the watch list" and the watch entry's id. The record itself never names the
+entry, so a confirmed record carries nothing from a private one; the entry id lives only in the
+git-ignored inbox file. A program page's session dates go in the record's notes (the catalog has
+no session field).
+
+### Run it by hand
+
+```powershell
+# Fetch and report only: no proposals, state or report are written
+python scripts/check_watchlist.py --dry-run
+
+# Every enabled entry, whatever the month
+python scripts/check_watchlist.py --ignore-months
+```
+
+Each real run writes `reports/watchlist/watchlist_<UTC stamp>.json` (per entry: outcome,
+proposals, findings, left-out counts by reason: `known_record`, `previously_rejected`,
+`over_link_cap`, `over_cap`) and the page hashes and listing links in
+`reports/watchlist/watch_state.json`. Both are git-ignored. Exit 0 when the pass ran, whatever it
+found; 1 when a watch list file is unreadable or invalid. The timer and the first entries are
+Task 2.4 of the Freshness & Today Plan.
+
 ---
 
 ## Where local awards come from
@@ -586,6 +643,13 @@ proposing. Items marked *fixed* name the task that fixed them.
 - **Totals as award amounts.** Program lifetime totals ("more than $3,000,000", "$580,000") become
   `amount_max`.
 - **PDFs.** A PDF URL is fetched and its raw bytes are treated as text; prefill reports success
-  with nothing usable.
+  with nothing usable. (The watch list recognises a PDF and reports it as a finding instead.)
+- **Program fields.** *Fixed (Freshness Task 2.3):* prefill reads a program's cost ("Cost of
+  Attendance $1,550", "Program fees: $6300", "free"/"no cost"), its grades as the grade when
+  applying ("rising 11th and 12th graders" → 10, 11; "second or third year of high school"), and
+  its session date ranges, from the page's main content only, so the site menu's other programs
+  cannot leak in. Still unread: a weekly rate ("$450/week") and any cost a page gives only in a
+  linked handbook. The Add Award form now seeds the grades; it leaves Cost for a person, since a
+  "free" on a scholarship page is about applying, not attending.
 - **Never extracted.** Gender, military family, membership, and majors outside the vocabulary are
   not attempted.

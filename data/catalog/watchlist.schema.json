@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholarshipcoach.invalid/catalog/watchlist.schema.json",
+  "title": "Watch list",
+  "description": "Pages scripts/check_watchlist.py re-reads for new awards and programs. The committed list (data/catalog/watchlist.json) holds only pages that say nothing about the student; family pages go in data/private/watchlist.json, same shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entries"],
+  "properties": {
+    "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "url", "label", "page", "kind", "months", "terms_note", "enabled"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable slug; part of every proposal id this entry writes.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 60
+        },
+        "url": { "type": "string", "pattern": "^https://[^ ]+$" },
+        "label": { "type": "string", "minLength": 1 },
+        "page": {
+          "enum": ["single", "listing"],
+          "description": "single: the page is one award or program. listing: the page links to one page per award; new links are followed."
+        },
+        "kind": { "enum": ["scholarship", "program"] },
+        "months": {
+          "type": "array",
+          "description": "Months (1-12) the page is worth checking.",
+          "items": { "type": "integer", "minimum": 1, "maximum": 12 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "terms_note": {
+          "type": ["string", "null"],
+          "description": "The day a person read the site's terms and robots.txt, and what they allow. Null: the entry does not run.",
+          "pattern": "[0-9]{4}-[0-9]{2}-[0-9]{2}"
+        },
+        "enabled": { "type": "boolean" },
+        "notes": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

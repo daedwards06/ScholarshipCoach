@@ -474,8 +474,12 @@ python scripts/discover.py --dry-run
       `data/catalog/records/` except verify's stamp (principles 1 and 2)
 - [x] `docs/operations.md`: a "Weekly discovery" section in the style of the verify section:
       what it does, what each outcome means, how to run it by hand, where the report is
-- [ ] *Owner, on the server:* install the unit; one manual run; the baseline is written and the
+- [x] *Owner, on the server:* install the unit; one manual run; the baseline is written and the
       inbox is unchanged
+      *(2026-11-14: deployed `3b20822`; the two files installed by hand as root; five timers
+      listed, discover next Sun 05:00 UTC. Manual run: 98 rows, `succeeded`, baseline, nothing
+      proposed, exit 0; `feed_state.json` and the report written as `coach`; inbox 0 before and
+      after)*
 - [x] All five CI commands green
 
 **Task notes (2026-11-14):**
@@ -498,6 +502,9 @@ python scripts/discover.py --dry-run
   feed and checks the real records directory is byte-for-byte unchanged.
 - *Measured.* `python scripts/discover.py --dry-run` against the live feed on the dev PC: 98
   rows, `succeeded`, baseline (no state on the dev PC), nothing written.
+- *Installed (2026-11-14).* The admin login's `sudo` password was not to hand, and `coach`'s
+  sudo covers only the app's restart, so the unit went in from `ssh root@coach` (Tailscale SSH
+  allows root without a password). The run still goes as `coach`, per the unit.
 
 ---
 
@@ -530,37 +537,93 @@ python scripts/check_watchlist.py --dry-run
 ```
 
 **Checklist:**
-- [ ] `data/catalog/watchlist.json`, committed, with a small schema checked by
+- [x] `data/catalog/watchlist.json`, committed, with a small schema checked by
       `scripts/validate_catalog.py`: per entry an id, URL, label, `page` (`single` award or
       `listing`), `kind` (`scholarship` or `program`), the months it is worth checking, a
       `terms_note` with the day a person read the site's terms, `enabled`, notes. An entry with
-      no `terms_note` does not run
-- [ ] `data/private/watchlist.json` (D8): same shape, server only, merged at run time, backed up
+      no `terms_note` does not run *(committed empty; Task 2.4 adds the entries)*
+- [x] `data/private/watchlist.json` (D8): same shape, server only, merged at run time, backed up
       with the rest of `data/private/`. A test asserts the loader reads both and that the
       committed file is the only one in git. The committed list never holds her school's page
-- [ ] `src/catalog/watch.py`: fetch politely (the verify pass's rate), hash the cleaned text,
+      *(guarded by the privacy term lists; see the notes)*
+- [x] `src/catalog/watch.py`: fetch politely (the verify pass's rate), hash the cleaned text,
       compare with the last run. Unchanged pages cost one request and write nothing
-- [ ] A changed `single` page goes through `prefill_from_html` and becomes a `prefill` proposal
+- [x] A changed `single` page goes through `prefill_from_html` and becomes a `prefill` proposal
       (the kind that exists and nothing writes, V3), diffed against the record that shares its
       URL, if any
-- [ ] A changed `listing` page is diffed by its links: links that are new, on the same site, and
+- [x] A changed `listing` page is diffed by its links: links that are new, on the same site, and
       match no record or rejected proposal are fetched and prefilled, at most 10 a page. One
       record per award, never one for the listing (2026-09-26 decision)
-- [ ] What cannot be read is reported, not guessed: a PDF, a postback portal, a blocked fetch, or
+- [x] What cannot be read is reported, not guessed: a PDF, a postback portal, a blocked fetch, or
       a change with nothing extractable becomes a finding ("this page changed; open it") for the
       digest, with no proposal
-- [ ] **Programs are first-class:** an entry with `kind: program` proposes a program record. The
+- [x] **Programs are first-class:** an entry with `kind: program` proposes a program record. The
       regex extractor learns the fields a program card shows and prefill does not read today:
       cost ("free", "tuition", "$1,550"), grades ("rising 10th–12th graders"), and session dates.
       Measured against the six confirmed program records and their live pages, per field, before
       and after; recorded in the task notes
-- [ ] Deterministic ids `prefill-<watch id>-<slug>`, the rejection rule from Task 1.2, the cap,
+- [x] Deterministic ids `prefill-<watch id>-<slug>`, the rejection rule from Task 1.2, the cap,
       and a `reports/watchlist/` report in the shape of the verify report
-- [ ] The inbox says which watch entry a proposal came from
-- [ ] Tests: unchanged page writes nothing; a changed single page proposes once across two runs;
+- [x] The inbox says which watch entry a proposal came from
+- [x] Tests: unchanged page writes nothing; a changed single page proposes once across two runs;
       a listing gains a link; a rejected link stays out; a PDF becomes a finding; a private
       entry's proposal is written only to the git-ignored inbox
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-11-14):**
+- *Shape.* `src/catalog/watch.py` loads both lists (a file that fails its schema contributes no
+  entries), checks each entry that is enabled, has a `terms_note` and is in season, and writes
+  `prefill` proposals through `inbox.propose`, so Task 1.2's rejection rule applies unchanged.
+  `scripts/check_watchlist.py` is the CLI; exit 1 only when a list is unreadable or invalid.
+  The committed list is empty: entries need a person to read each site's terms (Task 2.4).
+- *First sight is a baseline*, as for the feed (D4): a newly watched page proposes nothing until
+  it changes. A page to read now goes through Add Award.
+- *Findings.* PDF, postback portal (a changed listing with no new links whose page carries
+  `__doPostBack` / `__VIEWSTATE`), refused fetch, dead link, nothing extractable (no title, or no
+  date, amount or grade), and one the checklist did not name: a changed page whose readable
+  fields still match its record ("changed, still matches the record; open it"). A network error
+  is `error` with no finding, as in verify.
+- *Records never name the entry.* The watch entry is in the proposal's `source`
+  (`watchlist:<id>`) and `why`, which stay in the git-ignored inbox; `confirm` writes only the
+  record. A private entry therefore leaves nothing in a committed record.
+- *Her school's page.* No public test can name her school, so `scripts/validate_catalog.py`
+  checks each committed entry against `data/private/privacy_names.txt` and
+  `privacy_abbrevs.txt` when they exist (the dev PC, the server; CI skips it), the same lists
+  `privacy_check.sh` uses, and prints only the entry id. It passes on the dev PC today.
+- *Cap and retries.* 15 proposals a run, 10 links a listing. A link over either cap, or one whose
+  write failed, is left out of the saved links, so the next change follows it; a single page
+  over the cap keeps its old hash, so the next run sees the change again.
+- *New-record deadline.* Last cycle's date still on a page is left out of a new record and named
+  in its notes (Task 1.2's past-date rule), found on the live Gaston page below.
+- *Program fields.* `find_cost`, `find_grade_levels` and `find_session_dates` in
+  `extract_common`, read from the page's `<main>` without nav, header, footer or aside blocks.
+  NCSSM's menu says "Summer programs for rising 5th- through 12th-graders" on every page: read
+  from the whole page, Summer Ventures' grades come out 9–11 instead of 10–11. A grade is the
+  grade when applying ("rising 11th" → 10), and rising wording beats current wording for the same
+  students. Cost: one labeled amount ("Cost of Attendance", "Program fees", "tuition", "price")
+  or free wording; a bare "fee", a rate ("/week", "per night") and "extra / application /
+  deposit" charges are not the cost; two answers leave it empty. The Add Award form now seeds the
+  grades; it does not seed Cost.
+- *Measured, six program records against their live pages (fetched 2026-11-14).* Before: prefill
+  read none of the three fields (0 of 6 each). After:
+  - Grades: 6 of 6 match the records.
+  - Cost: 4 read, 0 wrong. Girls Who Code 0, Summer Ventures 0, NC State $1,550 all match. Duke
+    reads $6,300, the 2027 residential fee the page now posts, where the record still has null
+    ("to be announced"). Left unread: the NCSSM Accelerator page states no cost (the record's
+    $1,925 came from elsewhere), and UNC Charlotte gives only "$450/week".
+  - Session dates: NC State 4 of 4, UNC Charlotte 1 of 1 (the "No camps June 29 – July 3" gap is
+    skipped), Duke 3 of 3 plus "June 12 – July 23" from a typo on the page itself. The other three
+    pages state no session dates, and none was invented.
+- *Live run (scratch directories, real records read-only).* Four entries: Duke, NC State, Summer
+  Ventures, and the Gaston foundation listing. Run 1: four baselines. Then the saved hashes were
+  staled and three of the listing's 61 saved links removed, standing in for a week's change.
+  Run 2: Duke proposed `cost null → 6300` with its session dates in the notes. NC State and
+  Summer Ventures were findings ("still matches the record"). From the listing, Myers was
+  recognized as already in the catalog, and Bohanan was proposed as a new scholarship ($2,500,
+  last cycle's March 2, 2026 deadline left out). The third link's write failed on the dev PC's
+  260-character path limit (the scratch path is long). That error is now logged and the run goes
+  on, and the slug is the page's last path segment, which keeps ids short. Run 3: all four
+  unchanged, one request each.
 
 ---
 

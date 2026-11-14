@@ -9,11 +9,15 @@ import pytest
 from src.ingest.extract_common import (
     YearlessDate,
     extract_amount_range,
+    find_cost,
     find_deadline_dates,
+    find_grade_levels,
     find_nc_counties,
     find_requirement_flags,
+    find_session_dates,
     find_states,
     html_to_text,
+    main_text,
     parse_date_candidates,
     parse_first_date,
 )
@@ -341,3 +345,93 @@ def test_llm_extraction_result_is_empty_when_nothing_validated() -> None:
     assert result.deadline is None
     assert result.amount_candidates == []
     assert result.confidence == {}
+
+
+# --- program fields ---------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # Rising grades are the grade after applying.
+        ("Summer Accelerator for rising 10th, 11th, and 12th graders", ["9", "10", "11"]),
+        ("offers rising 11th and 12th grade high school students", ["10", "11"]),
+        ("Niner Academy (Rising Grades 9–12)", ["9", "10", "11"]),
+        # Rising grades win over looser current-grade wording for the same students.
+        ("rising 11th and 12th grade. Open to 11th and 12th grade students", ["10", "11"]),
+        ("High School: Current 9-12 grade", ["9", "10", "11", "12"]),
+        ("Current Grades: 6-12", ["9", "10", "11", "12"]),
+        ("Students in their second or third year of high school", ["10", "11"]),
+        ("open to rising juniors and seniors", ["10", "11"]),
+        ("graduating high school seniors", ["12"]),
+        # Rising 9th graders apply in 8th grade, which is not a catalog grade.
+        ("9th-12th girls, including rising 9th grade students", ["9", "10", "11", "12"]),
+        ("Cool School (Rising Grades 1-4)", None),
+        ("12 students per section", None),
+        ("", None),
+    ],
+)
+def test_find_grade_levels(text: str, expected: list[str] | None) -> None:
+    assert find_grade_levels(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Cost of Attendance $1,550 Those in financial need may apply", (1550.0, [1550.0])),
+        ("Program fees (2027): Residential: $6300 (Middle or High)", (6300.0, [6300.0])),
+        ("No Cost Summer Ventures is a cost-free program", (0.0, [0.0])),
+        ("Pathways, our free year-round program.", (0.0, [0.0])),
+        # Rates, side fees and a free application are not the program's cost.
+        ("Camp Prices $295/week for all camps", (None, [])),
+        ("Extra camp fees (optional) Airport Shuttles - $45 each way", (None, [])),
+        ("There is a fee of $130 for this service", (None, [])),
+        ("This program is free to apply. Tuition: $900", (900.0, [900.0])),
+        ("Tuition $900. Program fee $1,200", (None, [900.0, 1200.0])),
+        ("No cost to families. Tuition $500", (None, [0.0, 500.0])),
+    ],
+)
+def test_find_cost(text: str, expected: tuple[float | None, list[float]]) -> None:
+    assert find_cost(text) == expected
+
+
+def test_find_session_dates_reads_ranges_and_skips_gaps_and_windows() -> None:
+    text = (
+        "Program Dates Week 1: June 14–19, 2026 Week 2: June 21 - 26, 2026 "
+        "Dates and Times June 8 – August 7, 2026 (No camps June 29 – July 3) "
+        "Applications accepted December 1 - February 27. "
+        "Refunds: April 2 - May 1, 2027 $1500"
+    )
+    assert find_session_dates(text) == [
+        "June 14–19, 2026",
+        "June 21–26, 2026",
+        "June 8–August 7, 2026",
+    ]
+
+
+def test_main_text_leaves_out_site_navigation() -> None:
+    html = (
+        "<header>Menu</header><nav>Summer programs for rising 5th- through 12th-graders</nav>"
+        "<main><h1>Ventures</h1><p>Second or third year of high school.</p>"
+        "<aside>Related: rising 7th graders</aside></main><footer>Contact</footer>"
+    )
+    assert main_text(html) == "Ventures Second or third year of high school."
+
+
+def test_prefill_reads_program_fields_from_the_main_content_only() -> None:
+    html = """
+    <html><head><meta property="og:title" content="Summer Ventures" /></head><body>
+    <nav>Summer programs for rising 5th- through 12th-graders</nav>
+    <main><h1>Summer Ventures</h1>
+      <p>Students in their second or third year of high school.</p>
+      <p>No Cost. Summer Ventures is a cost-free program.</p>
+      <p>Sessions: June 21–July 17, 2027</p>
+    </main></body></html>
+    """
+    result = prefill_from_html(html, url="https://example.org/ventures")
+    form = result.to_form_dict()
+    assert form["grade_levels"] == ["10", "11"]
+    assert form["cost"] == 0.0
+    assert form["session_dates"] == ["June 21–July 17, 2027"]
+    assert result.confidence["cost"] == 0.85
+    assert result.confidence["grade_levels"] == 0.75
