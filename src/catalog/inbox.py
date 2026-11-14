@@ -64,6 +64,8 @@ class Proposal:
     created_on: str
     diff: dict[str, dict[str, Any]] = field(default_factory=dict)
     notes: str | None = None
+    source: str | None = None
+    why: str | None = None
     path: Path | None = None
 
     @property
@@ -85,6 +87,8 @@ class Proposal:
                 "created_on": self.created_on,
                 "diff": self.diff,
                 "notes": self.notes,
+                "source": self.source,
+                "why": self.why,
             },
             "record": self.record,
         }
@@ -107,6 +111,8 @@ class Proposal:
 
         diff = meta.get("diff")
         notes = meta.get("notes")
+        source = meta.get("source")
+        why = meta.get("why")
         return cls(
             proposal_id=proposal_id,
             kind=str(meta.get("kind") or "manual"),
@@ -114,6 +120,8 @@ class Proposal:
             created_on=str(meta.get("created_on") or ""),
             diff=diff if isinstance(diff, dict) else {},
             notes=str(notes) if notes else None,
+            source=str(source) if source else None,
+            why=str(why) if why else None,
             path=path,
         )
 
@@ -129,6 +137,8 @@ def propose(
     records_dir: Path | None = None,
     rejected_dir: Path | None = None,
     respect_rejections: bool = True,
+    source: str | None = None,
+    why: str | None = None,
 ) -> Proposal:
     """Write ``record`` to the inbox as a proposal and return it.
 
@@ -153,6 +163,8 @@ def propose(
             ``rejected/`` under the inbox.
         respect_rejections: False when a person is entering this record
             themselves, so an earlier rejection must not stand in their way.
+        source: The connector a ``feed`` proposal came from.
+        why: What made automation propose it ("new", or which field changed).
 
     Raises:
         PreviouslyRejectedError: When a matching rejection exists.
@@ -175,6 +187,8 @@ def propose(
         created_on=_as_iso_date(created_on),
         diff=_diff_against_catalog(payload_record, records_dir),
         notes=notes,
+        source=source,
+        why=why,
         path=path,
     )
     if respect_rejections and _matches_rejection(
@@ -283,6 +297,26 @@ def reject(
     if proposal.path is not None:
         proposal.path.unlink(missing_ok=True)
     return target
+
+
+def is_previously_rejected(
+    record: Mapping[str, Any],
+    *,
+    proposal_id: str,
+    kind: str,
+    inbox_dir: Path | None = None,
+    records_dir: Path | None = None,
+    rejected_dir: Path | None = None,
+) -> bool:
+    """True when :func:`propose` would refuse this record as already rejected."""
+    proposal = Proposal(
+        proposal_id=proposal_id,
+        kind=kind,
+        record=dict(record),
+        created_on="",
+        diff=_diff_against_catalog(record, records_dir),
+    )
+    return _matches_rejection(proposal, _rejected_dir(inbox_dir, rejected_dir))
 
 
 def _rejected_dir(inbox_dir: Path | None, rejected_dir: Path | None) -> Path:

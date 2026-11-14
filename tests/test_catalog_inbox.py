@@ -413,3 +413,37 @@ def test_inbox_page_change_badge_flags_edits_not_new_awards() -> None:
     assert proposal_change_badge(1).label == "Changes 1 field"
     assert proposal_change_badge(3).label == "Changes 3 fields"
     assert proposal_change_badge(3).color == "yellow"
+
+
+def _render_inbox() -> None:
+    from app.sections import catalog_inbox
+
+    catalog_inbox._render_inbox_page()
+
+
+def test_inbox_page_says_where_a_feed_proposal_came_from_and_why(
+    catalog_dirs: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from streamlit.testing.v1 import AppTest
+
+    import src.catalog.inbox as inbox_module
+
+    inbox, records = catalog_dirs
+    monkeypatch.setattr(inbox_module, "INBOX_DIR", inbox)
+    propose(
+        _valid_record(trust="unverified"),
+        kind="feed",
+        source="open_scholarships",
+        why="The feed changed amount $1,000 → $2,500.",
+        inbox_dir=inbox,
+        records_dir=records,
+    )
+
+    app = AppTest.from_function(_render_inbox).run()
+
+    assert not app.exception
+    assert "Source: Open Scholarships" in [caption.value for caption in app.caption]
+    assert any(
+        "Why this was proposed:" in block.value and r"\$1,000" in block.value
+        for block in app.markdown
+    )

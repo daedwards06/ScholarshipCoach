@@ -62,6 +62,8 @@ PROPOSAL_KIND_BADGES = {
     "manual": DeadlineBadge("Entered by hand", ":material/edit:", "gray"),
 }
 
+FEED_SOURCE_LABELS = {"open_scholarships": "Open Scholarships"}
+
 
 def proposal_kind_badge(kind: str, count: int) -> DeadlineBadge:
     base = PROPOSAL_KIND_BADGES.get(kind, DeadlineBadge(kind, ":material/inbox:", "gray"))
@@ -548,6 +550,15 @@ def _render_proposal(proposal: inbox.Proposal) -> None:
         rows = catalog_entry.diff_rows(proposal.diff)
         badge = proposal_change_badge(len(rows))
         st.badge(badge.label, icon=badge.icon, color=badge.color)
+        if proposal.kind == "feed":
+            feed_badge = PROPOSAL_KIND_BADGES["feed"]
+            st.badge(feed_badge.label, icon=feed_badge.icon, color=feed_badge.color)
+            if proposal.source:
+                st.caption(f"Source: {FEED_SOURCE_LABELS.get(proposal.source, proposal.source)}")
+        if proposal.why:
+            # Amounts like "$1,000 → $2,500" would otherwise render as LaTeX.
+            why = proposal.why.replace("$", "\\$")
+            st.markdown(f"**Why this was proposed:** {why}")
         if proposal.notes:
             st.caption(proposal.notes)
         if rows:
