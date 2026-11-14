@@ -377,28 +377,63 @@ python scripts/validate_catalog.py
 ```
 
 **Checklist:**
-- [ ] `src/catalog/discovery.py`, pure where it can be: given the feed rows of this run, the
+- [x] `src/catalog/discovery.py`, pure where it can be: given the feed rows of this run, the
       state of the last run and the curated records, return the rows to propose (D4) and the
       counts of everything left out, by reason
-- [ ] Proposal id `feed-<source>-<source id>`, so a re-run replaces its own proposal and two
+- [x] Proposal id `feed-<source>-<source id>`, so a re-run replaces its own proposal and two
       sources never collide. The record carries a suggested `catalog_id`, `trust: unverified`,
       the feed's provenance and license line, and the fields the feed gave; the diff is against
       the curated record when one matches
-- [ ] Left out, each with a counted reason: covered by a curated record (the existing
+- [x] Left out, each with a counted reason: covered by a curated record (the existing
       cross-source match); rejected before with the same content (Task 1.2's rule); fails the
       profile screen; over the cap
-- [ ] State in a git-ignored file under `reports/` (row fingerprints from the last run). A first
+- [x] State in a git-ignored file under `reports/` (row fingerprints from the last run). A first
       run with no state writes the baseline and proposes nothing
-- [ ] The profile screen runs Stage 1 with the saved profile and ignores the grade axis, so an
+- [x] The profile screen runs Stage 1 with the saved profile and ignores the grade axis, so an
       award she can apply to in two years still counts. With no saved profile it screens nothing.
       Code and tests use the demo profile; nothing about the real one is written anywhere but
       the git-ignored inbox
-- [ ] The inbox shows the feed badge, the source, and "why this was proposed" (new, or which
+- [x] The inbox shows the feed badge, the source, and "why this was proposed" (new, or which
       field changed)
-- [ ] Tests: deterministic ids across two runs; a changed deadline re-proposes, an unchanged row
+- [x] Tests: deterministic ids across two runs; a changed deadline re-proposes, an unchanged row
       does not; rejected-then-unchanged stays out, rejected-then-changed returns; the cap; the
       baseline run; a row covered by a curated record
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-11-14):**
+- *Shape.* `plan_feed_proposals` is the pure part (rows, last run's fingerprints, curated
+  records, a Stage 1 profile, a rejection predicate); `run_feed_discovery` loads state and
+  records, writes proposals and the new state, and has a `dry_run` for Task 2.2. Nothing calls
+  it yet: Task 2.2's `scripts/discover.py` does.
+- *The cross-source match moved.* `_collapse_cross_source_duplicates` and its URL helpers moved
+  from `scripts/run_ingest.py` to `src/ingest/dedupe.py` unchanged, so `src/` does not import
+  from `scripts/`. Discovery runs it over the curated records plus this run's changed rows.
+- *Covered vs. diffed.* A row that matches a curated record is left out as
+  `covered_by_curated` when every deadline, status or amount the feed states equals the
+  record's. When the feed states a different one, the proposal is the curated record with the
+  feed's values applied (its catalog id, its trust), so the inbox diff is against it. A feed
+  `status: unknown` or an empty field never counts as a disagreement.
+- *Left-out reasons* in the result: `baseline`, `unchanged`, `covered_by_curated`,
+  `previously_rejected`, `failed_profile_screen`, `over_cap`. A rejected proposal that would be
+  over the cap counts as rejected, not over the cap.
+- *Cap order.* Soonest dated deadline first, then undated, then by id, so the 15 kept are the
+  urgent ones.
+- *State* is per source in `reports/discovery/feed_state.json` (now git-ignored): row key to
+  deadline, status and amounts. A source missing from the file is a baseline run, so adding a
+  second feed later baselines only that feed.
+- *Provenance and license.* The schema's `provenance` allows no license field, so the record
+  keeps `source_kind: structured_feed` and the feed's `added_on`, and the attribution line goes
+  in the record's `notes`, where it survives a confirm. `verified_on` / `verified_by` are left
+  null: the feed's own check is not a person opening the page.
+- *Screen.* Stage 1 with `include_unconfirmed=True` (a person confirms anyway) and
+  `GRADE_LEVEL_MISMATCH` ignored. Run over the sample feed with the demo profile: the two
+  Nevada rows fail the state check, the two national ones pass.
+- *Inbox.* Proposals carry optional `source` and `why` metadata. A feed proposal shows the feed
+  badge, "Source: Open Scholarships" and "Why this was proposed", tested with `AppTest`. Not yet
+  seen at 1366px in the real app: the inbox is a parent page and Task 2.2's first run is the
+  first time a real feed proposal exists.
+- *Not measured.* No live fetch of the feed in this task. Task 2.2 runs it, and its first run on
+  the server writes the baseline only.
 
 ---
 
