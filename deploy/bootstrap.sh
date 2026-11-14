@@ -107,14 +107,14 @@ systemctl daemon-reload
 systemctl enable "$SERVICE"
 systemctl restart "$SERVICE"
 
-log "Timers: nightly backup, monthly re-verification, nightly catalog sync"
+log "Timers: nightly backup, nightly snapshot rebuild, monthly re-verification, nightly catalog sync"
 install -d -m 755 /etc/scholarshipcoach
-for job in backup verify catalog-sync; do
+for job in backup rebuild verify catalog-sync; do
     install -m 644 "$APP_DIR/deploy/$SERVICE-$job.service" "/etc/systemd/system/$SERVICE-$job.service"
     install -m 644 "$APP_DIR/deploy/$SERVICE-$job.timer" "/etc/systemd/system/$SERVICE-$job.timer"
 done
 systemctl daemon-reload
-for job in backup verify catalog-sync; do
+for job in backup rebuild verify catalog-sync; do
     systemctl enable --now "$SERVICE-$job.timer"
 done
 

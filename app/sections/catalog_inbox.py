@@ -11,15 +11,13 @@ import streamlit as st
 
 from app import modes, state
 from app.helpers import DeadlineBadge, csv_list, csv_text
-from scripts.run_ingest import run_ingest
+from scripts.rebuild_snapshot import rebuild_curated_snapshot
 from src.catalog import inbox
 from src.catalog import entry as catalog_entry
 from src.ingest.prefill import prefill_from_url
-from src.ingest.sources.curated_catalog import CuratedCatalogSource
 from src.normalize.catalog_schema import RECORDS_DIR
 from src.profile.grade_levels import GRADE_LABEL_TO_LEVELS
 
-CURATED_SOURCE_NAME = CuratedCatalogSource.name
 CATALOG_PAGE_KEY = "catalog_page"
 CATALOG_PAGE_REQUEST_KEY = "catalog_page_request"
 CATALOG_FORM_KEY = "catalog_form"
@@ -458,6 +456,38 @@ def _confirm_award_record(record: dict[str, Any], proposal_id: str | None) -> Pa
     return inbox.confirm(proposal.proposal_id)
 
 
+def _rebuild_snapshot() -> tuple[dict[str, Any] | None, str | None]:
+    """Rebuild from the curated catalog: ``(report, error)``, error ``None`` on success."""
+    try:
+        report = rebuild_curated_snapshot()
+    except Exception as exc:
+        return None, f"Rebuild failed: {exc}"
+    snapshot = report["artifact_paths"]["snapshot"]
+    if snapshot is None:
+        return report, report["artifact_notes"]["snapshot_skip_reason"] or "No snapshot was written."
+    st.session_state.ingest_report = report
+    st.session_state.latest_snapshot_path = snapshot
+    st.session_state.latest_delta_summary = report["delta_counts"]
+    return report, None
+
+
+def _rebuild_after_confirm(kind: Any) -> None:
+    """Rebuild at once, so the confirmed record is on her pages when the notice says so."""
+    with st.spinner("Adding it to her pages…"):
+        _, error = _rebuild_snapshot()
+    if error:
+        _set_catalog_notice(
+            "error",
+            f"Confirmed, but the snapshot was not rebuilt. {error} "
+            "The prior snapshot is untouched. Nothing was lost, but this record is not on "
+            "her pages until that is resolved; then use “Rebuild snapshot” below.",
+        )
+    elif kind == "program":
+        _set_catalog_notice("success", "Confirmed. It's on her Opportunities page now.")
+    else:
+        _set_catalog_notice("success", "Confirmed. It's ranked in Find now.")
+
+
 def _render_add_award_page() -> None:
     editing = st.session_state.get(CATALOG_EDIT_KEY)
     if editing:
@@ -480,22 +510,14 @@ def _render_add_award_page() -> None:
         return
 
     try:
-        path = _confirm_award_record(record, editing)
+        _confirm_award_record(record, editing)
     except inbox.ProposalError as exc:
         st.error(f"Could not add the award: {exc}")
         return
 
     st.session_state[CATALOG_FORM_KEY] = catalog_entry.blank_form()
     st.session_state[CATALOG_EDIT_KEY] = None
-    _set_catalog_notice(
-        "success",
-        f"Added **{record['title']}** to the catalog ({Path(path).name}). "
-        + (
-            "Rebuild the snapshot to show it on her Opportunities page."
-            if record.get("kind") == "program"
-            else "Rebuild the snapshot to rank it."
-        ),
-    )
+    _rebuild_after_confirm(record.get("kind"))
     st.rerun()
 
 
@@ -538,13 +560,14 @@ def _render_proposal(proposal: inbox.Proposal) -> None:
         proposal_id = proposal.proposal_id
         col_confirm, col_edit = st.columns(2)
         if col_confirm.button("Confirm", key=f"inbox_confirm_{proposal_id}", use_container_width=True):
+            kind = _proposal_edit_record(proposal).get("kind")
             try:
-                path = inbox.confirm(proposal_id)
+                inbox.confirm(proposal_id)
             except inbox.ProposalError as exc:
                 st.error(f"{exc}")
                 st.caption("Use “Edit and confirm” to fill in what the record is missing.")
             else:
-                _set_catalog_notice("success", f"Confirmed {Path(path).name}. Rebuild the snapshot to rank it.")
+                _rebuild_after_confirm(kind)
                 st.rerun()
         if col_edit.button("Edit and confirm", key=f"inbox_edit_{proposal_id}", use_container_width=True):
             _load_catalog_form(
@@ -588,39 +611,24 @@ def _render_inbox_page() -> None:
 
 
 def _render_rebuild_snapshot() -> None:
-    with st.container(border=True):
-        st.markdown("**Rebuild snapshot**")
+    with st.expander("Rebuild snapshot"):
         st.caption(
-            "Runs the curated catalog only — no scrapers, no network — so an award "
-            "confirmed a moment ago is rankable now."
+            "Confirming an award rebuilds the snapshot on its own. Use this after a "
+            "blocked rebuild has been resolved. It runs the curated catalog only — "
+            "no scrapers, no network."
         )
         if not st.button("Rebuild snapshot"):
             return
-        try:
-            with st.spinner("Rebuilding from the curated catalog…"):
-                report = run_ingest(date=None, only_sources=[CURATED_SOURCE_NAME])
-        except Exception as exc:
-            st.error(f"Rebuild failed: {exc}")
-            return
-
-        snapshot = report["artifact_paths"]["snapshot"]
-        if snapshot is None:
-            st.error(
-                report["artifact_notes"]["snapshot_skip_reason"] or "No snapshot was written."
-            )
-            if report["artifact_notes"]["snapshot_blocked"]:
+        with st.spinner("Rebuilding from the curated catalog…"):
+            report, error = _rebuild_snapshot()
+        if error or report is None:
+            st.error(error)
+            if report is not None and report["artifact_notes"]["snapshot_blocked"]:
                 st.caption(
                     "The prior snapshot is untouched. Nothing was lost — but the curated "
                     "records just confirmed are not rankable until this is resolved."
                 )
             return
-        # A second rebuild on the same day rewrites the same dated file, and the
-        # snapshot caches are keyed on its path, so every session would keep
-        # reading the old rows until a restart.
-        st.cache_data.clear()
-        st.session_state.ingest_report = report
-        st.session_state.latest_snapshot_path = snapshot
-        st.session_state.latest_delta_summary = report["delta_counts"]
         carried = report["records"]["carried_forward"]
         curated_total = report["records"]["snapshot_total"] - sum(carried.values())
         st.success(

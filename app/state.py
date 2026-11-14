@@ -324,28 +324,45 @@ def effective_today(profile: dict[str, Any]) -> date:
 
 
 def active_snapshot_path() -> str | None:
-    """Return the snapshot the app should read, remembering it for later reruns."""
-    snapshot_path_text = st.session_state.latest_snapshot_path
-    if snapshot_path_text is None:
-        try:
-            latest = get_latest_snapshot_path()
-        except FileNotFoundError:
-            latest = None
-        if latest is not None:
-            snapshot_path_text = str(latest.resolve())
-            st.session_state.latest_snapshot_path = snapshot_path_text
-    if snapshot_path_text is None or not Path(snapshot_path_text).exists():
+    """Return the newest snapshot on disk.
+
+    Looked up on every run rather than remembered, so a snapshot another
+    process wrote (the nightly rebuild, another session's confirm) is the one
+    an already-open session reads next.
+    """
+    try:
+        latest = get_latest_snapshot_path()
+    except FileNotFoundError:
+        st.session_state.latest_snapshot_path = None
         return None
-    return str(snapshot_path_text)
+    snapshot_path_text = str(latest.resolve())
+    st.session_state.latest_snapshot_path = snapshot_path_text
+    return snapshot_path_text
 
 
 def build_stage1_profile(profile: dict[str, Any]) -> StudentProfile:
     return to_stage1_profile(profile, today=effective_today(profile))
 
 
-@st.cache_data(show_spinner=False)
-def load_snapshot_cached(path_text: str) -> pd.DataFrame:
+def snapshot_mtime_ns(path_text: str) -> int:
+    """The file's modification time, which every snapshot cache keys on with the path.
+
+    A rebuild on the same day rewrites the same dated file, so the path alone
+    would keep serving the old rows to every open session.
+    """
+    try:
+        return Path(path_text).stat().st_mtime_ns
+    except OSError:
+        return 0
+
+
+@st.cache_data(show_spinner=False, max_entries=4)
+def _read_snapshot(path_text: str, mtime_ns: int) -> pd.DataFrame:
     return pd.read_parquet(Path(path_text))
+
+
+def load_snapshot_cached(path_text: str) -> pd.DataFrame:
+    return _read_snapshot(path_text, snapshot_mtime_ns(path_text))
 
 
 def program_ids() -> frozenset[str]:

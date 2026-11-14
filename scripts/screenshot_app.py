@@ -14,7 +14,7 @@ states are captured too.
 at 400px, writing one PNG per step and printing taps per journey against its
 budget.  It always starts from a fresh scratch database holding the demo
 profile set to a 10th grader, and from scratch copies of the catalog records
-and the latest snapshot, so P2's catalog form and rebuild never touch
+and the latest snapshot, so P2's catalog form and its rebuild never touch
 ``data/catalog/records/`` or ``data/processed/``.
 
 Needs the ``ui`` extra: ``pip install -e ".[ui]"``.
@@ -608,7 +608,14 @@ def _fill_program_form(walker: Walker) -> None:
 def _submit_program_form(walker: Walker) -> None:
     page = walker.page("parent")
     _click(page, page.get_by_role("button", name="Confirm and add to the catalog"))
-    _expect_text(page, "to the catalog (")
+    _expect_text(page, "It's on her Opportunities page now.")
+
+
+def _suggest_program(walker: Walker) -> None:
+    walker.open("parent", "opportunities")
+    page = walker.page("parent")
+    _click(page, _program_card(page).get_by_role("button", name="Suggest to her"))
+    _expect_text(page, "On her to-dos")
 
 
 def _ask_parents(walker: Walker) -> None:
@@ -704,24 +711,12 @@ def journeys() -> tuple[Journey, ...]:
             Step("Open Catalog & Inbox", "open", _open(parent, "catalog_inbox")),
             Step("Fill in a made-up program", "type", _fill_program_form),
             Step("Confirm the form", "form", _submit_program_form),
-            Step("Rebuild the snapshot", "tap", _tap(
-                parent,
-                lambda page: page.get_by_role("button", name="Rebuild snapshot"),
-                "Snapshot rebuilt",
-            )),
             Step("It is on her Opportunities", "check",
                  _open(student, "opportunities", SEED_PROGRAM), mode=student),
-            Step("Opportunities through the nav", "nav", _open(parent, "opportunities")),
-            Step("Suggest it to her", "tap", _tap(
-                parent,
-                lambda page: _program_card(page).get_by_role("button", name="Suggest to her"),
-                "On her to-dos",
-            )),
-            Step("Her card says From your family", "check",
-                 _open(student, "opportunities", "From your family"), mode=student),
         )),
         Journey("S3", student, "Read a suggested program, add one to her to-dos",
                 Budget(2), (
+            Step("A parent suggested the program", "setup", _suggest_program, mode=parent),
             Step("Open the app", "open", _open(student, "my_path")),
             Step("Opportunities link", "link", _tap(
                 student, _home_link("Opportunities"), "From your family",

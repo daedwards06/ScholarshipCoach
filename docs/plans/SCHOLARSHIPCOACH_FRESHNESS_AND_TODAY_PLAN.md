@@ -192,29 +192,57 @@ python scripts/screenshot_app.py --journeys --scratch-db
 ```
 
 **Checklist:**
-- [ ] *Owner-assisted, first:* read the server's state and record it in the task notes (counts
+- [x] *Owner-assisted, first:* read the server's state and record it in the task notes (counts
       only): pending proposals, the newest verify report's outcomes, the snapshot's date, whether
-      any unit is failed (`systemctl --failed`)
-- [ ] One function builds the curated-only snapshot (the call the button makes today), used by
+      any unit is failed (`systemctl --failed`) *(read after the code was written; see the notes)*
+- [x] One function builds the curated-only snapshot (the call the button makes today), used by
       the button, by confirm, and by a new `scripts/rebuild_snapshot.py`
-- [ ] Confirming a proposal or saving Add Award rebuilds at once; the notice reads "Confirmed.
+- [x] Confirming a proposal or saving Add Award rebuilds at once; the notice reads "Confirmed.
       It's on her Opportunities page now." A blocked guardrail shows the existing error and keeps
-      the old snapshot
-- [ ] Snapshot caches are keyed on the file's path **and** modification time, so a rebuild made
+      the old snapshot *(the blocked branch is written but was not walked; see the notes)*
+- [x] Snapshot caches are keyed on the file's path **and** modification time, so a rebuild made
       by another process reaches every open session without a restart (the A.10 bug, one layer
       out)
-- [ ] `scripts/rebuild_snapshot.py --if-stale`: rebuilds only when a record file is newer than
+- [x] `scripts/rebuild_snapshot.py --if-stale`: rebuilds only when a record file is newer than
       the snapshot; exit 0 when there is nothing to do, non-zero when a guardrail blocks
-- [ ] `deploy/scholarshipcoach-rebuild.service` + `.timer`: daily at 03:50, after the 03:30
+- [x] `deploy/scholarshipcoach-rebuild.service` + `.timer`: daily at 03:50, after the 03:30
       backup and before the 04:15 sync, `Persistent=true`, so the delta report rides the same
       night's sync. Added to `bootstrap.sh`'s install loop
-- [ ] The "Rebuild snapshot" button stays, in the page's closing expander, for a blocked run
-- [ ] `tests/test_deploy_config.py`: the rebuild timer sits between backup and sync; the unit
+- [x] The "Rebuild snapshot" button stays, in the page's closing expander, for a blocked run
+- [x] `tests/test_deploy_config.py`: the rebuild timer sits between backup and sync; the unit
       runs as `coach` from the repo root
-- [ ] Journey P2 re-walked: form + 1, within budget (was 5 + form)
+- [x] Journey P2 re-walked: form + 1, within budget (was 5 + form) *(measured 0 + form)*
 - [ ] *Owner, on the server:* install the new unit (re-run the idempotent `bootstrap.sh` as the
       admin login) and confirm `systemctl list-timers 'scholarshipcoach-*'` lists four
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-11-14):**
+- *Server state (2026-11-14, read by the owner after the code was written).* 0 pending
+  proposals. Newest snapshot `scholarships_snapshot_20261011.parquet`: nothing has rebuilt on
+  the server in five weeks. Newest verify report 2026-11-01: 40 records, 8 due, all 8
+  unchanged (0 changed, 0 dead link, 0 blocked, 0 error). No `scholarshipcoach-*` unit failed;
+  the only failed unit was `user@0.service`, root's user manager, which is unrelated to the app.
+  None of this changed the code.
+- *Still open.* Installing the new unit waits on the deploy.
+- *The notice.* A program gets the plan's wording. A scholarship gets "Confirmed. It's ranked in
+  Find now.", since Opportunities lists a scholarship only when it names her grade. When the
+  rebuild fails or a guardrail blocks it, the notice is an error: the record is confirmed, the
+  run's own reason follows, the prior snapshot is untouched. That branch was not exercised in
+  the app; the script's non-zero exit on a block is tested.
+- *Caches.* `load_snapshot_cached`, Find's ranking, Opportunities and the sidebar delta take the
+  file's modification time in their key, and `catalog_inbox` no longer clears `st.cache_data`.
+  `state.active_snapshot_path` now looks up the newest snapshot on every run and no longer
+  keeps the path a session first saw: the nightly rebuild writes a new dated file, which a
+  remembered path would never reach. The walk shows this across sessions (her browser was open
+  before P2's confirm wrote a new snapshot, and her Opportunities showed the program). A
+  same-day rewrite of one file is covered by the key, not by the walk.
+- *Stale.* `--if-stale` also rebuilds when there is no snapshot, and when the records folder
+  itself is newer than the snapshot, which is how a removed record shows. A merged pull and the
+  verify pass's `checked_on` stamp both touch record files, so the night after either rebuilds.
+- *P2 as walked.* Form, then her Opportunities shows the program: 0 + form against 1 + form.
+  Suggesting it to her is not part of the revised journey and still costs a nav + 1 from Catalog
+  & Inbox; the walk now does it as S3's setup step, since S3 reads the suggested card. P3 and P4
+  are unchanged (2 against 1, 1 + form against form); Task 3.1 revises P3.
 
 ---
 

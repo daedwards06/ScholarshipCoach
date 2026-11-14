@@ -159,6 +159,7 @@ def _topk_win_model_summary(df: pd.DataFrame) -> dict[str, float] | None:
 @st.cache_data(show_spinner=False, max_entries=16)
 def rank_snapshot(
     snapshot_path_text: str,
+    snapshot_mtime_ns: int,
     profile: dict[str, Any],
     today_value: date,
     buckets: tuple[str, ...] | None,
@@ -172,8 +173,9 @@ def rank_snapshot(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Stages 1-3 over the snapshot: ``(eligible, ineligible, ranked)``.
 
-    Cached on the profile, snapshot and date, so opening Find shows results at
-    once after the first run and re-ranks only when one of them changes.
+    Cached on the profile, snapshot (path and modification time) and date, so
+    opening Find shows results at once after the first run and re-ranks only
+    when one of them changes.
     Programs are left out from the start, so they never show on Timeline or in
     the no-deadline count either: they live on Opportunities.
     """
@@ -544,6 +546,7 @@ def render() -> None:
         with st.spinner("Finding matches…"):
             eligible_df, ineligible_df, final_df = rank_snapshot(
                 snapshot_path_text,
+                state.snapshot_mtime_ns(snapshot_path_text),
                 dict(st.session_state.profile),
                 today_value,
                 when_buckets(when_choice),
