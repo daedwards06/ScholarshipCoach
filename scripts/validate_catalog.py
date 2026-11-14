@@ -2,18 +2,24 @@
 
 Checks each file in ``data/catalog/records/`` for readable JSON, schema
 conformance, a filename matching its ``catalog_id``, slug uniqueness across the
-catalog, and a usable ``source_url``.  Exits non-zero on any error so CI blocks
-a malformed record before it reaches a snapshot.
+catalog, and a usable ``source_url``.  Also checks the committed watch list
+(``data/catalog/watchlist.json``) against its schema and, where the git-ignored
+privacy term lists exist (the dev PC, the server), that no entry names a
+privacy term: family pages belong in the private overlay.  Exits non-zero on
+any error so CI blocks a malformed record before it reaches a snapshot.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
+from src.catalog.watch import WATCHLIST_PATH, validate_watchlist
 from src.normalize.catalog_schema import (
+    ROOT_DIR,
     RECORDS_DIR,
     SCHEMA_PATH,
     iter_catalog_files,
@@ -26,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate the curated scholarship catalog.")
     parser.add_argument("--records-dir", type=Path, default=RECORDS_DIR)
     parser.add_argument("--schema", type=Path, default=SCHEMA_PATH)
+    parser.add_argument("--watchlist", type=Path, default=WATCHLIST_PATH)
     return parser.parse_args()
 
 
@@ -76,9 +83,48 @@ def validate_catalog(records_dir: Path, schema_path: Path) -> list[str]:
     return errors
 
 
+PRIVATE_DIR = ROOT_DIR / "data" / "private"
+
+
+def validate_watchlist_file(path: Path, private_dir: Path = PRIVATE_DIR) -> list[str]:
+    """Return every problem in the committed watch list (empty when clean)."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return [f"{path.name}: unreadable ({exc})"]
+    errors = [f"{path.name}: {message}" for message in validate_watchlist(payload)]
+    if errors:
+        return errors
+    names, abbrevs = _privacy_terms(private_dir)
+    for entry in payload["entries"]:
+        text = json.dumps(entry, ensure_ascii=False).casefold()
+        if any(term in text for term in names) or any(
+            re.search(rf"\b{re.escape(term)}\b", text) for term in abbrevs
+        ):
+            # The term itself is never printed: this output can land in a CI log.
+            errors.append(
+                f"{path.name}: entry {entry['id']!r} names a privacy term; "
+                "move it to data/private/watchlist.json"
+            )
+    return errors
+
+
+def _privacy_terms(private_dir: Path) -> tuple[list[str], list[str]]:
+    """The privacy_check.sh term lists, casefolded; empty where a list is absent."""
+    lists: list[list[str]] = []
+    for name in ("privacy_names.txt", "privacy_abbrevs.txt"):
+        try:
+            lines = (private_dir / name).read_text(encoding="utf-8-sig").splitlines()
+        except OSError:
+            lines = []
+        lists.append([line.strip().casefold() for line in lines if line.strip()])
+    return lists[0], lists[1]
+
+
 def main() -> int:
     args = parse_args()
     errors = validate_catalog(args.records_dir, args.schema)
+    errors.extend(validate_watchlist_file(args.watchlist))
     if errors:
         print(f"Catalog validation FAILED with {len(errors)} error(s):")
         for message in errors:

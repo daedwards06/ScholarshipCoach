@@ -262,6 +262,7 @@ def form_from_prefill(payload: Mapping[str, Any]) -> dict[str, Any]:
     values["amount_max"] = _float_or_none(payload.get("amount_max"))
 
     values["min_gpa"] = _float_or_none(payload.get("min_gpa"))
+    values["grade_levels"] = _only_known(payload.get("grade_levels"), GRADE_LEVEL_OPTIONS)
     values["states_allowed"] = _only_known(payload.get("states_allowed"), STATE_OPTIONS)
     values["counties_allowed"] = _only_known(payload.get("counties_allowed"), COUNTY_OPTIONS)
     values["majors_allowed"] = _only_known(payload.get("majors_allowed"), MAJOR_OPTIONS)

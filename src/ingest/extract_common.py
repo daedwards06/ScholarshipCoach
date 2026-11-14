@@ -140,6 +140,70 @@ _MAX_REQUIREMENT_EVIDENCE_CHARS = 160
 _MONTH_PREFIXES = (
     "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
 )
+
+# Program pages: read from the page's main content only, because site navigation
+# repeats other programs' grades ("Summer programs for rising 5th- through
+# 12th-graders") on every page of the site.
+_MAIN_PATTERN = re.compile(r"<main\b[^>]*>(.*?)</main>", flags=re.IGNORECASE | re.DOTALL)
+_CHROME_PATTERN = re.compile(
+    r"<(nav|header|footer|aside)\b[^>]*>.*?</\1>", flags=re.IGNORECASE | re.DOTALL
+)
+
+_ORDINAL = r"\d{1,2}(?:st|nd|rd|th)?"
+_GRADE_LIST = rf"{_ORDINAL}(?:\s*-?\s*(?:-|–|—|to|through|and|or|,)\s*(?:and\s+)?{_ORDINAL})*"
+_RISING = r"(?:rising|entering|incoming)\s+"
+# "rising 10th, 11th, and 12th graders", "Rising Grades 9–12", "rising 9th grade students"
+_GRADES_PREFIXED = re.compile(rf"\b({_RISING})?grades?\s*:?\s*({_GRADE_LIST})", re.IGNORECASE)
+_GRADES_SUFFIXED = re.compile(
+    rf"\b({_RISING})?({_GRADE_LIST})[\s-]*(grade|graders|girls|boys|students)\b", re.IGNORECASE
+)
+_SCHOOL_YEARS = re.compile(
+    r"\b((?:first|second|third|fourth)(?:\s*(?:,|or|and)\s*(?:first|second|third|fourth))*)"
+    r"\s+years?\s+of\s+high\s+school\b",
+    re.IGNORECASE,
+)
+_CLASS_NAMES = re.compile(
+    r"\b(rising|high school|current)\s+((?:freshmen|sophomores|juniors|seniors)"
+    r"(?:\s*(?:,|and|or)\s*(?:freshmen|sophomores|juniors|seniors))*)\b",
+    re.IGNORECASE,
+)
+_YEAR_WORDS = {"first": 9, "second": 10, "third": 11, "fourth": 12}
+_CLASS_WORDS = {"freshmen": 9, "sophomores": 10, "juniors": 11, "seniors": 12}
+_HIGH_SCHOOL_GRADES = range(9, 13)
+
+_FREE_PATTERN = re.compile(
+    r"\b(?:no[- ]cost|cost[- ]free|free of charge|tuition[- ]free|at no charge|"
+    r"free(?:\s+[\w-]+){0,2}\s+program)\b(?!\s+to\s+apply)",
+    re.IGNORECASE,
+)
+_COST_LABEL_PATTERN = re.compile(
+    r"\b(cost(?:\s+of\s+attendance)?|tuition|(?:program|camp)\s+fees?|prices?)\b[^$]{0,30}?"
+    r"\$(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?",
+    re.IGNORECASE,
+)
+# A bare "fee" is as often a service or cancellation fee as the program's
+# cost, so only "program fee" and "camp fee" are labels.  "Extra camp fees",
+# "application cost": a charge, but not what the program costs.
+_NOT_COST_WORDS = re.compile(
+    r"\b(?:extra|optional|additional|application|registration|late|deposit)\s*$", re.IGNORECASE
+)
+# "$295/week", "$120 per night": a rate, not what the program costs.
+_RATE_SUFFIX = re.compile(
+    r"^\s*(?:/|per\b|a\b|each\b)\s*(?:week|night|day|hour|way|month)", re.IGNORECASE
+)
+
+_SESSION_RANGE_PATTERN = re.compile(
+    rf"\b({_MONTH_NAMES})\.?\s+(\d{{1,2}})(?:,\s*(20\d{{2}}))?\s*(?:-|–|—|to|through)\s*"
+    rf"(?:({_MONTH_NAMES})\.?\s+)?(\d{{1,2}})(?!\d|:|\s*[ap]\.?m)(?:,\s*(20\d{{2}}))?",
+    re.IGNORECASE,
+)
+# A range right after these is a gap or an application window, not a session.
+_NOT_SESSION_LEAD = re.compile(
+    r"\b(?:no\s+camps?|closed|applications?|apply|registration|deadlines?|opens?)\b[^.]{0,30}$",
+    re.IGNORECASE,
+)
+# "April 2 - May 1, 2027 $1500": a refund or price period.
+_NOT_SESSION_TAIL = re.compile(r"^\s*\$")
 _WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 _ORDINALS = {"first": 1, "second": 2, "third": 3, "fourth": 4, "last": -1}
 
@@ -445,6 +509,135 @@ def find_requirement_flags(text: str | None) -> tuple[dict[str, Any], dict[str, 
             continue
         flags[key] = True
     return flags, evidence
+
+
+def main_text(html: str) -> str:
+    """The page's ``<main>`` content as text, without nav, header, footer or aside blocks.
+
+    A page with no ``<main>`` falls back to the whole document, still without
+    those blocks.
+    """
+    match = _MAIN_PATTERN.search(html)
+    body = match.group(1) if match else html
+    return html_to_text(_CHROME_PATTERN.sub(" ", body))
+
+
+def find_grade_levels(text: str | None) -> list[str] | None:
+    """The high-school grades a program takes applications from, as catalog values.
+
+    A catalog grade is the grade when applying, so "rising 11th graders" (or
+    "entering", "incoming") means 10th grade.  When the page states rising
+    grades in high school, those win over current-grade phrasing, which
+    programs use loosely for the same students ("for 10th-12th graders" under
+    a "rising 10th, 11th, and 12th graders" heading).  Grades outside 9-12
+    are dropped.
+    """
+    if not text:
+        return None
+    haystack = str(text)
+    rising: set[int] = set()
+    current: set[int] = set()
+
+    for pattern in (_GRADES_PREFIXED, _GRADES_SUFFIXED):
+        for match in pattern.finditer(haystack):
+            if pattern is _GRADES_SUFFIXED and match.group(3).lower() not in ("grade", "graders"):
+                if not re.search(r"\d(?:st|nd|rd|th)", match.group(2), re.IGNORECASE):
+                    continue
+            grades = _grade_list(match.group(2))
+            (rising if match.group(1) else current).update(grades)
+
+    for match in _SCHOOL_YEARS.finditer(haystack):
+        current.update(_words_to_grades(match.group(1), _YEAR_WORDS))
+    for match in _CLASS_NAMES.finditer(haystack):
+        grades = _words_to_grades(match.group(2), _CLASS_WORDS)
+        (rising if match.group(1).lower() == "rising" else current).update(grades)
+
+    applying = {grade - 1 for grade in rising} & set(_HIGH_SCHOOL_GRADES)
+    if not applying:
+        applying = current & set(_HIGH_SCHOOL_GRADES)
+    return [str(grade) for grade in sorted(applying)] or None
+
+
+def find_cost(text: str | None) -> tuple[float | None, list[float]]:
+    """Return ``(cost, candidates)`` for what a program charges to attend.
+
+    ``cost`` is set only when the page gives one answer: a single labeled
+    amount ("Cost of Attendance $1,550"), or "free" wording with no labeled
+    amount, which is ``0``.  Rates ("$295/week") and side charges ("Extra Fees",
+    "deposit", "Application fee") are not the cost.  Conflicting answers come
+    back as candidates with ``cost`` left ``None``.
+    """
+    if not text:
+        return None, []
+    haystack = str(text)
+    amounts: list[float] = []
+    for match in _COST_LABEL_PATTERN.finditer(haystack):
+        if _NOT_COST_WORDS.search(haystack[max(0, match.start() - 20) : match.start()]):
+            continue
+        if _RATE_SUFFIX.match(haystack[match.end() : match.end() + 20]):
+            continue
+        amounts.append(float(match.group(2).replace(",", "")))
+    candidates = list(dict.fromkeys(amounts))
+    if _FREE_PATTERN.search(haystack):
+        candidates = [0.0, *[amount for amount in candidates if amount != 0.0]]
+    if len(candidates) == 1:
+        return candidates[0], candidates
+    return None, candidates
+
+
+def find_session_dates(text: str | None) -> list[str]:
+    """Date ranges a program page gives for its sessions, as the page words them.
+
+    "June 14–19, 2026", "June 12 - June 23", "June 8 – August 7, 2026".  A range
+    after "no camps", "closed", or an application or registration phrase is a
+    gap or a window, not a session.  Deduped, in page order, dashes as "–".
+    """
+    if not text:
+        return []
+    haystack = str(text)
+    sessions: list[str] = []
+    for match in _SESSION_RANGE_PATTERN.finditer(haystack):
+        if _NOT_SESSION_LEAD.search(haystack[max(0, match.start() - 40) : match.start()]):
+            continue
+        if _NOT_SESSION_TAIL.match(haystack[match.end() : match.end() + 5]):
+            continue
+        start_month = _month_number(match.group(1))
+        end_month = _month_number(match.group(4)) if match.group(4) else start_month
+        start_day, end_day = int(match.group(2)), int(match.group(5))
+        if not start_month or not end_month:
+            continue
+        if not (_is_valid_month_day(start_month, start_day) and _is_valid_month_day(end_month, end_day)):
+            continue
+        if (end_month, end_day) <= (start_month, start_day) and not match.group(3):
+            continue
+        wording = WS_PATTERN.sub(" ", match.group(0)).strip()
+        sessions.append(re.sub(r"\s*(?:-|–|—)\s*", "–", wording))
+    return list(dict.fromkeys(sessions))
+
+
+def _words_to_grades(text: str, lookup: dict[str, int]) -> set[int]:
+    words = re.findall(r"[a-z]+", text.lower())
+    return {lookup[word] for word in words if word in lookup}
+
+
+def _grade_list(text: str) -> set[int]:
+    """``"10th, 11th, and 12th"`` -> {10, 11, 12}; ``"9–12"`` and ``"5th- through 12th"`` are ranges."""
+    tokens = re.findall(r"\d{1,2}|-|–|—|through|to", text, flags=re.IGNORECASE)
+    grades: set[int] = set()
+    previous: int | None = None
+    pending_range = False
+    for token in tokens:
+        if token.isdigit():
+            value = int(token)
+            if pending_range and previous is not None and previous <= value:
+                grades.update(range(previous, value + 1))
+            else:
+                grades.add(value)
+            previous = value
+            pending_range = False
+        else:
+            pending_range = True
+    return grades
 
 
 def _dated_mentions(haystack: str) -> list[tuple[int, str]]:

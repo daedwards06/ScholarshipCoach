@@ -447,3 +447,28 @@ def test_inbox_page_says_where_a_feed_proposal_came_from_and_why(
         "Why this was proposed:" in block.value and r"\$1,000" in block.value
         for block in app.markdown
     )
+
+
+def test_inbox_page_says_which_watch_entry_a_proposal_came_from(
+    catalog_dirs: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from streamlit.testing.v1 import AppTest
+
+    import src.catalog.inbox as inbox_module
+
+    inbox, records = catalog_dirs
+    monkeypatch.setattr(inbox_module, "INBOX_DIR", inbox)
+    propose(
+        _valid_record(trust="unverified"),
+        kind="prefill",
+        source="watchlist:gaston-foundation",
+        why='A new link on the watched page "Gaston foundation scholarships" since 2026-11-07.',
+        inbox_dir=inbox,
+        records_dir=records,
+    )
+
+    app = AppTest.from_function(_render_inbox).run()
+
+    assert not app.exception
+    assert "Watch entry: gaston-foundation" in [caption.value for caption in app.caption]
+    assert any("From the watch list" in block.value for block in app.markdown)

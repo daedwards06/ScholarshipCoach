@@ -22,12 +22,16 @@ from src.ingest.extract_common import (
     YearlessDate,
     extract_amounts,
     extract_field_value,
+    find_cost,
     find_deadline_dates,
+    find_grade_levels,
     find_min_gpa,
     find_nc_counties,
     find_requirement_flags,
+    find_session_dates,
     find_states,
     html_to_text,
+    main_text,
     meta_content,
     tag_text,
 )
@@ -50,6 +54,10 @@ class ExtractionResult:
     ``deadline_yearless`` holds labeled deadlines the page gave without a
     year, and only when it gave no labeled deadline with one: which year a
     "March 1" means is the caller's call, made against the award's cycle.
+
+    ``cost``, ``grade_levels`` and ``session_dates`` are what a program card
+    shows.  They are read from the page's main content, not its navigation
+    (:func:`read_program_fields`); ``cost`` is meaningful for programs only.
     """
 
     deadline_candidates: list[str] = field(default_factory=list)
@@ -64,6 +72,10 @@ class ExtractionResult:
     education_level: str | None = None
     citizenship: str | None = None
     keywords: list[str] | None = None
+    cost: float | None = None
+    cost_candidates: list[float] = field(default_factory=list)
+    grade_levels: list[str] | None = None
+    session_dates: list[str] = field(default_factory=list)
     requirements: dict[str, Any] = field(default_factory=dict)
     requirement_evidence: dict[str, str] = field(default_factory=dict)
     confidence: dict[str, float] = field(default_factory=dict)
@@ -160,6 +172,24 @@ class RegexExtractor:
         return result
 
 
+def read_program_fields(result: ExtractionResult, text: str | None) -> None:
+    """Fill the program fields an extractor left empty, from a page's main text.
+
+    One stated answer scores like a labeled field (it may contradict a
+    record); a "rising 11th graders" grade reads as the grade when applying.
+    """
+    if result.cost is None and not result.cost_candidates:
+        result.cost, result.cost_candidates = find_cost(text)
+        if result.cost is not None:
+            result.confidence["cost"] = 0.85
+    if result.grade_levels is None:
+        result.grade_levels = find_grade_levels(text)
+        if result.grade_levels:
+            result.confidence["grade_levels"] = 0.75
+    if not result.session_dates:
+        result.session_dates = find_session_dates(text)
+
+
 def extraction_result_from_fields(
     fields: dict[str, Any], *, confidence: float = 0.5
 ) -> ExtractionResult:
@@ -245,6 +275,10 @@ class PrefillResult:
             "education_level": self.extraction.education_level,
             "citizenship": self.extraction.citizenship,
             "keywords": self.extraction.keywords,
+            "cost": self.extraction.cost,
+            "cost_candidates": list(self.extraction.cost_candidates),
+            "grade_levels": self.extraction.grade_levels,
+            "session_dates": list(self.extraction.session_dates),
             "requirements": dict(self.extraction.requirements),
             "requirement_evidence": dict(self.extraction.requirement_evidence),
             "confidence": self.confidence,
@@ -277,13 +311,15 @@ def prefill_from_html(
     if description:
         page_confidence["description"] = 0.8
 
+    extraction = active.extract(title or None, text)
+    read_program_fields(extraction, main_text(html)[:_MAX_TEXT_CHARS])
     return PrefillResult(
         url=url,
         title=title or None,
         sponsor=sponsor,
         description=description,
         text=text,
-        extraction=active.extract(title or None, text),
+        extraction=extraction,
         extractor=active.name,
         _page_confidence=page_confidence,
     )

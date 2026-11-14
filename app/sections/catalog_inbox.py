@@ -12,7 +12,7 @@ import streamlit as st
 from app import modes, state
 from app.helpers import DeadlineBadge, csv_list, csv_text
 from scripts.rebuild_snapshot import rebuild_curated_snapshot
-from src.catalog import inbox
+from src.catalog import inbox, watch
 from src.catalog import entry as catalog_entry
 from src.ingest.prefill import prefill_from_url
 from src.normalize.catalog_schema import RECORDS_DIR
@@ -63,6 +63,7 @@ PROPOSAL_KIND_BADGES = {
 }
 
 FEED_SOURCE_LABELS = {"open_scholarships": "Open Scholarships"}
+WATCHLIST_BADGE = DeadlineBadge("From the watch list", ":material/visibility:", "blue")
 
 
 def proposal_kind_badge(kind: str, count: int) -> DeadlineBadge:
@@ -555,6 +556,9 @@ def _render_proposal(proposal: inbox.Proposal) -> None:
             st.badge(feed_badge.label, icon=feed_badge.icon, color=feed_badge.color)
             if proposal.source:
                 st.caption(f"Source: {FEED_SOURCE_LABELS.get(proposal.source, proposal.source)}")
+        elif proposal.source and proposal.source.startswith(watch.SOURCE_PREFIX):
+            st.badge(WATCHLIST_BADGE.label, icon=WATCHLIST_BADGE.icon, color=WATCHLIST_BADGE.color)
+            st.caption(f"Watch entry: {proposal.source.removeprefix(watch.SOURCE_PREFIX)}")
         if proposal.why:
             # Amounts like "$1,000 → $2,500" would otherwise render as LaTeX.
             why = proposal.why.replace("$", "\\$")
