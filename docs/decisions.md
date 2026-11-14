@@ -5,6 +5,49 @@ Newest first. A decision stays here after it is reversed; the reversal is a new 
 
 ---
 
+## 2026-11-13 — Freshness & Today plan: discovery on a timer, Today as her home page
+
+**Context.** An owner review found that new opportunities arrive only when ingest is run by hand,
+and that nothing in the app says when something did. The findings were re-checked against the
+code and the 2026-10-11 snapshot; the plan
+(`docs/plans/SCHOLARSHIPCOACH_FRESHNESS_AND_TODAY_PLAN.md`, "What the check found") records what
+held and what did not. Two corrections matter here. 33 of 40 curated records have no `deadline`,
+but 30 of those carry a cycle month, so the timeline and Stage 3 already place them; the rows
+that cannot be placed are the feed's (82 of 99 undated). And 0 of 99 feed rows name a grade, so a
+feed row cannot reach her page until a person confirms it into a curated record.
+
+**Decisions.** These are the plan's defaults. They take effect as each task lands, and the
+owner may change any of them before the task the plan names.
+
+- **Discovery runs on a schedule, and still only proposes.** Weekly, the enabled feed is fetched
+  and a committed watch list of pages is checked; both write proposals. Feed rows keep entering
+  the snapshot as `structured_feed`. No timer writes a catalog record, deploys, or applies a
+  migration. Extends 2026-09-12 "Automation proposes, a person confirms"; changes nothing in it.
+- **The snapshot rebuilds itself after a confirm**, in the app and by a 03:50 timer ahead of the
+  04:15 sync. Replaces "Rebuild the snapshot" by hand.
+- **Family-specific watch pages stay private.** Her school's counselor page, employers and
+  congregations go in a server-only list under `data/private/`; the committed list holds only
+  pages that say nothing about her.
+- **Today replaces My Path as the student home page** (Roles & Product Plan D5). My Path becomes
+  the detail view. Where she stands stays on the home screen, and Today is built to survive the
+  gate's fallback.
+- **A weekly digest, in the app, with a content-free email nudge to parents.** Changes Roles &
+  Product Plan Task B.4's "no email" for a message that carries a count and a tailnet link and
+  nothing else. She gets no nudge until the go/no-go gate is held, so the gate still measures
+  whether she opens the app on her own.
+- **LLM extraction: measure, do not adopt.** One optional task scores an LLM extractor against
+  the 40 hand-confirmed records on the dev PC. The 2026-09-12 "No generative LLM" decision
+  stands until those numbers exist and a separate decision is made on them.
+- **The phone tab bar is a spike with a verdict.** Streamlit 1.54 has no bottom tab bar; a
+  CSS-pinned row of page links is tried against a written pass bar on real phones, and the
+  result, pass or fail, is recorded here.
+
+**Rejected.** Full-content digest email (a third party would hold her schedule). Auto-confirming
+rows from a trusted feed. One committed watch list (her school's page in a public repo
+identifies her school). Streaks or points on her home page.
+
+---
+
 ## 2026-10-11 — The grade follows the graduation year; state and citizenship never fail silently
 
 **Context.** After Task A.7 the owner filled in the real profile. Two problems surfaced. The grade

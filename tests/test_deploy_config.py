@@ -107,6 +107,29 @@ def test_catalog_sync_runs_nightly_after_backup() -> None:
     assert sync["Persistent"] == "true"
 
 
+def test_rebuild_runs_nightly_between_backup_and_sync() -> None:
+    backup = _timer("scholarshipcoach-backup.timer")["OnCalendar"].split()[-1]
+    sync = _timer("scholarshipcoach-catalog-sync.timer")["OnCalendar"].split()[-1]
+    rebuild = _timer("scholarshipcoach-rebuild.timer")
+    assert rebuild["OnCalendar"] == "*-*-* 03:50:00"
+    assert backup < rebuild["OnCalendar"].split()[-1] < sync
+    assert rebuild["Persistent"] == "true"
+
+
+def test_rebuild_unit_runs_as_coach_from_repo_root() -> None:
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
+    parser.optionxform = str  # type: ignore[assignment,method-assign]
+    parser.read(DEPLOY_DIR / "scholarshipcoach-rebuild.service", encoding="utf-8")
+    service = parser["Service"]
+    assert service["User"] == "coach"
+    assert service["WorkingDirectory"] == APP_DIR
+    assert service["ExecStart"] == (
+        f"{APP_DIR}/.venv/bin/python scripts/rebuild_snapshot.py --if-stale"
+    )
+    bootstrap = (DEPLOY_DIR / "bootstrap.sh").read_text(encoding="utf-8")
+    assert bootstrap.count("for job in backup rebuild verify catalog-sync; do") == 2
+
+
 def test_catalog_sync_validates_then_commits_only_records() -> None:
     text = (DEPLOY_DIR / "catalog_sync.sh").read_text(encoding="utf-8")
     assert "BRANCH=server" in text

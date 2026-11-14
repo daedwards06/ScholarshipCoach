@@ -1,0 +1,12 @@
+# Nightly at 03:50 server time: after the 03:30 backup, and before the 04:15
+# catalog sync so the delta report rides the same night's sync. Persistent=true
+# runs a missed rebuild at the next boot.
+[Unit]
+Description=Nightly ScholarshipCoach snapshot rebuild
+
+[Timer]
+OnCalendar=*-*-* 03:50:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

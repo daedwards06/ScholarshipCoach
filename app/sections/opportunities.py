@@ -212,7 +212,7 @@ def apply_filters(
 
 @st.cache_data(show_spinner=False, max_entries=8)
 def opportunities_frame(
-    snapshot_path_text: str, profile: dict[str, Any], today_value: date
+    snapshot_path_text: str, snapshot_mtime_ns: int, profile: dict[str, Any], today_value: date
 ) -> pd.DataFrame:
     snapshot_df = state.load_snapshot_cached(snapshot_path_text)
     return classify_opportunities(
@@ -586,7 +586,12 @@ def render() -> None:
         return
 
     try:
-        frame = opportunities_frame(snapshot_path_text, dict(profile), today_value)
+        frame = opportunities_frame(
+            snapshot_path_text,
+            state.snapshot_mtime_ns(snapshot_path_text),
+            dict(profile),
+            today_value,
+        )
     except Exception as exc:
         st.error(f"Could not load opportunities: {exc}")
         return

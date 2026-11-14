@@ -63,12 +63,16 @@ def _changes_path_for_snapshot(snapshot_path: Path) -> Path | None:
     return None
 
 
-@st.cache_data(show_spinner=False)
-def _load_delta_cached(path_text: str) -> dict[str, Any]:
+@st.cache_data(show_spinner=False, max_entries=4)
+def _read_delta(path_text: str, mtime_ns: int) -> dict[str, Any]:
     path = Path(path_text)
     if not path.exists():
         return {"added": [], "removed": [], "changed": []}
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_delta_cached(path_text: str) -> dict[str, Any]:
+    return _read_delta(path_text, state.snapshot_mtime_ns(path_text))
 
 
 def _source_health_rows(source_info: dict[str, Any]) -> list[dict[str, Any]]:

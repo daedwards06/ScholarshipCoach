@@ -1,0 +1,13 @@
+# Rebuild the snapshot when a catalog record is newer than it. Started nightly
+# by scholarshipcoach-rebuild.timer; installed by deploy/bootstrap.sh. Curated
+# records only: no network, and coach.db is never opened. Exits non-zero when a
+# guardrail blocks the write (the prior snapshot stays).
+[Unit]
+Description=ScholarshipCoach snapshot rebuild
+
+[Service]
+Type=oneshot
+User=coach
+Group=coach
+WorkingDirectory=/srv/scholarshipcoach
+ExecStart=/srv/scholarshipcoach/.venv/bin/python scripts/rebuild_snapshot.py --if-stale
