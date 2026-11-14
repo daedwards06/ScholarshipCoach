@@ -474,8 +474,12 @@ python scripts/discover.py --dry-run
       `data/catalog/records/` except verify's stamp (principles 1 and 2)
 - [x] `docs/operations.md`: a "Weekly discovery" section in the style of the verify section:
       what it does, what each outcome means, how to run it by hand, where the report is
-- [ ] *Owner, on the server:* install the unit; one manual run; the baseline is written and the
+- [x] *Owner, on the server:* install the unit; one manual run; the baseline is written and the
       inbox is unchanged
+      *(2026-11-14: deployed `3b20822`; the two files installed by hand as root; five timers
+      listed, discover next Sun 05:00 UTC. Manual run: 98 rows, `succeeded`, baseline, nothing
+      proposed, exit 0; `feed_state.json` and the report written as `coach`; inbox 0 before and
+      after)*
 - [x] All five CI commands green
 
 **Task notes (2026-11-14):**
@@ -498,6 +502,9 @@ python scripts/discover.py --dry-run
   feed and checks the real records directory is byte-for-byte unchanged.
 - *Measured.* `python scripts/discover.py --dry-run` against the live feed on the dev PC: 98
   rows, `succeeded`, baseline (no state on the dev PC), nothing written.
+- *Installed (2026-11-14).* The admin login's `sudo` password was not to hand, and `coach`'s
+  sudo covers only the app's restart, so the unit went in from `ssh root@coach` (Tailscale SSH
+  allows root without a password). The run still goes as `coach`, per the unit.
 
 ---
 
