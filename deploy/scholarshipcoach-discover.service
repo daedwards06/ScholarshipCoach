@@ -1,0 +1,17 @@
+# Weekly discovery: refresh the feed sources and propose new or changed awards
+# to the catalog inbox. Started by scholarshipcoach-discover.timer; installed
+# by deploy/bootstrap.sh. Never confirms a proposal or edits a record. Exits
+# non-zero when a feed source fails or a guardrail blocks the snapshot write;
+# read reports/discovery/ for which.
+[Unit]
+Description=ScholarshipCoach weekly feed discovery
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=coach
+Group=coach
+WorkingDirectory=/srv/scholarshipcoach
+ExecStart=/srv/scholarshipcoach/.venv/bin/python scripts/discover.py
+TimeoutStartSec=30min

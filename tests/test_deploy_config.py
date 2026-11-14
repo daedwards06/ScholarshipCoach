@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import configparser
 import re
 import subprocess
@@ -127,7 +128,7 @@ def test_rebuild_unit_runs_as_coach_from_repo_root() -> None:
         f"{APP_DIR}/.venv/bin/python scripts/rebuild_snapshot.py --if-stale"
     )
     bootstrap = (DEPLOY_DIR / "bootstrap.sh").read_text(encoding="utf-8")
-    assert bootstrap.count("for job in backup rebuild verify catalog-sync; do") == 2
+    assert bootstrap.count("for job in backup rebuild verify catalog-sync discover; do") == 2
 
 
 def test_catalog_sync_validates_then_commits_only_records() -> None:
@@ -249,3 +250,212 @@ def test_privacy_check_checks_added_lines_and_fails_closed(tmp_path: Path) -> No
 
     old.write_text(record % "2026-10-01" + '{"extra": "for her: EXAMPLE TECH"}\n')
     assert run(rel_old).returncode == 1  # an added line, case-insensitive
+
+
+def test_discover_runs_sundays_at_five_as_coach() -> None:
+    timer = _timer("scholarshipcoach-discover.timer")
+    assert timer["OnCalendar"] == "Sun *-*-* 05:00:00"
+    assert timer["Persistent"] == "true"
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
+    parser.optionxform = str  # type: ignore[assignment,method-assign]
+    parser.read(DEPLOY_DIR / "scholarshipcoach-discover.service", encoding="utf-8")
+    service = parser["Service"]
+    assert service["User"] == "coach"
+    assert service["WorkingDirectory"] == APP_DIR
+    assert service["ExecStart"] == f"{APP_DIR}/.venv/bin/python scripts/discover.py"
+
+
+# Principles 1 and 2 of the Freshness & Today Plan, checked over everything a
+# timer can reach: its unit's script, the scripts that script runs, and every
+# local module those import.
+_FORBIDDEN_COMMANDS = re.compile(r"git\s+pull|\bpip3?\b|systemctl\s+restart|update\.sh")
+_WRITE_CALLS = frozenset(
+    {
+        "write_json_atomic",
+        "_write_text_atomic",
+        "write_text",
+        "write_bytes",
+        "unlink",
+        "replace",
+        "rename",
+        "rmtree",
+        "move",
+        "dump",
+    }
+)
+_RECORDS_NAMES = frozenset({"RECORDS_DIR", "records_dir"})
+_ALLOWED_RECORD_WRITERS = frozenset(
+    {"src.catalog.inbox.confirm", "src.catalog.verify._stamp_checked_on"}
+)
+
+
+def _timer_entry_points() -> dict[str, Path]:
+    entries: dict[str, Path] = {}
+    for timer in sorted(DEPLOY_DIR.glob("*.timer")):
+        parser = configparser.ConfigParser(interpolation=None, strict=False)
+        parser.optionxform = str  # type: ignore[assignment,method-assign]
+        parser.read(timer.with_suffix(".service"), encoding="utf-8")
+        args = parser["Service"]["ExecStart"].split()
+        script = next(arg for arg in args if arg.endswith((".py", ".sh")))
+        entries[timer.stem] = ROOT_DIR / script.removeprefix(f"{APP_DIR}/")
+    return entries
+
+
+def _shell_code(path: Path) -> str:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return "\n".join(line for line in lines if not line.lstrip().startswith("#"))
+
+
+def _reached_files(entry: Path) -> tuple[list[Path], list[Path]]:
+    """Shell scripts and Python modules reachable from one timer's entry point."""
+    shells: list[Path] = []
+    pythons: list[Path] = []
+    pending = [entry]
+    while pending:
+        path = pending.pop()
+        if path.suffix == ".sh":
+            if path in shells:
+                continue
+            shells.append(path)
+            code = _shell_code(path)
+            pending += [ROOT_DIR / rel for rel in re.findall(r"\bdeploy/[\w.-]+\.sh\b", code)]
+            pending += [ROOT_DIR / rel for rel in re.findall(r"\bscripts/[\w.-]+\.py\b", code)]
+        elif path not in pythons:
+            pythons.append(path)
+            pending += _local_imports(path)
+    return shells, pythons
+
+
+def _module_file(dotted: str) -> Path | None:
+    base = ROOT_DIR.joinpath(*dotted.split("."))
+    for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _module_name(path: Path) -> str:
+    parts = list(path.relative_to(ROOT_DIR).with_suffix("").parts)
+    return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
+
+
+def _local_imports(path: Path) -> list[Path]:
+    package = _module_name(path).split(".")
+    if path.name != "__init__.py":
+        package = package[:-1]
+    found: list[Path] = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            prefix = package[: len(package) - node.level + 1] if node.level else []
+            module = ".".join([*prefix, *(node.module.split(".") if node.module else [])])
+            names = [module, *(f"{module}.{alias.name}" for alias in node.names)]
+        else:
+            continue
+        for name in names:
+            if name.split(".")[0] in ("src", "scripts"):
+                module_file = _module_file(name)
+                if module_file is not None:
+                    found.append(module_file)
+    return found
+
+
+def _called_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    return None
+
+
+def _path_names(*nodes: ast.AST) -> set[str]:
+    """Names a path expression is built from; a call's result is data, not a path."""
+    names: set[str] = set()
+    pending = list(nodes)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, ast.Name):
+            names.add(node.id)
+        elif not isinstance(node, ast.Call):
+            pending += ast.iter_child_nodes(node)
+    return names
+
+
+def _record_writers(path: Path) -> set[str]:
+    """Functions that write to a path built from the catalog records directory."""
+    writers: set[str] = set()
+    tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+    for func in ast.walk(tree):
+        if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        tainted = set(_RECORDS_NAMES)
+        assigns = [node for node in ast.walk(func) if isinstance(node, ast.Assign)]
+        for _ in assigns:
+            for node in assigns:
+                if _path_names(node.value) & tainted:
+                    tainted |= {t.id for t in node.targets if isinstance(t, ast.Name)}
+        for call in (node for node in ast.walk(func) if isinstance(node, ast.Call)):
+            if _called_name(call) not in _WRITE_CALLS:
+                continue
+            if isinstance(call.func, ast.Attribute):
+                targets = [call.func.value, *call.args]
+            else:  # write_json_atomic(payload, path) and friends: the data is not the target
+                targets = call.args[1:]
+            targets += [kw.value for kw in call.keywords]
+            if _path_names(*targets) & tainted:
+                writers.add(f"{_module_name(path)}.{func.name}")
+    return writers
+
+
+def _string_constants(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+    docstrings = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+    }
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and id(node) not in docstrings
+    ]
+
+
+def test_every_timer_is_found() -> None:
+    jobs = ("backup", "rebuild", "verify", "catalog-sync", "discover")
+    assert set(_timer_entry_points()) == {f"scholarshipcoach-{job}" for job in jobs}
+
+
+@pytest.mark.parametrize("timer", sorted(_timer_entry_points()))
+def test_nothing_a_timer_reaches_deploys_or_restarts(timer: str) -> None:
+    shells, pythons = _reached_files(_timer_entry_points()[timer])
+    for path in shells:
+        assert _FORBIDDEN_COMMANDS.search(_shell_code(path)) is None, path.name
+    for path in pythons:
+        for text in _string_constants(path):
+            assert _FORBIDDEN_COMMANDS.search(text) is None, (path.name, text)
+
+
+@pytest.mark.parametrize("timer", sorted(_timer_entry_points()))
+def test_nothing_a_timer_reaches_confirms_or_writes_records(timer: str) -> None:
+    _, pythons = _reached_files(_timer_entry_points()[timer])
+    for path in pythons:
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+        assert not [call for call in calls if _called_name(call) == "confirm"], path.name
+        assert _record_writers(path) <= _ALLOWED_RECORD_WRITERS, path.name
+
+
+def test_the_record_writer_check_sees_confirm_and_the_verify_stamp() -> None:
+    # Guards the guard: both allowed writers are reachable and detected, so a
+    # clean pass above means no other writer, not a blind check.
+    _, discover_reach = _reached_files(ROOT_DIR / "scripts" / "discover.py")
+    _, verify_reach = _reached_files(ROOT_DIR / "scripts" / "verify_catalog.py")
+    found = set().union(*map(_record_writers, discover_reach + verify_reach))
+    assert found == _ALLOWED_RECORD_WRITERS

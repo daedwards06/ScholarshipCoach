@@ -458,25 +458,46 @@ python scripts/discover.py --dry-run
 ```
 
 **Checklist:**
-- [ ] `scripts/discover.py`: runs ingest for the enabled feed sources with today's guardrails
+- [x] `scripts/discover.py`: runs ingest for the enabled feed sources with today's guardrails
       (the > 50% drop still blocks the write), then Task 2.1 over the result. Writes
       `reports/discovery/discovery_<UTC stamp>.json`: per source `succeeded` / `skipped` /
       `failed`, records, the zero-record regression flag, proposals written, and the left-out
       counts. `--dry-run` fetches and reports, writes nothing
-- [ ] Exit code: 0 for a completed pass, including one that found nothing new; non-zero when a
+- [x] Exit code: 0 for a completed pass, including one that found nothing new; non-zero when a
       source that returned records before returns none, or a guardrail blocks. systemd then shows
       the unit failed, and the digest says so (Task 3.1)
-- [ ] `deploy/scholarshipcoach-discover.service` + `.timer`: Sundays 05:00, `Persistent=true`,
+- [x] `deploy/scholarshipcoach-discover.service` + `.timer`: Sundays 05:00, `Persistent=true`,
       as `coach`, in `bootstrap.sh`'s loop
-- [ ] `tests/test_deploy_config.py`, for every script a timer starts: it contains no `git pull`,
+- [x] `tests/test_deploy_config.py`, for every script a timer starts: it contains no `git pull`,
       `pip`, `systemctl restart` or `update.sh`; nothing under `scripts/` or `src/catalog/` that a
       timer reaches calls `confirm(`; nothing a timer reaches writes under
       `data/catalog/records/` except verify's stamp (principles 1 and 2)
-- [ ] `docs/operations.md`: a "Weekly discovery" section in the style of the verify section:
+- [x] `docs/operations.md`: a "Weekly discovery" section in the style of the verify section:
       what it does, what each outcome means, how to run it by hand, where the report is
 - [ ] *Owner, on the server:* install the unit; one manual run; the baseline is written and the
       inbox is unchanged
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-11-14):**
+- *Rows before dedupe.* `run_ingest` gained `parsed_rows` (filled with each source's rows before
+  the cross-source collapse, which would otherwise drop a feed row that disagrees with a curated
+  record) and `dry_run` (fetch, parse and guardrails; no raw cache, snapshot, delta or report).
+  Ingest runs once per pass, not once for the snapshot and again for discovery.
+- *Which sources.* `FEED_SOURCES` in the script (Open Scholarships today), intersected with what
+  `sources.json` enables. Scrapers are not feeds even when re-enabled.
+- *Exit 1* when any feed source is `failed` (a raised fetch, or the zero-record regression) or
+  the guardrail blocks. A first-ever fetch that raises is a failure too: it is not a completed
+  pass. A source that did not succeed, or any source under a blocked guardrail, is not planned,
+  so its state stays and the next good run compares against the last good one.
+- *Guards.* The deploy tests read every `*.timer`'s unit, follow the shell scripts it runs and
+  the Python modules those import, and check: no `git pull` / `pip` / `systemctl restart` /
+  `update.sh` in shell code or Python string constants; no call to `confirm`; and the only
+  functions that write a path built from the records directory are `inbox.confirm` and verify's
+  `_stamp_checked_on`. A further test asserts the detector finds exactly those two, so a clean
+  pass is not a blind one. `tests/test_discover.py` runs the script end to end on the sample
+  feed and checks the real records directory is byte-for-byte unchanged.
+- *Measured.* `python scripts/discover.py --dry-run` against the live feed on the dev PC: 98
+  rows, `succeeded`, baseline (no state on the dev PC), nothing written.
 
 ---
 

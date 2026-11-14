@@ -1,0 +1,11 @@
+# Sundays 05:00 server time. Persistent=true runs a missed pass at the next
+# boot.
+[Unit]
+Description=Weekly ScholarshipCoach feed discovery
+
+[Timer]
+OnCalendar=Sun *-*-* 05:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

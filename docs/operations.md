@@ -403,6 +403,70 @@ what a run found in `reports/catalog_verify/`, or from the inbox.
 
 ---
 
+## Weekly discovery
+
+`scripts/discover.py` refreshes the feed sources (today only Open Scholarships; `FEED_SOURCES`
+in the script, and only those enabled in `data/catalog/sources.json`) and proposes what changed.
+On the server, `scholarshipcoach-discover.timer` runs it Sundays at 05:00 as `coach`.
+
+It runs ingest for the feed sources alone, with the usual guardrails: the curated rows are
+carried forward from the prior snapshot, and a record drop of more than half blocks the
+snapshot write. Then, per source that succeeded, `src/catalog/discovery.py` writes `feed`
+proposals to `data/catalog/inbox/`: rows that are new, or whose deadline, status or amount
+changed since the last run, that the curated catalog does not already carry with the same
+values, that were not rejected before with the same content, and that pass Stage 1 for the
+saved profile with the grade ignored. At most 15 a run; the rest are counted in the report, not
+queued. The first run for a source records a baseline (`reports/discovery/feed_state.json`) and
+proposes nothing.
+
+It never confirms a proposal and never writes under `data/catalog/records/`;
+`tests/test_deploy_config.py` checks that for everything a timer reaches. A written snapshot
+leaves a `data/processed/changes_*.json` delta report, which the nightly catalog sync commits
+after its privacy check, as it does for "Rebuild snapshot".
+
+| Outcome | What it means | Exit |
+|---|---|---|
+| `completed`, a source `succeeded` with proposals | New or changed awards wait in Catalog & Inbox with the feed badge and "why this was proposed" | 0 |
+| `completed`, nothing proposed | The feed had nothing new for her, or this was the baseline run. Healthy | 0 |
+| A source `failed` | The fetch or parse raised, or a source that returned records before returned none (`zero_record_regression: true`). That source is not planned and its state is kept, so the next good run compares against the last good one | 1 |
+| Guardrail blocked | The snapshot was not written and no source was planned. The prior snapshot stays | 1 |
+
+A non-zero exit leaves the unit failed in `systemctl --failed`; the weekly digest (Task 3.1 of
+the Freshness & Today Plan) will say so in plain words.
+
+### Run it by hand
+
+```powershell
+# Fetch and report only: no snapshot, proposals, state or report are written
+python scripts/discover.py --dry-run
+
+# A real pass, as the timer runs it
+python scripts/discover.py
+```
+
+On the server, as `coach`: `sudo systemctl start scholarshipcoach-discover.service`, then
+`journalctl -u scholarshipcoach-discover -n 50`. Each real run writes
+`reports/discovery/discovery_<UTC stamp>.json`: per source its status (`succeeded`, `partial`,
+`skipped` or `failed`), records, the zero-record regression flag, proposals written with their
+ids, and the left-out counts by reason (`baseline`, `unchanged`, `covered_by_curated`,
+`previously_rejected`, `failed_profile_screen`, `over_cap`). The ingest report it ran is in
+`reports/ingest_runs/`.
+
+### Install the timer on the server
+
+`deploy/bootstrap.sh` installs it with the other timers, and is safe to re-run. By hand, as root
+after an update has merged the unit files:
+
+```bash
+cd /srv/scholarshipcoach
+install -m 644 deploy/scholarshipcoach-discover.service deploy/scholarshipcoach-discover.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now scholarshipcoach-discover.timer
+systemctl list-timers scholarshipcoach-discover.timer
+```
+
+---
+
 ## Where local awards come from
 
 Local and state awards have the smallest applicant pools and appear in no aggregator, so they are
