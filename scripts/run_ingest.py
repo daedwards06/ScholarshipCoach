@@ -524,6 +524,8 @@ def run_ingest(
     llm_max_calls: int = 100,
     only_sources: Sequence[str] | None = None,
     force: bool = False,
+    dry_run: bool = False,
+    parsed_rows: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """Run every enabled connector and write a snapshot, delta and run report.
 
@@ -534,6 +536,11 @@ def run_ingest(
             Rows from the enabled sources that did not run are carried forward
             from the prior snapshot rather than dropped.
         force: Write the snapshot even when a guardrail blocks it.
+        dry_run: Fetch, parse and run the guardrails, but write no raw cache,
+            snapshot, delta or report.
+        parsed_rows: When given, filled with ``{source: parsed rows}`` before
+            dedupe, for callers that need the rows a source returned
+            (``scripts/discover.py``).
     """
     started_at = datetime.now(tz=UTC)
     resolved_raw_dir = _resolve_repo_path(raw_dir or (ROOT_DIR / "data" / "raw"))
@@ -599,6 +606,8 @@ def run_ingest(
                             parsed, cache_paths = fetch_result
                             source_meta = {}
                         source_records.extend(parsed)
+                        if parsed_rows is not None:
+                            parsed_rows[source.name] = list(parsed)
                         source_report["records"] = len(parsed)
                         source_report["cache_paths"] = [str(path.resolve()) for path in cache_paths]
                         source_report.update(source_meta)
@@ -616,19 +625,23 @@ def run_ingest(
                         )
                     else:
                         raw_response = source.fetch(client)
-                        raw_path = write_raw_payload(
-                            source_name=source.name,
-                            payload=raw_response.content,
-                            extension=raw_response.extension,
-                            raw_root=resolved_raw_dir,
-                            timestamp=raw_response.fetched_at,
-                        )
+                        raw_path: Path | None = None
+                        if not dry_run:
+                            raw_path = write_raw_payload(
+                                source_name=source.name,
+                                payload=raw_response.content,
+                                extension=raw_response.extension,
+                                raw_root=resolved_raw_dir,
+                                timestamp=raw_response.fetched_at,
+                            )
                         parsed = source.parse(raw_response.content, fetched_at=raw_response.fetched_at)
                         source_records.extend(parsed)
+                        if parsed_rows is not None:
+                            parsed_rows[source.name] = list(parsed)
                         source_report["status"] = "succeeded"
                         source_report["records"] = len(parsed)
-                        source_report["cache_paths"] = [str(raw_path.resolve())]
-                        source_report["cached_files_written"] = 1
+                        source_report["cache_paths"] = [str(raw_path.resolve())] if raw_path else []
+                        source_report["cached_files_written"] = 1 if raw_path else 0
                         logger.info("Source=%s cached=%s records=%d", source.name, raw_path, len(parsed))
                 except Exception as exc:
                     source_report["error"] = "fetch_or_parse_failed"
@@ -729,6 +742,8 @@ def run_ingest(
                     "Re-run with --force (force=True) to write it anyway."
                 )
                 logger.error(snapshot_skip_reason)
+            elif dry_run:
+                snapshot_skip_reason = "Dry run: nothing written."
             else:
                 snapshot_path, changes_path, delta = build_and_write_snapshot(
                     normalized_df,
@@ -796,6 +811,7 @@ def run_ingest(
                 "llm_max_calls": llm_max_calls,
                 "only_sources": list(only_sources) if only_sources is not None else None,
                 "force": force,
+                "dry_run": dry_run,
             },
             "sources": {
                 "attempted": attempted_sources,
@@ -840,7 +856,7 @@ def run_ingest(
             "artifact_paths": {
                 "snapshot": str(snapshot_path.resolve()) if snapshot_path else None,
                 "delta": str(changes_path.resolve()) if changes_path else None,
-                "report": str(report_path.resolve()),
+                "report": None if dry_run else str(report_path.resolve()),
                 "prior_snapshot": str(prior_snapshot_path.resolve()) if prior_snapshot_path else None,
             },
             "artifact_notes": {
@@ -855,7 +871,8 @@ def run_ingest(
             },
             "exception_summary": run_exception,
         }
-        write_json_atomic(report_payload, report_path)
+        if not dry_run:
+            write_json_atomic(report_payload, report_path)
     return report_payload
 
 
