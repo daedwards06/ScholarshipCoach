@@ -212,8 +212,11 @@ python scripts/screenshot_app.py --journeys --scratch-db
 - [x] `tests/test_deploy_config.py`: the rebuild timer sits between backup and sync; the unit
       runs as `coach` from the repo root
 - [x] Journey P2 re-walked: form + 1, within budget (was 5 + form) *(measured 0 + form)*
-- [ ] *Owner, on the server:* install the new unit (re-run the idempotent `bootstrap.sh` as the
+- [x] *Owner, on the server:* install the new unit (re-run the idempotent `bootstrap.sh` as the
       admin login) and confirm `systemctl list-timers 'scholarshipcoach-*'` lists four
+      *(2026-11-14: the two files installed by hand, which is bootstrap's timer step without its
+      restart; four timers listed: backup 03:30, rebuild 03:50, catalog-sync 04:15, verify
+      first Sunday 07:00)*
 - [x] All five CI commands green
 
 **Task notes (2026-11-14):**
@@ -223,7 +226,10 @@ python scripts/screenshot_app.py --journeys --scratch-db
   unchanged (0 changed, 0 dead link, 0 blocked, 0 error). No `scholarshipcoach-*` unit failed;
   the only failed unit was `user@0.service`, root's user manager, which is unrelated to the app.
   None of this changed the code.
-- *Still open.* Installing the new unit waits on the deploy.
+- *Installed (2026-11-14).* Deployed `63abf8b`, then the rebuild unit and timer installed and
+  enabled as the admin login. Read the unit's journal with `sudo journalctl -u
+  scholarshipcoach-rebuild`: the admin login is not in `adm`, so without `sudo` the journal
+  shows "No entries".
 - *The notice.* A program gets the plan's wording. A scholarship gets "Confirmed. It's ranked in
   Find now.", since Opportunities lists a scholarship only when it names her grade. When the
   rebuild fails or a guardrail blocks it, the notice is an error: the record is confirmed, the
