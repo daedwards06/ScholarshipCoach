@@ -648,10 +648,10 @@ python scripts/check_watchlist.py --dry-run
 ```
 
 **Checklist:**
-- [ ] `deploy/scholarshipcoach-watch.service` + `.timer`: Sundays 05:30, after discovery and
+- [x] `deploy/scholarshipcoach-watch.service` + `.timer`: Sundays 05:30, after discovery and
       before the monthly verify, `Persistent=true`; in `bootstrap.sh`'s loop; covered by Task
       2.2's deploy tests
-- [ ] Claude drafts the committed entries from pages already named in `docs/operations.md` and
+- [x] Claude drafts the committed entries from pages already named in `docs/operations.md` and
       the six program records' sponsors: the county foundation's listing, the statewide portal's
       dates page, the seven statewide awards, each program's page, two or three university
       pre-college listings from different institutions so no one school stands out. Each opened
@@ -661,9 +661,28 @@ python scripts/check_watchlist.py --dry-run
 - [ ] First run on the server: the baseline is written, nothing proposed. Second run a week
       later: the proposal count and the time to clear the queue are recorded here. If clearing it
       takes more than ten minutes, lower the caps before anything else is added (principle 4)
-- [ ] `docs/operations.md`: "Where local awards come from" now points at the watch list, and says
+- [x] `docs/operations.md`: "Where local awards come from" now points at the watch list, and says
       which sources are still by hand (the postback portal, paper forms)
-- [ ] All five CI commands green
+- [x] All five CI commands green
+
+**Task notes (2026-11-14):**
+- *Timer.* Sundays 05:30, `Persistent=true`, `TimeoutStartSec=1h`; sixth job in `bootstrap.sh`'s
+  loop. `tests/test_deploy_config.py` pins the time between discovery and verify, and its
+  timer-reach checks now cover `check_watchlist.py` (no confirm, no record writes, no deploy).
+- *Entries drafted: 17.* Each page and its robots.txt fetched once with the bot's user agent;
+  every robots.txt allows its page (AFCEA NC has none). Terms read where the site links them
+  (NCAE, UNC Charlotte) and privacy pages elsewhere; none has a clause on automated access.
+  Enabled: 11. Disabled with the reason in `notes`: the three ncsu.edu entries (Space Grant,
+  engineering camps, pre-college listing; ncsu.edu's legal pages answer scripts with an empty
+  202), Girls Who Code (terms render only with JavaScript), and PENC (403 bot challenge, yearly
+  PDFs). "The statewide portal's dates page" was read as FFTC's resources page, which states the
+  next cycle's dates before the postback portal opens.
+- *Two entries went private.* `validate_catalog.py` found a privacy term in two drafted entries,
+  so they live in `data/private/watchlist.json` on the dev PC instead of the committed list; the
+  owner decides whether that stays. The pre-college listings committed are NCSSM's (enabled) and
+  NC State's (disabled), with Duke's page as a single entry.
+- *Dry run, 2026-11-14:* 17 entries, 9 baseline, 8 skipped (5 disabled, 3 out of season),
+  nothing written.
 
 ---
 

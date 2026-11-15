@@ -1,0 +1,17 @@
+# Weekly watch list: re-read the pages local awards and programs live on and
+# propose what changed to the catalog inbox. Started by
+# scholarshipcoach-watch.timer; installed by deploy/bootstrap.sh. Never
+# confirms a proposal or edits a record. Exits non-zero only when a watch list
+# file is unreadable or invalid; findings are in reports/watchlist/.
+[Unit]
+Description=ScholarshipCoach weekly watch list check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=coach
+Group=coach
+WorkingDirectory=/srv/scholarshipcoach
+ExecStart=/srv/scholarshipcoach/.venv/bin/python scripts/check_watchlist.py
+TimeoutStartSec=1h

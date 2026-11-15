@@ -468,8 +468,10 @@ systemctl list-timers scholarshipcoach-discover.timer
 ## Watch list
 
 Local awards and summer programs are in no feed; they sit on a few dozen pages that change a few
-times a year. `scripts/check_watchlist.py` re-reads those pages and proposes what changed. It
-never confirms a proposal and never writes under `data/catalog/records/`.
+times a year. `scripts/check_watchlist.py` re-reads those pages and proposes what changed. On the
+server, `scholarshipcoach-watch.timer` runs it Sundays at 05:30 as `coach`, after discovery and
+before the first-Sunday verify. It never confirms a proposal and never writes under
+`data/catalog/records/`.
 
 **Two lists, one shape.** `data/catalog/watchlist.json` is committed and holds only pages that say
 nothing about her (the county foundation, statewide programs). Her school's counselor page,
@@ -519,16 +521,55 @@ Each real run writes `reports/watchlist/watchlist_<UTC stamp>.json` (per entry: 
 proposals, findings, left-out counts by reason: `known_record`, `previously_rejected`,
 `over_link_cap`, `over_cap`) and the page hashes and listing links in
 `reports/watchlist/watch_state.json`. Both are git-ignored. Exit 0 when the pass ran, whatever it
-found; 1 when a watch list file is unreadable or invalid. The timer and the first entries are
-Task 2.4 of the Freshness & Today Plan.
+found; 1 when a watch list file is unreadable or invalid, which leaves the unit failed in
+`systemctl --failed`.
+
+On the server, as `coach`: `sudo systemctl start scholarshipcoach-watch.service`, then
+`journalctl -u scholarshipcoach-watch -n 50`.
+
+### The committed entries
+
+Drafted 2026-11-14 from the pages named below and the six program records' sponsors. Each page and
+its robots.txt was opened once and the site's terms or privacy page read; what was found is in the
+entry's `terms_note`. Four entries are disabled with the reason in `notes`: the three on ncsu.edu
+(Space Grant, the engineering camps, the pre-college listing), whose legal pages answer scripts
+with an empty 202, and Girls Who Code, whose terms render only with JavaScript. Read those terms
+in a browser, then fill `terms_note` and set `enabled`. PENC stays disabled (403 to scripts,
+yearly PDFs). Two more drafted entries matched the privacy term lists, so they went to
+`data/private/watchlist.json` on the dev PC instead; copy that file to the server with the rest of
+`data/private/`.
+
+### Install the timer on the server
+
+`deploy/bootstrap.sh` installs it with the other timers. By hand, as root after an update has
+merged the unit files:
+
+```bash
+cd /srv/scholarshipcoach
+install -m 644 deploy/scholarshipcoach-watch.service deploy/scholarshipcoach-watch.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now scholarshipcoach-watch.timer
+systemctl list-timers scholarshipcoach-watch.timer
+```
+
+The first run records a baseline for every due entry and proposes nothing.
 
 ---
 
 ## Where local awards come from
 
-Local and state awards have the smallest applicant pools and appear in no aggregator, so they are
-entered by hand: paste the URL into **Catalog → Add Award**, correct what prefill got wrong, and
-confirm. Nothing gets `trust: verified_local` until a person has opened the page that day.
+Local and state awards have the smallest applicant pools and appear in no aggregator. The pages
+below that can be read by a script are on the [watch list](#watch-list): FFTC's cycle dates, the
+statewide awards and the program pages are re-read weekly in their months, and a change arrives as
+an inbox proposal or a finding. The family's own pages (counselor, employers, congregations), and
+any drafted page whose text matches the privacy term lists, go in the private overlay on the
+server, `data/private/watchlist.json`.
+
+Still by hand: FFTC's funds (a postback portal with no page per fund; the watch list only sees its
+cycle dates), PENC (403 to scripts, yearly PDFs), the ncsu.edu and Girls Who Code entries until
+someone reads their terms, and anything posted only as a paper or PDF form or not posted at all.
+For those, paste the URL into **Catalog → Add Award**, correct what prefill got wrong, and confirm.
+Nothing gets `trust: verified_local` until a person has opened the page that day.
 
 ### Local sources (the family's list)
 
