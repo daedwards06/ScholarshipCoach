@@ -128,7 +128,7 @@ def test_rebuild_unit_runs_as_coach_from_repo_root() -> None:
         f"{APP_DIR}/.venv/bin/python scripts/rebuild_snapshot.py --if-stale"
     )
     bootstrap = (DEPLOY_DIR / "bootstrap.sh").read_text(encoding="utf-8")
-    assert bootstrap.count("for job in backup rebuild verify catalog-sync discover; do") == 2
+    assert bootstrap.count("for job in backup rebuild verify catalog-sync discover watch; do") == 2
 
 
 def test_catalog_sync_validates_then_commits_only_records() -> None:
@@ -263,6 +263,22 @@ def test_discover_runs_sundays_at_five_as_coach() -> None:
     assert service["User"] == "coach"
     assert service["WorkingDirectory"] == APP_DIR
     assert service["ExecStart"] == f"{APP_DIR}/.venv/bin/python scripts/discover.py"
+
+
+def test_watch_runs_sundays_between_discovery_and_verify() -> None:
+    discover = _timer("scholarshipcoach-discover.timer")["OnCalendar"].split()[-1]
+    verify = _timer("scholarshipcoach-verify.timer")["OnCalendar"].split()[-1]
+    timer = _timer("scholarshipcoach-watch.timer")
+    assert timer["OnCalendar"] == "Sun *-*-* 05:30:00"
+    assert discover < timer["OnCalendar"].split()[-1] < verify
+    assert timer["Persistent"] == "true"
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
+    parser.optionxform = str  # type: ignore[assignment,method-assign]
+    parser.read(DEPLOY_DIR / "scholarshipcoach-watch.service", encoding="utf-8")
+    service = parser["Service"]
+    assert service["User"] == "coach"
+    assert service["WorkingDirectory"] == APP_DIR
+    assert service["ExecStart"] == f"{APP_DIR}/.venv/bin/python scripts/check_watchlist.py"
 
 
 # Principles 1 and 2 of the Freshness & Today Plan, checked over everything a
@@ -428,7 +444,7 @@ def _string_constants(path: Path) -> list[str]:
 
 
 def test_every_timer_is_found() -> None:
-    jobs = ("backup", "rebuild", "verify", "catalog-sync", "discover")
+    jobs = ("backup", "rebuild", "verify", "catalog-sync", "discover", "watch")
     assert set(_timer_entry_points()) == {f"scholarshipcoach-{job}" for job in jobs}
 
 

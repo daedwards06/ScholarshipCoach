@@ -1,0 +1,12 @@
+# Sundays 05:30 server time: after discovery (05:00), before the monthly
+# verify (first Sunday, 07:00). Persistent=true runs a missed pass at the next
+# boot.
+[Unit]
+Description=Weekly ScholarshipCoach watch list check
+
+[Timer]
+OnCalendar=Sun *-*-* 05:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

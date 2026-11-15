@@ -1,3 +1,169 @@
 {
-  "entries": []
+  "entries": [
+    {
+      "id": "fftc-cycle-dates",
+      "url": "https://www.fftc.org/scholarship_resources_and_faqs",
+      "label": "Foundation For The Carolinas: application cycle dates",
+      "page": "single",
+      "kind": "scholarship",
+      "months": [9, 10, 11, 12],
+      "terms_note": "2026-11-14: robots.txt allows the page; the site links only a privacy policy, read, with no clause on automated access.",
+      "enabled": true,
+      "notes": "Not an award: the page states the next cycle's open and close dates, which post before the postback portal opens. A proposal or finding here means re-check the FFTC records by hand; reject a new-record proposal for the page itself."
+    },
+    {
+      "id": "golden-leaf",
+      "url": "https://scholars.goldenleaf.org/applicants/colleges-universities/",
+      "label": "Golden LEAF Colleges and Universities Scholarship",
+      "page": "single",
+      "kind": "scholarship",
+      "months": [11, 12, 1, 2],
+      "terms_note": "2026-11-14: robots.txt allows the page; no terms of use on the site, only a privacy policy PDF, with no clause on automated access found.",
+      "enabled": true,
+      "notes": null
+    },
+    {
+      "id": "nctech-founders",
+      "url": "https://www.nctech.org/about/education-foundation/scholarships.html",
+      "label": "Betsy Y. Justus NC TECH Founders Scholarship",
+      "page": "single",
+      "kind": "scholarship",
+      "months": [11, 12, 1, 2, 3, 4],
+      "terms_note": "2026-11-14: robots.txt allows the page; the site links no terms or privacy page.",
+      "enabled": true,
+      "notes": null
+    },
+    {
+      "id": "penc-scholarships",
+      "url": "https://www.penc.org/page/scholarships",
+      "label": "PENC scholarships (Engineering Freshman, Harold McKnight)",
+      "page": "listing",
+      "kind": "scholarship",
+      "months": [2, 3, 4],
+      "terms_note": null,
+      "enabled": false,
+      "notes": "Disabled: penc.org answers scripts with a 403 bot challenge, and the applications are yearly PDFs. Re-check by hand each March."
+    },
+    {
+      "id": "ncae-mlk",
+      "url": "https://www.ncae.org/mlkjrscholarshipinfo",
+      "label": "NCAE Dr. Martin Luther King Jr. Scholarship",
+      "page": "single",
+      "kind": "scholarship",
+      "months": [10, 11, 12, 1],
+      "terms_note": "2026-11-14: robots.txt allows the page; terms of use (ncae.org/terms-use) read, no clause on automated access.",
+      "enabled": true,
+      "notes": null
+    },
+    {
+      "id": "nc-space-grant",
+      "url": "https://ncspacegrant.ncsu.edu/higher-ed-opportunities/undergraduate-research-scholarships/",
+      "label": "NC Space Grant Undergraduate Research Scholarship",
+      "page": "single",
+      "kind": "scholarship",
+      "months": [11, 12, 1, 2, 3],
+      "terms_note": null,
+      "enabled": false,
+      "notes": "Disabled until a person reads NC State's terms in a browser: robots.txt allows the page, but ncsu.edu's privacy and policy pages answer scripts with an empty 202."
+    },
+    {
+      "id": "nc-teaching-fellows",
+      "url": "https://myapps.northcarolina.edu/ncteachingfellows/apply/",
+      "label": "North Carolina Teaching Fellows",
+      "page": "single",
+      "kind": "scholarship",
+      "months": [9, 10, 11, 12, 1, 2],
+      "terms_note": "2026-11-14: robots.txt allows the page; the site links no terms or privacy page.",
+      "enabled": true,
+      "notes": null
+    },
+    {
+      "id": "afcea-nc",
+      "url": "https://www.afceanc.org/index.php/education/",
+      "label": "AFCEA North Carolina Chapter graduating senior award",
+      "page": "single",
+      "kind": "scholarship",
+      "months": [1, 2, 3, 4],
+      "terms_note": "2026-11-14: no robots.txt (404); the site links no terms or privacy page.",
+      "enabled": true,
+      "notes": null
+    },
+    {
+      "id": "duke-pre-college",
+      "url": "https://provost.duke.edu/pre-college-programs/",
+      "label": "Duke Pre-College",
+      "page": "single",
+      "kind": "program",
+      "months": [10, 11, 12, 1, 2, 3],
+      "terms_note": "2026-11-14: robots.txt allows the page; duke.edu links no terms of use, and its privacy statement, read, has no clause on automated access.",
+      "enabled": true,
+      "notes": null
+    },
+    {
+      "id": "girls-who-code-pathways",
+      "url": "https://girlswhocode.com/programs/pathways",
+      "label": "Girls Who Code Pathways",
+      "page": "single",
+      "kind": "program",
+      "months": [1, 2, 3, 4, 5],
+      "terms_note": null,
+      "enabled": false,
+      "notes": "Disabled until a person reads the terms in a browser: robots.txt allows the page, but the terms page (hq.girlswhocode.com/terms) renders only with JavaScript."
+    },
+    {
+      "id": "ncssm-accelerator",
+      "url": "https://www.ncssm.edu/summer/summer-accelerator/accelerator-10th-12th",
+      "label": "NCSSM Summer Accelerator (rising 10th-12th)",
+      "page": "single",
+      "kind": "program",
+      "months": [11, 12, 1, 2, 3],
+      "terms_note": "2026-11-14: robots.txt allows the page; the privacy statement, read, has no clause on automated access, and no terms page is linked.",
+      "enabled": true,
+      "notes": null
+    },
+    {
+      "id": "summer-ventures",
+      "url": "https://www.ncssm.edu/summer/summer-ventures/summer-ventures-admissions",
+      "label": "Summer Ventures in Science and Mathematics",
+      "page": "single",
+      "kind": "program",
+      "months": [10, 11, 12, 1, 2],
+      "terms_note": "2026-11-14: robots.txt allows the page; the privacy statement, read, has no clause on automated access, and no terms page is linked.",
+      "enabled": true,
+      "notes": null
+    },
+    {
+      "id": "ncsu-engineering-camps",
+      "url": "https://precollege.ncsu.edu/summer-engineering-residential-camps/",
+      "label": "NC State Summer Engineering Residential Camps",
+      "page": "single",
+      "kind": "program",
+      "months": [11, 12, 1, 2, 3],
+      "terms_note": null,
+      "enabled": false,
+      "notes": "Disabled until a person reads NC State's terms in a browser: robots.txt allows the page, but ncsu.edu's privacy and policy pages answer scripts with an empty 202."
+    },
+    {
+      "id": "ncssm-summer",
+      "url": "https://www.ncssm.edu/summer",
+      "label": "NCSSM summer programs",
+      "page": "listing",
+      "kind": "program",
+      "months": [10, 11, 12, 1, 2],
+      "terms_note": "2026-11-14: robots.txt allows the page; the privacy statement, read, has no clause on automated access, and no terms page is linked.",
+      "enabled": true,
+      "notes": "Listing: a new program page is followed. Programs for grades she has passed come through too; reject them."
+    },
+    {
+      "id": "ncsu-pre-college",
+      "url": "https://precollege.ncsu.edu/",
+      "label": "NC State pre-college programs",
+      "page": "listing",
+      "kind": "program",
+      "months": [11, 12, 1, 2, 3],
+      "terms_note": null,
+      "enabled": false,
+      "notes": "Disabled until a person reads NC State's terms in a browser: robots.txt allows the page, but ncsu.edu's privacy and policy pages answer scripts with an empty 202."
+    }
+  ]
 }
