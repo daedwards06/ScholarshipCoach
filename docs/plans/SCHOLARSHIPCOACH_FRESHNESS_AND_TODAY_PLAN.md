@@ -14,6 +14,20 @@
 
 ---
 
+## Owner follow-ups (open)
+
+Owner steps left behind by tasks that are otherwise done. Claude: when starting any task from
+this plan, list the items below to the owner, and say which are due. Remove an item once its
+task's checklist records it.
+
+| Due | Task | What | Done when |
+|---|---|---|---|
+| Any time | 2.4 | Add the family's own pages (her school's counselor page, employers, congregations) to `data/private/watchlist.json` on the server, each with a dated `terms_note`; then run `check_watchlist.py --dry-run` there | The dry run lists them with `[private]`; the Task 2.4 owner item is checked |
+| After Sun 2026-11-22 05:30 UTC | 2.4 | Second watch run (the timer's): read the proposal count in `journalctl -u scholarshipcoach-watch -n 50`, clear the Inbox and time it | Both numbers are in Task 2.4's notes; over ten minutes means lowering the caps first |
+| Optional | 2.4 | Read NC State's and Girls Who Code's terms in a browser; if they allow it, Claude fills `terms_note` and enables the four disabled entries | The entries are enabled, or the reason they stay off is in `notes` |
+
+---
+
 ## Why this plan exists
 
 Two problems that are one. New opportunities do not arrive unless the owner runs ingest by hand,
@@ -672,7 +686,7 @@ python scripts/check_watchlist.py --dry-run
 - *Entries drafted: 17.* Each page and its robots.txt fetched once with the bot's user agent;
   every robots.txt allows its page (AFCEA NC has none). Terms read where the site links them
   (NCAE, UNC Charlotte) and privacy pages elsewhere; none has a clause on automated access.
-  Enabled: 11. Disabled with the reason in `notes`: the three ncsu.edu entries (Space Grant,
+  Enabled: 12. Disabled with the reason in `notes`: the three ncsu.edu entries (Space Grant,
   engineering camps, pre-college listing; ncsu.edu's legal pages answer scripts with an empty
   202), Girls Who Code (terms render only with JavaScript), and PENC (403 bot challenge, yearly
   PDFs). "The statewide portal's dates page" was read as FFTC's resources page, which states the
@@ -683,6 +697,14 @@ python scripts/check_watchlist.py --dry-run
   NC State's (disabled), with Duke's page as a single entry.
 - *Dry run, 2026-11-14:* 17 entries, 9 baseline, 8 skipped (5 disabled, 3 out of season),
   nothing written.
+- *Owner, 2026-11-15:* confirmed the 17 entries (15 committed, 2 private). Deployed `9393ca1`;
+  the private list copied to the server and read there (dry run: 17 entries, both private ones
+  marked). The family's own pages are not added yet, so the owner item stays open.
+- *First run on the server, 2026-11-15* (by hand, `--ignore-months`, so the three out-of-season
+  entries also have a baseline): 12 baseline, 5 skipped (disabled), nothing proposed, exit 0.
+  Report `reports/watchlist/watchlist_20261115T152627Z.json`. The timer went in from the root
+  login over Tailscale SSH; `systemctl list-timers` shows its next run, the second run, on
+  Sunday 2026-11-22 at 05:30 UTC.
 
 ---
 
